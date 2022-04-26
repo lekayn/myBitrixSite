@@ -1,34 +1,31 @@
 # настройки PHPStorm
 /.idea/
 
-# исключаем кроме некоторых подпапок /bitrix 
-!/bitrix
+# исключаем bitrix core
 /bitrix/*
+!/bitrix/license_key.php
 
-# оставляем печатные формы интернет-магазина
-!/bitrix/admin/
-/bitrix/admin/*
-!/bitrix/admin/reports/
+!/bitrix/templates/
+/bitrix/templates/landing24/
+/bitrix/templates/learning/
 
-# оставляем нестандартные компоненты
 !/bitrix/components/
 /bitrix/components/bitrix/
 
-# оставляем почти весь php_interface
 !/bitrix/php_interface/
-/bitrix/php_interface/dbconn.ph*
+/bitrix/php_interface/dbconn.php
 /bitrix/php_interface/after_connect*
 /bitrix/php_interface/logs/
 
-# сохраняем шаблоны сайта
-!/bitrix/templates/
+/bitrix/admin/*
+!/bitrix/admin/reports/
 
-# исключаем логи 
+# загружаемые файлы
+/upload/
+
+# логи 
 /local/php_interface/logs/
 /local/logs/
-
-# исключаем загружаемые файлы
-/upload/
 
 # различные системные папки и файлы хостингов и ОС
 /cgi-bin/
@@ -75,9 +72,6 @@ ehthumbs.db
 *.sketch
 core.*
 
-# храним robots.txt
-!/robots.txt
-
 # composer
 composer.phar
 /vendor/
@@ -91,3 +85,6 @@ bower_components
 
 #логи xhprof 
 /xhprof/logs
+
+# но храним robots.txt
+!/robots.txt
