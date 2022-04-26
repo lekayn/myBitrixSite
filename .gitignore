@@ -2,21 +2,43 @@
 /.idea/
 
 # исключаем bitrix core
-/bitrix/*
+# configs
+/bitrix/php_interface/dbconn.php
+/bitrix/.settings.php
+/bitrix/.settings_extra.php
+/bitrix/php_interface/after_connect*
+
+# backups
+/bitrix/backup
+!/bitrix/backup/index.php
+
+# logs
+/bitrix/*.log
+/bitrix/modules/updater.log
+/bitrix/modules/updater_partner.log
+/bitrix/php_interface/logs/
+
+# cache 
+/bitrix/cache
+/bitrix/managed_cache
+/bitrix/stack_cache
+/bitrix/html_pages
+
+### exports
+/bitrix/catalog_export
+
 !/bitrix/license_key.php
 
+# templates
 !/bitrix/templates/
 /bitrix/templates/landing24/
 /bitrix/templates/learning/
 
+# components
 !/bitrix/components/
 /bitrix/components/bitrix/
 
-!/bitrix/php_interface/
-/bitrix/php_interface/dbconn.php
-/bitrix/php_interface/after_connect*
-/bitrix/php_interface/logs/
-
+# some things
 /bitrix/admin/*
 !/bitrix/admin/reports/
 
