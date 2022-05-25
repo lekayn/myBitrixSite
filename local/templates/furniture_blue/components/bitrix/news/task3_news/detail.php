@@ -40,22 +40,6 @@
 	$component
 );?>
 <p><a class="article-card__button" href="<?=$arResult["FOLDER"].$arResult["URL_TEMPLATES"]["news"]?>">&larr; <?=GetMessage("T_NEWS_DETAIL_BACK")?></a></p>
-<?if($arParams["USE_RATING"]=="Y" && $ElementID):?>
-<?$APPLICATION->IncludeComponent(
-	"bitrix:iblock.vote",
-	"",
-	Array(
-		"IBLOCK_TYPE" => $arParams["IBLOCK_TYPE"],
-		"IBLOCK_ID" => $arParams["IBLOCK_ID"],
-		"ELEMENT_ID" => $ElementID,
-		"MAX_VOTE" => $arParams["MAX_VOTE"],
-		"VOTE_NAMES" => $arParams["VOTE_NAMES"],
-		"CACHE_TYPE" => $arParams["CACHE_TYPE"],
-		"CACHE_TIME" => $arParams["CACHE_TIME"],
-	),
-	$component
-);?>
-<?endif?>
 <?if($arParams["USE_CATEGORIES"]=="Y" && $ElementID):
 	global $arCategoryFilter;
 	$obCache = new CPHPCache;

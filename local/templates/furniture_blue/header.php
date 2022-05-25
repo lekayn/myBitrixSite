@@ -168,11 +168,13 @@ IncludeTemplateLangFile(__FILE__);
 				</div>
 
 				<div id="workarea">
-					<?
+					<?php
 					//для страниц /news/{0-9}* добавляем класс к h1
 					$page = $APPLICATION->GetCurPage();
 					if (preg_match("/^\/news\/[0-9]/", $page)) : ?>
 						<h1 class="article-card__title" id="pagetitle"><? $APPLICATION->ShowTitle(false); ?></h1>
+					<?php elseif (preg_match("/^\/news\//", $page)) : ?>
+						<h1 id="pagetitle"><?php echo "Новости<br>" ?></h1>
 					<?php else : ?>
 						<h1 id="pagetitle"><? $APPLICATION->ShowTitle(false); ?></h1>
 				<?php endif;
