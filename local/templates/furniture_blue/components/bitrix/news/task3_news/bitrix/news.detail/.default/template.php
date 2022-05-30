@@ -10,7 +10,7 @@
 				<img class="detail_picture" src="<?= $arResult["DETAIL_PICTURE"]["SRC"] ?>" width="<?= $arResult["DETAIL_PICTURE"]["WIDTH"] ?>" height="<?= $arResult["DETAIL_PICTURE"]["HEIGHT"] ?>" alt="<?= $arResult["NAME"] ?>" title="<?= $arResult["NAME"] ?> data-object-fit=" cover"" />
 			</div>
 		<? endif; ?>
-		<div class="article-card__text">
+		<div class="article-card__text"><br>
 			
 
 			<div class="block-content" data-anim="anim-3">

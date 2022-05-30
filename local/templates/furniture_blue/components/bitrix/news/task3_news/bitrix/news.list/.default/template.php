@@ -1,8 +1,5 @@
 <? if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die(); ?>
 <div class="news-list">
-	<? if ($arParams["DISPLAY_TOP_PAGER"]) : ?>
-		<?= $arResult["NAV_STRING"] ?><br />
-	<? endif; ?>
 	<? foreach ($arResult["ITEMS"] as $arItem) : ?>
 		<?
 		$this->AddEditAction($arItem['ID'], $arItem['EDIT_LINK'], CIBlock::GetArrayByID($arParams["IBLOCK_ID"], "ELEMENT_EDIT"));
@@ -11,9 +8,9 @@
 		<div class="news-item " id="<?= $this->GetEditAreaId($arItem['ID']); ?>">
 			<? if ($arParams["DISPLAY_PICTURE"] != "N" && is_array($arItem["PREVIEW_PICTURE"])) : ?>
 				<? if (!$arParams["HIDE_LINK_WHEN_NO_DETAIL"] || ($arItem["DETAIL_TEXT"] && $arResult["USER_HAVE_ACCESS"])) : ?>
-					<a href="<?= $arItem["DETAIL_PAGE_URL"] ?>"><img class="preview_picture" src="<?= $arItem["PREVIEW_PICTURE"]["SRC"] ?>" width="100%" height="<?= $arItem["PREVIEW_PICTURE"]["HEIGHT"] ?>" alt="<?= $arItem["NAME"] ?>" title="<?= $arItem["NAME"] ?>"  /></a>
+					<a href="<?= $arItem["DETAIL_PAGE_URL"] ?>"><img class="preview_picture" src="<?= $arItem["PREVIEW_PICTURE"]["SRC"] ?>" width="100%" height="<?= $arItem["PREVIEW_PICTURE"]["HEIGHT"] ?>" alt="<?= $arItem["NAME"] ?>" title="<?= $arItem["NAME"] ?>" /></a>
 				<? else : ?>
-					<img class="preview_picture" src="<?= $arItem["PREVIEW_PICTURE"]["SRC"] ?>" width="100%" height="<?= $arItem["PREVIEW_PICTURE"]["HEIGHT"] ?>" alt="<?= $arItem["NAME"] ?>" title="<?= $arItem["NAME"] ?>"  />
+					<img class="preview_picture" src="<?= $arItem["PREVIEW_PICTURE"]["SRC"] ?>" width="100%" height="<?= $arItem["PREVIEW_PICTURE"]["HEIGHT"] ?>" alt="<?= $arItem["NAME"] ?>" title="<?= $arItem["NAME"] ?>" />
 				<? endif; ?>
 			<? endif ?>
 			<? if ($arParams["DISPLAY_DATE"] != "N" && $arItem["DISPLAY_ACTIVE_FROM"]) : ?>
