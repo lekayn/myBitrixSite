@@ -12,35 +12,39 @@
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);
 ?>
-<?$APPLICATION->IncludeComponent("bitrix:catalog.section.list", "news.category.list", Array(
-	"ADD_SECTIONS_CHAIN" => "Y",	// Включать раздел в цепочку навигации
-		"CACHE_FILTER" => "N",	// Кешировать при установленном фильтре
-		"CACHE_GROUPS" => "Y",	// Учитывать права доступа
-		"CACHE_TIME" => "36000000",	// Время кеширования (сек.)
-		"CACHE_TYPE" => "N",	// Тип кеширования
-		"COUNT_ELEMENTS" => "Y",	// Показывать количество элементов в разделе
-		"COUNT_ELEMENTS_FILTER" => "CNT_ACTIVE",	// Показывать количество
-		"FILTER_NAME" => "sectionsFilter",	// Имя массива со значениями фильтра разделов
-		"IBLOCK_ID" => $arParams["IBLOCK_ID"],	// Инфоблок
-		"IBLOCK_TYPE" => $arParams["IBLOCK_TYPE"],	// Тип инфоблока
-		"SECTION_CODE" => "",	// Код раздела
-		"SECTION_FIELDS" => array(	// Поля разделов
+<?$APPLICATION->IncludeComponent(
+	"bitrix:catalog.section.list", 
+	"news.category.list", 
+	array(
+		"ADD_SECTIONS_CHAIN" => "Y",
+		"CACHE_FILTER" => "N",
+		"CACHE_GROUPS" => "Y",
+		"CACHE_TIME" => "36000000",
+		"CACHE_TYPE" => "N",
+		"COUNT_ELEMENTS" => "Y",
+		"COUNT_ELEMENTS_FILTER" => "CNT_ACTIVE",
+		"FILTER_NAME" => "sectionsFilter",
+		"IBLOCK_ID" => $arParams["IBLOCK_ID"],
+		"IBLOCK_TYPE" => "news",
+		"SECTION_CODE" => "",
+		"SECTION_FIELDS" => array(
 			0 => "",
 			1 => "",
 		),
-		"SECTION_ID" => $_REQUEST["SECTION_ID"],	// ID раздела
-		"SECTION_URL" => "",	// URL, ведущий на страницу с содержимым раздела
-		"SECTION_USER_FIELDS" => array(	// Свойства разделов
+		"SECTION_ID" => $_REQUEST["SECTION_ID"],
+		"SECTION_URL" => "#CODE#",
+		"SECTION_USER_FIELDS" => array(
 			0 => "",
 			1 => "",
 		),
-		"SHOW_PARENT_NAME" => "Y",	// Показывать название раздела
-		"TOP_DEPTH" => "2",	// Максимальная отображаемая глубина разделов
-		"VIEW_MODE" => "TEXT",	// Вид списка подразделов
-		"COMPONENT_TEMPLATE" => ".default"
+		"SHOW_PARENT_NAME" => "Y",
+		"TOP_DEPTH" => "2",
+		"VIEW_MODE" => "TEXT",
+		"COMPONENT_TEMPLATE" => "news.category.list"
 	),
 	false
 );?>
+
 <?$APPLICATION->IncludeComponent(
 	"bitrix:news.list",
 	"",
