@@ -14,28 +14,7 @@ $IBLOCK_ID = 7;
 $elem = new CIBlockElement;
 $arProps = [];
 
-// получить список элементов инфоблока по фильтру $IBLOCK_ID
-// сохранить в $arProps значения NAME и ID элементов инфоблока в виде: 
-// $arProps[OFFICE][$name] => [$id]
-/*
-$rsElement = CIBlockElement::getList([], ['IBLOCK_ID' => $IBLOCK_ID],
-    false, false, ['ID', 'NAME']);
-while ($ob = $rsElement->GetNextElement()) {
-    $arFields = $ob->GetFields();
-    $key = str_replace(['»', '«', '(', ')'], '', $arFields['NAME']);
-    $key = strtolower($key);
-    $arKey = explode(' ', $key);
-    $key = '';
-    foreach ($arKey as $part) {
-        if (strlen($part) > 2) {
-            $key .= trim($part) . ' ';
-        }
-    }
-    $key = trim($key);
-    $arProps['OFFICE'][$key] = $arFields['ID'];
-}
-// записать свойства элемента инфоблока $IBLOCK_ID в $rsProp
-// затем записать их в $arProps[$property_code][$value] => [$id]
+// записать свойства типа список элемента инфоблока $IBLOCK_ID в $arProps
 $rsProp = CIBlockPropertyEnum::GetList(
     ["SORT" => "ASC", "VALUE" => "ASC"],
     ['IBLOCK_ID' => $IBLOCK_ID]
@@ -45,14 +24,14 @@ while ($arProp = $rsProp->Fetch()) {
     $arProps[$arProp['PROPERTY_CODE']][$key] = $arProp['ID'];
 }
 
-
+/*
 // удалить элементы инфоблока $IBLOCK_ID
 $rsElements = CIBlockElement::GetList([], ['IBLOCK_ID' => $IBLOCK_ID], false, false, ['ID']);
 while ($element = $rsElements->GetNext()) {
     CIBlockElement::Delete($element['ID']);
 }
-
 */
+
 
 if (($handle = fopen($importFile, "r")) !== false) {
     while (($data = fgetcsv($handle, 1000, $separator)) !== false) {
@@ -73,11 +52,20 @@ if (($handle = fopen($importFile, "r")) !== false) {
         $PROP['home_phone'] = $data[10];
         $PROP['login'] = $data[11];
         $PROP['password'] = $data[12];
-    
+
+        $data[13] = strtolower($data[13]);
+        foreach($arProps['marital'] as $key => $value){
+            if($data[13] == $key) {
+                $PROP['marital'] = $value;
+                break;
+            }
+        }
+        
         foreach ($PROP as $key => &$value) {
             $value = trim($value);
             $value = str_replace('\n', '', $value);
         }
+
         $arLoadProductArray = [
             "MODIFIED_BY" => $USER->GetID(),
             "IBLOCK_SECTION_ID" => false,
@@ -92,7 +80,7 @@ if (($handle = fopen($importFile, "r")) !== false) {
         } else {
             echo "Error: " . $elem->LAST_ERROR . '<br>';
         }
+        
     }
     fclose($handle);
 }
-
