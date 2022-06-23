@@ -1,0 +1,335 @@
+message:
+array(21) {
+  ["ACTIVE"]=>
+  string(1) "N"
+  ["MODIFIED_BY"]=>
+  string(1) "1"
+  ["ACTIVE_FROM"]=>
+  string(0) ""
+  ["ACTIVE_TO"]=>
+  string(0) ""
+  ["SORT"]=>
+  string(3) "500"
+  ["NAME"]=>
+  string(67) "Контролёр по движению лесопродукции"
+  ["CODE"]=>
+  string(0) ""
+  ["TAGS"]=>
+  string(0) ""
+  ["PREVIEW_TEXT"]=>
+  string(0) ""
+  ["PREVIEW_TEXT_TYPE"]=>
+  string(4) "text"
+  ["DETAIL_TEXT"]=>
+  string(0) ""
+  ["DETAIL_TEXT_TYPE"]=>
+  string(4) "text"
+  ["TMP_ID"]=>
+  int(0)
+  ["PROPERTY_VALUES"]=>
+  array(0) {
+  }
+  ["IBLOCK_SECTION"]=>
+  array(0) {
+  }
+  ["IPROPERTY_TEMPLATES"]=>
+  array(10) {
+    ["ELEMENT_META_TITLE"]=>
+    string(0) ""
+    ["ELEMENT_META_KEYWORDS"]=>
+    string(0) ""
+    ["ELEMENT_META_DESCRIPTION"]=>
+    string(0) ""
+    ["ELEMENT_PAGE_TITLE"]=>
+    string(0) ""
+    ["ELEMENT_PREVIEW_PICTURE_FILE_ALT"]=>
+    string(0) ""
+    ["ELEMENT_PREVIEW_PICTURE_FILE_TITLE"]=>
+    string(0) ""
+    ["ELEMENT_PREVIEW_PICTURE_FILE_NAME"]=>
+    string(0) ""
+    ["ELEMENT_DETAIL_PICTURE_FILE_ALT"]=>
+    string(0) ""
+    ["ELEMENT_DETAIL_PICTURE_FILE_TITLE"]=>
+    string(0) ""
+    ["ELEMENT_DETAIL_PICTURE_FILE_NAME"]=>
+    string(0) ""
+  }
+  ["WF"]=>
+  string(1) "N"
+  ["SEARCHABLE_CONTENT"]=>
+  string(71) "КОНТРОЛЁР ПО ДВИЖЕНИЮ ЛЕСОПРОДУКЦИИ
+
+"
+  ["ID"]=>
+  int(562)
+  ["IBLOCK_ID"]=>
+  string(1) "4"
+  ["RESULT"]=>
+  &bool(true)
+}
+
+
+message:
+array(25) {
+  ["ACTIVE"]=>
+  string(1) "Y"
+  ["MODIFIED_BY"]=>
+  string(1) "1"
+  ["ACTIVE_FROM"]=>
+  string(10) "15.08.2019"
+  ["ACTIVE_TO"]=>
+  string(0) ""
+  ["SORT"]=>
+  string(3) "500"
+  ["NAME"]=>
+  string(132) "ЭР-Телеком объявляет финансовые результаты за первое полугодие 2019 года."
+  ["CODE"]=>
+  string(54) "er-telekom-obyavlyaet-finansovye-rezultaty-za-2019-god"
+  ["TAGS"]=>
+  string(0) ""
+  ["PREVIEW_TEXT"]=>
+  string(210) "<p>За первое полугодие 2019 года «ЭР-Телеком Холдинг» показал<br>
+                        двузначное увеличение выручки – на 11%</p>"
+  ["PREVIEW_TEXT_TYPE"]=>
+  string(4) "html"
+  ["DETAIL_TEXT"]=>
+  string(970) "<p>За первое полугодие 2019 года «ЭР-Телеком Холдинг» показал
+                        двузначное увеличение выручки – на 11%, по сравнению с аналогичным периодом прошлого года, что
+                        составило
+                        21 438 млн.руб. Прирост произошел в двух бизнес–сегментах – в B2B увеличение на 15%, а в B2C –
+                        на
+                        9%.</p>
+                    <p>Достигнутые результаты наглядно показывают, что развитие компании соответствует заявленной ранее<br>
+                        стратегии.Более подробную информацию можно найти в разделе «Инвесторам».</p>"
+  ["DETAIL_TEXT_TYPE"]=>
+  string(4) "html"
+  ["TMP_ID"]=>
+  int(0)
+  ["PROPERTY_VALUES"]=>
+  array(0) {
+  }
+  ["IBLOCK_SECTION"]=>
+  array(1) {
+    [0]=>
+    int(6)
+  }
+  ["IPROPERTY_TEMPLATES"]=>
+  array(10) {
+    ["ELEMENT_META_TITLE"]=>
+    string(0) ""
+    ["ELEMENT_META_KEYWORDS"]=>
+    string(0) ""
+    ["ELEMENT_META_DESCRIPTION"]=>
+    string(0) ""
+    ["ELEMENT_PAGE_TITLE"]=>
+    string(0) ""
+    ["ELEMENT_PREVIEW_PICTURE_FILE_ALT"]=>
+    string(0) ""
+    ["ELEMENT_PREVIEW_PICTURE_FILE_TITLE"]=>
+    string(0) ""
+    ["ELEMENT_PREVIEW_PICTURE_FILE_NAME"]=>
+    string(0) ""
+    ["ELEMENT_DETAIL_PICTURE_FILE_ALT"]=>
+    string(0) ""
+    ["ELEMENT_DETAIL_PICTURE_FILE_TITLE"]=>
+    string(0) ""
+    ["ELEMENT_DETAIL_PICTURE_FILE_NAME"]=>
+    string(0) ""
+  }
+  ["WF"]=>
+  string(1) "N"
+  ["SEARCHABLE_CONTENT"]=>
+  string(1105) "ЭР-ТЕЛЕКОМ ОБЪЯВЛЯЕТ ФИНАНСОВЫЕ РЕЗУЛЬТАТЫ ЗА ПЕРВОЕ ПОЛУГОДИЕ 2019 ГОДА.
+ЗА ПЕРВОЕ ПОЛУГОДИЕ 2019 ГОДА «ЭР-ТЕЛЕКОМ 
+ХОЛДИНГ» ПОКАЗАЛ
+ДВУЗНАЧНОЕ УВЕЛИЧЕНИЕ ВЫРУЧКИ – НА 11%
+ЗА ПЕРВОЕ ПОЛУГОДИЕ 2019 ГОДА «ЭР-ТЕЛЕКОМ 
+ХОЛДИНГ» ПОКАЗАЛ ДВУЗНАЧНОЕ УВЕЛИЧЕНИЕ ВЫРУЧКИ – НА 11%, ПО СРАВНЕНИЮ С АНАЛОГИЧНЫМ ПЕРИОДОМ ПРОШЛОГО ГОДА, ЧТО СОСТАВИЛО 21 438 МЛН.РУБ. ПРИРОСТ ПРОИЗОШЕЛ В ДВУХ БИЗНЕС–СЕГМЕНТАХ – В B2B УВЕЛИЧЕНИЕ НА 15%, А В B2C – НА 9%. 
+
+ДОСТИГНУТЫЕ РЕЗУЛЬТАТЫ НАГЛЯДНО ПОКАЗЫВАЮТ, 
+ЧТО РАЗВИТИЕ КОМПАНИИ СООТВЕТСТВУЕТ ЗАЯВЛЕННОЙ РАНЕЕ
+СТРАТЕГИИ.БОЛЕЕ ПОДРОБНУЮ ИНФОРМАЦИЮ МОЖНО 
+НАЙТИ В РАЗДЕЛЕ «ИНВЕСТОРАМ»."
+  ["PREVIEW_PICTURE_ID"]=>
+  NULL
+  ["PREVIEW_PICTURE"]=>
+  array(8) {
+    ["name"]=>
+    NULL
+    ["type"]=>
+    NULL
+    ["tmp_name"]=>
+    NULL
+    ["error"]=>
+    int(4)
+    ["size"]=>
+    int(0)
+    ["description"]=>
+    string(0) ""
+    ["MODULE_ID"]=>
+    string(6) "iblock"
+    ["old_file"]=>
+    string(2) "55"
+  }
+  ["DETAIL_PICTURE_ID"]=>
+  NULL
+  ["DETAIL_PICTURE"]=>
+  array(8) {
+    ["name"]=>
+    NULL
+    ["type"]=>
+    NULL
+    ["tmp_name"]=>
+    NULL
+    ["error"]=>
+    int(4)
+    ["size"]=>
+    int(0)
+    ["description"]=>
+    string(0) ""
+    ["MODULE_ID"]=>
+    string(6) "iblock"
+    ["old_file"]=>
+    string(2) "56"
+  }
+  ["ID"]=>
+  int(33)
+  ["IBLOCK_ID"]=>
+  string(1) "5"
+  ["RESULT"]=>
+  &bool(true)
+}
+
+
+Log=string(1) "5"
+
+
+Log:
+array(21) {
+  ["ACTIVE"]=>
+  string(1) "N"
+  ["MODIFIED_BY"]=>
+  string(1) "1"
+  ["ACTIVE_FROM"]=>
+  string(0) ""
+  ["ACTIVE_TO"]=>
+  string(0) ""
+  ["SORT"]=>
+  string(3) "500"
+  ["NAME"]=>
+  string(67) "Контролер по движению лесопродукции"
+  ["CODE"]=>
+  string(0) ""
+  ["TAGS"]=>
+  string(0) ""
+  ["PREVIEW_TEXT"]=>
+  string(0) ""
+  ["PREVIEW_TEXT_TYPE"]=>
+  string(4) "text"
+  ["DETAIL_TEXT"]=>
+  string(0) ""
+  ["DETAIL_TEXT_TYPE"]=>
+  string(4) "text"
+  ["TMP_ID"]=>
+  int(0)
+  ["PROPERTY_VALUES"]=>
+  array(0) {
+  }
+  ["IBLOCK_SECTION"]=>
+  array(0) {
+  }
+  ["IPROPERTY_TEMPLATES"]=>
+  array(10) {
+    ["ELEMENT_META_TITLE"]=>
+    string(0) ""
+    ["ELEMENT_META_KEYWORDS"]=>
+    string(0) ""
+    ["ELEMENT_META_DESCRIPTION"]=>
+    string(0) ""
+    ["ELEMENT_PAGE_TITLE"]=>
+    string(0) ""
+    ["ELEMENT_PREVIEW_PICTURE_FILE_ALT"]=>
+    string(0) ""
+    ["ELEMENT_PREVIEW_PICTURE_FILE_TITLE"]=>
+    string(0) ""
+    ["ELEMENT_PREVIEW_PICTURE_FILE_NAME"]=>
+    string(0) ""
+    ["ELEMENT_DETAIL_PICTURE_FILE_ALT"]=>
+    string(0) ""
+    ["ELEMENT_DETAIL_PICTURE_FILE_TITLE"]=>
+    string(0) ""
+    ["ELEMENT_DETAIL_PICTURE_FILE_NAME"]=>
+    string(0) ""
+  }
+  ["WF"]=>
+  string(1) "N"
+  ["SEARCHABLE_CONTENT"]=>
+  string(71) "КОНТРОЛЕР ПО ДВИЖЕНИЮ ЛЕСОПРОДУКЦИИ
+
+"
+  ["ID"]=>
+  int(562)
+  ["IBLOCK_ID"]=>
+  string(1) "4"
+  ["RESULT"]=>
+  &bool(true)
+}
+
+Start log=string(14) "Новости"
+
+
+Start log=string(27) "Детская мебель"
+
+
+Start log=string(12) "Диваны"
+
+
+Start log=string(30) "Мебель для кухни"
+
+
+Start log=string(25) "Мягкая мебель"
+
+
+Continue log=string(23) "Новые товары"
+
+
+Continue log=string(12) "Диваны"
+
+
+Start log=string(23) "Новые товары"
+
+
+Continue log=string(12) "Диваны"
+
+
+Start log=string(27) "Офисная мебель"
+
+
+Start log=string(27) "Детская мебель"
+
+
+Start log=string(12) "Диваны"
+
+
+Start log=string(30) "Мебель для кухни"
+
+
+Start log=string(25) "Мягкая мебель"
+
+
+Continue log=string(23) "Новые товары"
+
+
+Continue log=string(12) "Диваны"
+
+
+Start log=string(23) "Новые товары"
+
+
+Continue log=string(12) "Диваны"
+
+
+Start log=string(27) "Офисная мебель"
+
+
