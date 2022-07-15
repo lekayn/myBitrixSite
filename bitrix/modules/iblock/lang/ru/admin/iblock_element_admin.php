@@ -1,4 +1,4 @@
-<?
+<?php
 $MESS["IBEL_A_SECTIONS"] = "Разделы";
 $MESS["IBLOCK_EL_ADMIN_DESC"] = "Описание:";
 $MESS["IBLOCK_EL_ADMIN_DCREATE"] = "Дата создания";
@@ -64,7 +64,9 @@ $MESS["IBEL_CATALOG_AVAILABLE"] = "Доступность";
 $MESS["IBEL_CATALOG_AVAILABLE_TITLE_EXT"] = "Доступность товара (не эквивалентна возможности покупки)";
 $MESS["IBEL_CATALOG_BUNDLE"] = "Наличие набора";
 $MESS["IBEL_CATALOG_QUANTITY_EXT"] = "Доступное количество";
+$MESS["IBEL_CATALOG_QUANTITY_NEW_CARD"] = "Доступный остаток";
 $MESS["IBEL_CATALOG_QUANTITY_RESERVED"] = "Зарезервировано";
+$MESS["IBEL_CATALOG_QUANTITY_RESERVED_NEW_CARD"] = "В резерве";
 $MESS["IBEL_CATALOG_QUANTITY_TRACE"] = "Уменьшать количество при заказе";
 $MESS["IBEL_CATALOG_QUANTITY_TRACE_EXT"] = "Количественный учет";
 $MESS["IBEL_CATALOG_CAN_BUY_ZERO"] = "Покупка при отсутствии";
@@ -134,7 +136,6 @@ $MESS["IBEL_CATALOG_HEIGHT"] = "Высота (мм)";
 $MESS["IBEL_CATALOG_EXTRA_DESCRIPTION"] = "Наценка #VALUE# к базовой цене";
 $MESS["IBEL_SECTIONS_LINK_TITLE"] = "Перейти к элементам раздела";
 $MESS["IBEL_LIST_TITLE"] = "#IBLOCK_NAME#: Список товаров";
-$MESS["IBEL_LIST_ERR_PRODUCT_LIMIT"] = "Превышено ограничение на количество товаров, используемых в лендингах. В каталоге найдено #COUNT# таких товаров (лимит - #LIMIT#).";
 $MESS["IBEL_PRODUCTS_INSTAGRAM"] = "Товары Instagram";
 $MESS["IBEL_CATALOG_SKU_PRICE"] = "от #PRICE#";
 $MESS["IBEL_CATALOG_EMPTY_VALUE"] = "не выбрано";
@@ -142,4 +143,3 @@ $MESS["IBEL_CATALOG_DEFAULT"] = "(по умолчанию)";
 $MESS["IBEL_ERR_BUILDER_ADSENT"] = "Не найден генератор ссылок.";
 $MESS["IBEL_A_CATALOG_PRODUCT"] = "Товар";
 $MESS["IBEL_A_CATALOG_PRODUCT_TITLE"] = "Товар";
-?>

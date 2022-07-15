@@ -1,10 +1,10 @@
 <?php
 
 use Bitrix\Main;
-use Bitrix\Main\Engine\Response\Converter;
 use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Sale;
+use Bitrix\Sale\Cashbox;
 use Bitrix\Catalog;
 
 if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
@@ -217,9 +217,9 @@ class SaleOrderCheckout extends \CBitrixComponent
 
 	private function prepareResultArray(): void
 	{
-		if ($this->arParams['USER_CONSENT'] === 'Y')
+		if ($this->arParams['USER_CONSENT'] === 'Y' && $this->order)
 		{
-			$this->obtainUserConsentInfo();
+			$this->obtainUserConsentInfo($this->order);
 		}
 
 		if ($this->arParams['IS_LANDING_SHOP'] === 'Y' && $this->arParams['CONTEXT_SITE_ID'])
@@ -333,7 +333,7 @@ class SaleOrderCheckout extends \CBitrixComponent
 		}
 	}
 
-	protected function initTradeBinding(Sale\Order $order, $contextSiteId): void
+	private function initTradeBinding(Sale\Order $order, $contextSiteId): void
 	{
 		if (!Loader::includeModule('landing'))
 		{
@@ -399,7 +399,7 @@ class SaleOrderCheckout extends \CBitrixComponent
 			}
 		}
 
-		return $order;
+		return $order ?: null;
 	}
 
 	private function prepareJsonData(): void
@@ -438,10 +438,41 @@ class SaleOrderCheckout extends \CBitrixComponent
 			'PARAMETERS' => $this->getParameters(),
 		];
 
+		$jsonData = $this->onComponentSaleOrderCheckoutPrepareJsonDataEvent($jsonData);
+
+		$sku = [];
+		$basket = $jsonData['SCHEME']['BASKET'];
+		foreach ($basket as $index => $item)
+		{
+			if (empty($item['SKU']))
+			{
+				$sku[$index] = [];
+			}
+			else
+			{
+				$sku[$index]['tree'] = $item['SKU']['TREE'];
+				$sku[$index]['parentProductId'] = $item['SKU']['PARENT_PRODUCT_ID'];
+			}
+
+			unset($basket[$index]['SKU']);
+		}
+
+		$jsonData['SCHEME']['BASKET'] = $basket;
+
 		foreach ($jsonData as $key => $data)
 		{
-			$this->arResult['JSON_DATA'][$key] = Converter::toJson()->process($data);
+			$jsonData[$key] = Main\Engine\Response\Converter::toJson()->process($data);
 		}
+
+		$basket = $jsonData['SCHEME']['basket'];
+		foreach ($sku as $index => $value)
+		{
+			$basket[$index]['sku'] = $value;
+		}
+
+		$jsonData['SCHEME']['basket'] = $basket;
+
+		$this->arResult['JSON_DATA'] = $jsonData;
 	}
 
 	private function getModel(array $aggregateData = []): array
@@ -516,12 +547,14 @@ class SaleOrderCheckout extends \CBitrixComponent
 			'PROPERTIES' => [],
 			'TOTAL' => [],
 			'DISCOUNT' => [],
+			'PAYMENTS' => [],
+			'CHECK' => []
 		];
 
 		if (!empty($aggregateData['PAY_SYSTEMS']))
 		{
 			$scheme['PAY_SYSTEMS'] = array_values(array_filter($aggregateData['PAY_SYSTEMS'], static function ($paySystem) {
-				return $paySystem['ACTION_FILE'] !== 'inner';
+				return ($paySystem['ACTION_FILE'] !== 'inner');
 			}));
 
 			array_walk($scheme['PAY_SYSTEMS'], static function(&$item){
@@ -556,6 +589,7 @@ class SaleOrderCheckout extends \CBitrixComponent
 					'RATIO' => $basketItem['CATALOG_PRODUCT']['RATIO'],
 					'CHECK_MAX_QUANTITY' => $basketItem['CATALOG_PRODUCT']['CHECK_MAX_QUANTITY'],
 				],
+				'SKU' => $basketItem['CATALOG_PRODUCT']['SKU'],
 			];
 		}
 
@@ -579,6 +613,32 @@ class SaleOrderCheckout extends \CBitrixComponent
 			'SUM' => $orderPriceTotal['BASKET_PRICE_DISCOUNT_DIFF_VALUE'],
 		];
 
+		$culture = Main\Context::getCurrent()->getCulture();
+
+		foreach ($aggregateData['PAYMENTS'] as $payment)
+		{
+			$scheme['PAYMENTS'][] = [
+				'ID' => $payment['ID'],
+				'SUM' => $payment['SUM'],
+				'PAID' => $payment['PAID'],
+				'CURRENCY' => $payment['CURRENCY'],
+				'PAY_SYSTEM_ID' => $payment['PAY_SYSTEM_ID'],
+				'ACCOUNT_NUMBER' => $payment['ACCOUNT_NUMBER'],
+				'DATE_BILL_FORMATTED' => \FormatDate($culture->getLongDateFormat(), $payment['DATE_BILL']->getTimestamp()),
+			];
+		}
+
+		foreach ($aggregateData['CHECKS'] as $check)
+		{
+			$scheme['CHECK'][] = [
+				'ID' => $check['ID'],
+				'DATE_FORMATTED' => \FormatDate($culture->getLongDateFormat(), $check['DATE_CREATE']->getTimestamp()),
+				'LINK' => $check['LINK'],
+				'STATUS' => $check['STATUS'],
+				'PAYMENT_ID' => $check['PAYMENT_ID']
+			];
+		}
+
 		return $scheme;
 	}
 
@@ -591,34 +651,13 @@ class SaleOrderCheckout extends \CBitrixComponent
 		return $parameters;
 	}
 
-	private function obtainUserConsentInfo(): void
+	private function obtainUserConsentInfo(Sale\Order $order): void
 	{
 		$propertyNames = [];
 
-		$propertyIterator = Sale\Property::getList([
-			'select' => ['NAME'],
-			'filter' => [
-				'ACTIVE' => 'Y',
-				'UTIL' => 'N',
-				'PERSON_TYPE_SITE.SITE_ID' => $this->getSiteId(),
-			],
-			'order' => [
-				'SORT' => 'ASC',
-				'ID' => 'ASC',
-			],
-			'runtime' => [
-				new Main\Entity\ReferenceField(
-					'PERSON_TYPE_SITE',
-					'Bitrix\Sale\Internals\PersonTypeSiteTable',
-					[
-						'=this.PERSON_TYPE_ID' => 'ref.PERSON_TYPE_ID',
-					]
-				),
-			],
-		]);
-		while ($property = $propertyIterator->fetch())
+		foreach ($order->getPropertyCollection() as $property)
 		{
-			$propertyNames[] = $property['NAME'];
+			$propertyNames[] = $property->getName();
 		}
 
 		$this->arResult['USER_CONSENT_PROPERTY_DATA'] = $propertyNames;
@@ -647,7 +686,14 @@ class SaleOrderCheckout extends \CBitrixComponent
 			{
 				/** @var Catalog\v2\Product\Product $parent */
 				$parent = $product->getParent();
-				$basketItems[$item]['DETAIL_PAGE_URL'] = $parent->getDetailUrl();
+				if ($parent instanceof Catalog\v2\Product\Product)
+				{
+					$basketItems[$item]['DETAIL_PAGE_URL'] = $parent->getDetailUrl();
+				}
+				else
+				{
+					$basketItems[$item]['DETAIL_PAGE_URL'] = '';
+				}
 			}
 		}
 
@@ -696,9 +742,10 @@ class SaleOrderCheckout extends \CBitrixComponent
 		$personType = Sale\Internals\BusinessValuePersonDomainTable::getList([
 			'select' => ['PERSON_TYPE_ID'],
 			'filter' => [
-				'DOMAIN' => Sale\BusinessValue::INDIVIDUAL_DOMAIN,
-				'PERSON_TYPE_REFERENCE.ENTITY_REGISTRY_TYPE' => Sale\Registry::REGISTRY_TYPE_ORDER,
-				'PERSON_TYPE_REFERENCE.LID' => $siteId,
+				'=DOMAIN' => Sale\BusinessValue::INDIVIDUAL_DOMAIN,
+				'=PERSON_TYPE_REFERENCE.ENTITY_REGISTRY_TYPE' => Sale\Registry::REGISTRY_TYPE_ORDER,
+				'=PERSON_TYPE_REFERENCE.LID' => $siteId,
+				'=PERSON_TYPE_REFERENCE.ACTIVE' => 'Y',
 			],
 			'order' => [
 				'PERSON_TYPE_REFERENCE.SORT' => 'ASC'
@@ -706,7 +753,7 @@ class SaleOrderCheckout extends \CBitrixComponent
 			'limit' => 1,
 		])->fetch();
 
-		$personTypeId = !empty($personType['PERSON_TYPE_ID']) ? (int)$personType['PERSON_TYPE_ID'] : null;
+		$personTypeId = $personType ? (int)$personType['PERSON_TYPE_ID'] : null;
 
 		$result[$siteId] = $personTypeId;
 
@@ -730,5 +777,16 @@ class SaleOrderCheckout extends \CBitrixComponent
 				$resolveType = 'UNDEFINED';
 		}
 		return $resolveType;
+	}
+
+	private function onComponentSaleOrderCheckoutPrepareJsonDataEvent(array $jsonData): array
+	{
+		$eventResult = GetModuleEvents('sale', 'onComponentSaleOrderCheckoutPrepareJsonData');
+		while ($event = $eventResult->fetch())
+		{
+			ExecuteModuleEventEx($event, [&$jsonData]);
+		}
+
+		return $jsonData;
 	}
 }

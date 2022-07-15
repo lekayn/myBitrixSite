@@ -320,10 +320,14 @@ abstract class CAllMain
 		}
 
 		if($show_epilog)
+		{
 			include($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/include/epilog".$isAdmin.".php");
+		}
 
 		if($do_die)
+		{
 			die();
+		}
 	}
 
 	public function ShowAuthForm($message)
@@ -377,9 +381,9 @@ abstract class CAllMain
 				$arUser = $rsUser->Fetch();
 				if($arUser)
 				{
-					$arPolicy = CUser::GetGroupPolicy($arUser["ID"]);
-					$POLICY_ATTEMPTS = intval($arPolicy["LOGIN_ATTEMPTS"]);
-					$USER_ATTEMPTS = intval($arUser["LOGIN_ATTEMPTS"]);
+					$policy = CUser::getPolicy($arUser["ID"]);
+					$POLICY_ATTEMPTS = (int)$policy->getLoginAttempts();
+					$USER_ATTEMPTS = (int)$arUser["LOGIN_ATTEMPTS"];
 				}
 			}
 			$session["BX_LOGIN_NEED_CAPTCHA_LOGIN"] = [
@@ -473,7 +477,7 @@ abstract class CAllMain
 			{
 				if (isset($arTraceRes['class']) && isset($arTraceRes['function']))
 				{
-					if (ToUpper($arTraceRes['class']) == 'CBITRIXCOMPONENT' && ToUpper($arTraceRes['function']) == 'INCLUDECOMPONENT' && is_object($arTraceRes['object']))
+					if (strtoupper($arTraceRes['class']) == 'CBITRIXCOMPONENT' && strtoupper($arTraceRes['function']) == 'INCLUDECOMPONENT' && is_object($arTraceRes['object']))
 					{
 						/** @var CBitrixComponent $comp */
 						$comp = $arTraceRes['object'];
@@ -2836,23 +2840,27 @@ abstract class CAllMain
 	// Returns string with images to spread cookies
 	public function GetSpreadCookieHTML()
 	{
-		$res = "";
-		if(
-			!$this->HoldSpreadCookieHTML()
+		$res = '';
+		$request = Main\Context::getCurrent()->getRequest();
+
+		if (
+			$request->isHttps()
+			&& !$this->HoldSpreadCookieHTML()
 			&& COption::GetOptionString("main", "ALLOW_SPREAD_COOKIE", "Y") == "Y"
 		)
 		{
-			foreach($this->GetSpreadCookieUrls() as $url)
+			foreach ($this->GetSpreadCookieUrls() as $url)
 			{
-				$res .= "new Image().src='".CUtil::JSEscape($url)."';\n";
+				$res .= "new Image().src='" . CUtil::JSEscape($url) . "';\n";
 				$this->HoldSpreadCookieHTML(true);
 			}
 		}
 
 		if ($res)
-			return "<script>".$res."</script>";
-		else
-			return "";
+		{
+			return '<script>' . $res . '</script>';
+		}
+		return '';
 	}
 
 	/**
@@ -3012,7 +3020,7 @@ abstract class CAllMain
 	{
 		if(isset($this->arPanelButtons[$button_id]))
 		{
-			if(!is_array($this->arPanelButtons[$button_id]['MENU']))
+			if(!isset($this->arPanelButtons[$button_id]['MENU']))
 				$this->arPanelButtons[$button_id]['MENU'] = array();
 			$this->arPanelButtons[$button_id]['MENU'][] = $arMenuItem;
 		}
@@ -4091,17 +4099,7 @@ class CAllSite
 
 	public static function GetDefList()
 	{
-		global $DB;
-
-		$strSql =
-			"SELECT L.*, L.LID as ID, L.LID as SITE_ID, ".
-			"	C.FORMAT_DATE, C.FORMAT_DATETIME, C.FORMAT_NAME, C.WEEK_START, C.CHARSET, C.DIRECTION ".
-			"FROM b_lang L, b_culture C ".
-			"WHERE C.ID=L.CULTURE_ID AND L.ACTIVE='Y' ".
-			"ORDER BY L.DEF desc, L.SORT";
-
-		$sl = $DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
-		return $sl;
+		return static::GetList('def_list', 'asc', ['ACTIVE' => 'Y']);
 	}
 
 	public static function GetSiteDocRoot($site)
@@ -4223,6 +4221,7 @@ class CAllSite
 			SELECT ".($bIncDomain ? " DISTINCT " : "")."
 				L.*,
 				L.LID ID,
+				L.LID SITE_ID,
 				".$DB->Length("L.DIR").",
 				".$DB->IsNull($DB->Length("L.DOC_ROOT"), "0").",
 				C.FORMAT_DATE, C.FORMAT_DATETIME, C.FORMAT_NAME, C.WEEK_START, C.CHARSET, C.DIRECTION
@@ -4237,12 +4236,34 @@ class CAllSite
 		$by = strtolower($by);
 		$order = strtolower($order);
 
-		if($by == "lid" || $by=="id")	$strSqlOrder = " ORDER BY L.LID ";
-		elseif($by == "active")			$strSqlOrder = " ORDER BY L.ACTIVE ";
-		elseif($by == "name")			$strSqlOrder = " ORDER BY L.NAME ";
-		elseif($by == "dir")			$strSqlOrder = " ORDER BY L.DIR ";
-		elseif($by == "lendir")			$strSqlOrder = " ORDER BY ".$DB->IsNull($DB->Length("L.DOC_ROOT"), "0").($order=="desc"? " desc":"").", ".$DB->Length("L.DIR");
-		elseif($by == "def")			$strSqlOrder = " ORDER BY L.DEF ";
+		if($by == "lid" || $by=="id")
+		{
+			$strSqlOrder = " ORDER BY L.LID ";
+		}
+		elseif($by == "active")
+		{
+			$strSqlOrder = " ORDER BY L.ACTIVE ";
+		}
+		elseif($by == "name")
+		{
+			$strSqlOrder = " ORDER BY L.NAME ";
+		}
+		elseif($by == "dir")
+		{
+			$strSqlOrder = " ORDER BY L.DIR ";
+		}
+		elseif($by == "lendir")
+		{
+			$strSqlOrder = " ORDER BY ".$DB->IsNull($DB->Length("L.DOC_ROOT"), "0").($order=="desc"? " desc":"").", ".$DB->Length("L.DIR");
+		}
+		elseif($by == "def")
+		{
+			$strSqlOrder = " ORDER BY L.DEF ";
+		}
+		elseif($by == "def_list")
+		{
+			$strSqlOrder = " ORDER BY L.DEF desc, L.SORT ";
+		}
 		else
 		{
 			$strSqlOrder = " ORDER BY L.SORT ";

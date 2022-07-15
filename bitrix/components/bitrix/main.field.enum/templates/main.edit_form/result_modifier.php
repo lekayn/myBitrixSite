@@ -2,18 +2,46 @@
 
 if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
 
+/** @var array $arResult */
+
 use Bitrix\Main\Page\Asset;
 use Bitrix\Main\UserField\Types\EnumType;
-use Bitrix\Main\Web\Json;
 
 if(
 	($arResult['userField']['ENTITY_VALUE_ID'] < 1)
-	&&
-	mb_strlen($arResult['userField']['SETTINGS']['DEFAULT_VALUE'])
 )
 {
-	$arResult['additionalParameters']['VALUE'] =
-		(int)$arResult['userField']['SETTINGS']['DEFAULT_VALUE'];
+	if ($arResult['userField']['MULTIPLE'] === 'Y')
+	{
+		if (!empty($arResult['userField']['SETTINGS']['DEFAULT_VALUE']))
+		{
+			if (is_array($arResult['userField']['SETTINGS']['DEFAULT_VALUE']))
+			{
+				$arResult['additionalParameters']['VALUE'] = [];
+				foreach ($arResult['userField']['SETTINGS']['DEFAULT_VALUE'] as $value)
+				{
+					$arResult['additionalParameters']['VALUE'][] = (int)$value;
+				}
+				$arResult['additionalParameters']['VALUE'] = array_unique($arResult['additionalParameters']['VALUE']);
+			}
+			else
+			{
+				$arResult['additionalParameters']['VALUE'] =
+					(int)$arResult['userField']['SETTINGS']['DEFAULT_VALUE'];
+			}
+		}
+	}
+	else
+	{
+		if(
+			isset($arResult['userField']['SETTINGS']['DEFAULT_VALUE'])
+			&& $arResult['userField']['SETTINGS']['DEFAULT_VALUE'] !== ''
+		)
+		{
+			$arResult['additionalParameters']['VALUE'] =
+				(int)$arResult['userField']['SETTINGS']['DEFAULT_VALUE'];
+		}
+	}
 }
 
 if($arResult['userField']['SETTINGS']['DISPLAY'] === EnumType::DISPLAY_UI)
@@ -107,8 +135,13 @@ if($arResult['userField']['SETTINGS']['DISPLAY'] === EnumType::DISPLAY_UI)
 	$arResult['block'] = $block;
 	$arResult['fieldNameJs'] = \CUtil::JSEscape($arResult['fieldName']);
 
+	\CJSCore::Init(['ui']);
+	\Bitrix\Main\UI\Extension::load([
+		'ui.entity-selector',
+	]);
+
 	Asset::getInstance()->addJs(
-		'/bitrix/components/bitrix/main.field.enum/templates/main.edit/desktop.js'
+		'/bitrix/components/bitrix/main.field.enum/templates/main.edit/dist/display.bundle.js'
 	);
 }
 elseif($arResult['userField']['SETTINGS']['DISPLAY'] === EnumType::DISPLAY_LIST)

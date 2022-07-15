@@ -8,6 +8,7 @@ use Bitrix\Main\Type\DateTime;
 use Bitrix\Main\Web\Json;
 use Bitrix\Main\IO\File;
 use Bitrix\Disk\Driver;
+use Bitrix\Rest\Configuration\Core\StorageTable;
 use Bitrix\Disk\Internals\ObjectTable;
 use CTempFile;
 use CFile;
@@ -16,6 +17,7 @@ class Structure
 {
 	public const CODE_CONFIGURATION_FILES_LIST = 'CONFIGURATION_FILES_LIST';
 	public const CODE_FILES_LIST = 'FILES_LIST';
+	public const CODE_FILES_SMALL_LIST = 'FILES_SMALL_LIST';
 	public const CODE_UNPACK_FILE_PREFIX = 'UNPACK_FILE_';
 	public const CODE_CUSTOM_FILE = 'CUSTOM_FILE_';
 	private static $maxAgentTime = 10;
@@ -35,6 +37,7 @@ class Structure
 		$this->setting = new Setting($context);
 		$this->setting->addMultipleCode(self::CODE_CONFIGURATION_FILES_LIST);
 		$this->setting->addMultipleCode(self::CODE_FILES_LIST);
+		$this->setting->addMultipleCode(self::CODE_FILES_SMALL_LIST);
 	}
 
 	/**
@@ -45,7 +48,7 @@ class Structure
 	public function getFolder()
 	{
 		$folder = $this->setting->get('FOLDER');
-		if(empty($folder))
+		if (empty($folder))
 		{
 			$folder = CTempFile::GetDirectoryName(
 				4,
@@ -54,7 +57,7 @@ class Structure
 					uniqid($this->context, true)
 				]
 			);
-			if(CheckDirPath($folder))
+			if (CheckDirPath($folder))
 			{
 				$this->setting->set('FOLDER', $folder);
 			}
@@ -81,11 +84,11 @@ class Structure
 
 		try
 		{
-			if(is_array($content))
+			if (is_array($content))
 			{
 				$content = Json::encode($content);
 			}
-			elseif(!is_string($content))
+			elseif (!is_string($content))
 			{
 				return $return;
 			}
@@ -102,7 +105,7 @@ class Structure
 				'configuration/export'
 			);
 
-			if($id > 0)
+			if ($id > 0)
 			{
 				$return = $this->saveConfigurationFile($id, $path);
 			}
@@ -171,7 +174,7 @@ class Structure
 	{
 		$result = false;
 		$fileContent = File::getFileContents($fileInfo["tmp_name"]);
-		if($fileContent)
+		if ($fileContent)
 		{
 			$type = (in_array($fileInfo["type"], $this->zipMimeType)) ? 'ZIP' : 'TAR.GZ';
 			$folder = $this->getFolder();
@@ -180,7 +183,7 @@ class Structure
 			File::putFileContents($filePath, $fileContent);
 			$archive = \CBXArchive::GetArchive($filePath, $type);
 			$res = $archive->Unpack($folder);
-			if($res)
+			if ($res)
 			{
 				$this->initUnpackFilesList();
 				$result = true;
@@ -191,16 +194,69 @@ class Structure
 		return $result;
 	}
 
+	/**
+	 * @param $content
+	 * @return bool
+	 */
+	public function unpackSmallFiles($content): bool
+	{
+		$result = true;
+		try
+		{
+			$files = Json::decode($content);
+			if (is_array($files))
+			{
+				$folder = $this->getFolder();
+				foreach ($files as $file)
+				{
+					if (!empty($file['CONTENT']))
+					{
+						$id = (int)$file['ID'];
+						if ($id > 0)
+						{
+							File::putFileContents(
+								$folder . Helper::STRUCTURE_FILES_NAME . '/' . $id,
+								base64_decode($file['CONTENT'])
+							);
+							unset($file['CONTENT']);
+							if (File::isFileExists($folder . Helper::STRUCTURE_FILES_NAME . '/' . $id))
+							{
+								$file['PATH'] = $folder . Helper::STRUCTURE_FILES_NAME . '/' . $id;
+								$this->setting->set(self::CODE_UNPACK_FILE_PREFIX . $id, $file);
+							}
+						}
+					}
+				}
+			}
+		}
+		catch (\Exception $e)
+		{
+			$result = false;
+		}
+
+		return $result;
+	}
+
 	private function initUnpackFilesList()
 	{
 		$folder = $this->getFolder();
-		if(File::isFileExists($folder.Helper::STRUCTURE_FILES_NAME.Helper::CONFIGURATION_FILE_EXTENSION))
+		if (File::isFileExists($folder . Helper::STRUCTURE_SMALL_FILES_NAME . Helper::CONFIGURATION_FILE_EXTENSION))
+		{
+			$content = File::getFileContents(
+				$folder
+				. Helper::STRUCTURE_SMALL_FILES_NAME
+				. Helper::CONFIGURATION_FILE_EXTENSION
+			);
+			$this->unpackSmallFiles($content);
+		}
+
+		if (File::isFileExists($folder.Helper::STRUCTURE_FILES_NAME.Helper::CONFIGURATION_FILE_EXTENSION))
 		{
 			$content = File::getFileContents($folder.Helper::STRUCTURE_FILES_NAME.Helper::CONFIGURATION_FILE_EXTENSION);
 			try
 			{
 				$files = Json::decode($content);
-				if(is_array($files))
+				if (is_array($files))
 				{
 					foreach ($files as $file)
 					{
@@ -220,6 +276,28 @@ class Structure
 	}
 
 	/**
+	 * Adds files list to current context
+	 * @param array $filesInfo
+	 * @param array $files
+	 *
+	 * @return bool
+	 */
+	public function addFileList(array $filesInfo, array $files): bool
+	{
+		foreach ($filesInfo as $file)
+		{
+			$id = (int) $file['ID'];
+			if ($id > 0 && $files[$id])
+			{
+				$file['PATH'] = $files[$id];
+				$this->setting->set(self::CODE_UNPACK_FILE_PREFIX . $id, $file);
+			}
+		}
+
+		return true;
+	}
+
+	/**
 	 * Set Disk work folder with external files
 	 * @param $folderId
 	 * @param $storageParams
@@ -229,14 +307,14 @@ class Structure
 	public function setUnpackFilesFromDisk($folderId, $storageParams)
 	{
 		$result = false;
-		if(Loader::includeModule('disk'))
+		if (Loader::includeModule('disk'))
 		{
 			try
 			{
 				$storage = Driver::getInstance()->addStorageIfNotExist(
 					$storageParams
 				);
-				if($storage)
+				if ($storage)
 				{
 					$folder = $storage->getChild(
 						[
@@ -323,6 +401,25 @@ class Structure
 	}
 
 	/**
+	 * Saves smalls files on import.
+	 * @param $info
+	 * @param $content
+	 */
+	public function addSmallFile($info, $content)
+	{
+		$info['CONTENT'] = base64_encode($content);
+		$this->setting->set(self::CODE_FILES_SMALL_LIST, $info);
+	}
+
+	/**
+	 * @return array|mixed|null
+	 */
+	public function listSmallFile()
+	{
+		return $this->setting->get(self::CODE_FILES_SMALL_LIST);
+	}
+
+	/**
 	 * Set export archive name
 	 * @param $name string [a-zA-Z0-9_] new name archive
 	 *
@@ -332,7 +429,7 @@ class Structure
 	{
 		$result = false;
 		$name = preg_replace('/[^a-zA-Z0-9_]/', '', $name);
-		if(!empty($name))
+		if (!empty($name))
 		{
 			$result = $this->setting->set(Setting::SETTING_EXPORT_ARCHIVE_NAME, $name);
 		}
@@ -364,7 +461,8 @@ class Structure
 			[
 				'filter' => [
 					'<CREATE_TIME' => $deleteDate
-				]
+				],
+				'limit' => 100,
 			]
 		);
 		while ($item = $res->fetch())

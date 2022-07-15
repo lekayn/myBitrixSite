@@ -12,12 +12,13 @@ use Bitrix\Iblock\PropertyTable;
 use Bitrix\UI\EntitySelector\BaseProvider;
 use Bitrix\UI\EntitySelector\Dialog;
 use Bitrix\UI\EntitySelector\Item;
+use Bitrix\UI\EntitySelector\RecentItem;
 use Bitrix\UI\EntitySelector\SearchQuery;
 
 class ProductProvider extends BaseProvider
 {
-	private const PRODUCT_LIMIT = 20;
-	private const PRODUCT_ENTITY_ID = 'product';
+	protected const PRODUCT_LIMIT = 20;
+	protected const ENTITY_ID = 'product';
 
 	public function __construct(array $options = [])
 	{
@@ -25,6 +26,13 @@ class ProductProvider extends BaseProvider
 
 		$this->options['iblockId'] = (int)($options['iblockId'] ?? 0);
 		$this->options['basePriceId'] = (int)($options['basePriceId'] ?? 0);
+		$this->options['currency'] = $options['currency'] ;
+		$this->options['restrictedProductTypes'] =
+			is_array($options['restrictedProductTypes'])
+				? $options['restrictedProductTypes']
+				: null
+		;
+		$this->options['showPriceInCaption'] = (bool)($options['showPriceInCaption'] ?? true);
 	}
 
 	public function isAvailable(): bool
@@ -66,7 +74,39 @@ class ProductProvider extends BaseProvider
 
 	public function fillDialog(Dialog $dialog): void
 	{
-		$recentItemsCount = count($dialog->getRecentItems()->getEntityItems(self::PRODUCT_ENTITY_ID));
+		$dialog->loadPreselectedItems();
+
+		if ($dialog->getItemCollection()->count() > 0)
+		{
+			foreach ($dialog->getItemCollection() as $item)
+			{
+				$dialog->addRecentItem($item);
+			}
+		}
+
+		$recentItems = $dialog->getRecentItems()->getEntityItems(self::ENTITY_ID);
+		$recentItemsCount = count($recentItems);
+		if ($this->options['restrictedProductTypes'] !== null && $recentItemsCount > 0)
+		{
+			$ids = [];
+			foreach ($recentItems as $recentItem)
+			{
+				$ids[] = $recentItem->getId();
+			}
+
+			$products = $this->getProductsByIds($ids);
+			/** @var RecentItem $recentItem */
+			foreach ($recentItems as $recentItem)
+			{
+				if (!isset($products[$recentItem->getId()]))
+				{
+					$recentItem->setAvailable(false);
+					$recentItemsCount--;
+				}
+			}
+		}
+
+		$recentItemsCount = count($dialog->getRecentItems()->getEntityItems(self::ENTITY_ID));
 
 		if ($recentItemsCount < self::PRODUCT_LIMIT)
 		{
@@ -79,6 +119,7 @@ class ProductProvider extends BaseProvider
 
 	public function doSearch(SearchQuery $searchQuery, Dialog $dialog): void
 	{
+		$searchQuery->setCacheable(false);
 		$products = $this->getProductsBySearchString($searchQuery->getQuery());
 
 		if (!empty($products))
@@ -108,23 +149,40 @@ class ProductProvider extends BaseProvider
 			'PARENT_SEARCH_PROPERTIES' => true,
 			'PARENT_PREVIEW_TEXT' => true,
 			'PARENT_DETAIL_TEXT' => true,
+			'BARCODE' => true,
 		]));
 
 		return new Item([
 			'id' => $product['ID'],
-			'entityId' => self::PRODUCT_ENTITY_ID,
+			'entityId' => static::ENTITY_ID,
 			'title' => $product['NAME'],
 			'supertitle' => $product['SKU_PROPERTIES'],
-			'caption' => [
-				'text' => $product['PRICE'],
-				'type' => 'html',
-			],
+			'subtitle' => $this->getSubtitle($product),
+			'caption' => $this->getCaption($product),
 			'avatar' => $product['IMAGE'],
 			'customData' => $customData,
 		]);
 	}
 
-	private function getIblockId()
+	protected function getSubtitle(array $product): string
+	{
+		return $product['BARCODE'] ?? '';
+	}
+
+	protected function getCaption(array $product): array
+	{
+		if (!$this->shouldDisplayPriceInCaption())
+		{
+			return [];
+		}
+
+		return [
+			'text' => $product['PRICE'],
+			'type' => 'html',
+		];
+	}
+
+	protected function getIblockId()
 	{
 		return $this->getOptions()['iblockId'];
 	}
@@ -134,7 +192,17 @@ class ProductProvider extends BaseProvider
 		return $this->getOptions()['basePriceId'];
 	}
 
-	private function getIblockInfo(): ?IblockInfo
+	private function getCurrency()
+	{
+		return $this->getOptions()['currency'];
+	}
+
+	private function shouldDisplayPriceInCaption()
+	{
+		return $this->getOptions()['showPriceInCaption'];
+	}
+
+	protected function getIblockInfo(): ?IblockInfo
 	{
 		static $iblockInfo = null;
 
@@ -162,7 +230,7 @@ class ProductProvider extends BaseProvider
 		return Tools::getImageSrc($file, true) ?: null;
 	}
 
-	private function getProductsByIds(array $ids): array
+	protected function getProductsByIds(array $ids): array
 	{
 		[$productIds, $offerIds] = $this->separateOffersFromProducts($ids);
 
@@ -244,7 +312,7 @@ class ProductProvider extends BaseProvider
 		return $sorted;
 	}
 
-	private function getProductsBySearchString(string $searchString = ''): array
+	protected function getProductsBySearchString(string $searchString = ''): array
 	{
 		$iblockInfo = $this->getIblockInfo();
 		if (!$iblockInfo)
@@ -257,6 +325,14 @@ class ProductProvider extends BaseProvider
 
 		if ($searchString !== '')
 		{
+			$simpleProductFilter = [
+				[
+					'LOGIC' => 'OR',
+					'*SEARCHABLE_CONTENT' => $searchString,
+					'PRODUCT_BARCODE' => $searchString . '%',
+				]
+			];
+
 			if ($iblockInfo->canHaveSku())
 			{
 				$productFilter[] = [
@@ -270,22 +346,25 @@ class ProductProvider extends BaseProvider
 						'IBLOCK_ID' => $iblockInfo->getSkuIblockId(),
 						'*SEARCHABLE_CONTENT' => $searchString,
 					]),
+					'PRODUCT_BARCODE' => $searchString . '%',
 				];
-				$offerFilter['*SEARCHABLE_CONTENT'] = $searchString;
+
+				$offerFilter = $simpleProductFilter;
 			}
 			else
 			{
-				$productFilter['*SEARCHABLE_CONTENT'] = $searchString;
+				$productFilter[] = $simpleProductFilter;
 			}
 		}
 
 		return $this->getProducts([
 			'filter' => $productFilter,
 			'offer_filter' => $offerFilter,
+			'searchString' => $searchString,
 		]);
 	}
 
-	private function getProducts(array $parameters = []): array
+	protected function getProducts(array $parameters = []): array
 	{
 		$iblockInfo = $this->getIblockInfo();
 		if (!$iblockInfo)
@@ -295,11 +374,31 @@ class ProductProvider extends BaseProvider
 
 		$productFilter = (array)($parameters['filter'] ?? []);
 		$offerFilter = (array)($parameters['offer_filter'] ?? []);
+		$shouldLoadOffers = (bool)($parameters['load_offers'] ?? true);
+
+		$additionalProductFilter = ['IBLOCK_ID' => $iblockInfo->getProductIblockId()];
+		if ($this->options['restrictedProductTypes'] !== null)
+		{
+			$filteredTypes = array_intersect(
+				$this->options['restrictedProductTypes'],
+				[
+					\Bitrix\Catalog\ProductTable::TYPE_PRODUCT,
+					\Bitrix\Catalog\ProductTable::TYPE_SET,
+					\Bitrix\Catalog\ProductTable::TYPE_SKU,
+					\Bitrix\Catalog\ProductTable::TYPE_OFFER,
+					\Bitrix\Catalog\ProductTable::TYPE_FREE_OFFER,
+					\Bitrix\Catalog\ProductTable::TYPE_EMPTY_SKU,
+				]
+			);
+
+			if (count($filteredTypes) > 0)
+			{
+				$additionalProductFilter['!=TYPE'] = $filteredTypes;
+			}
+		}
 
 		$products = $this->loadElements([
-			'filter' => array_merge($productFilter, [
-				'IBLOCK_ID' => $iblockInfo->getProductIblockId(),
-			]),
+			'filter' => array_merge($productFilter, $additionalProductFilter),
 			'limit' => self::PRODUCT_LIMIT,
 		]);
 		if (empty($products))
@@ -309,12 +408,17 @@ class ProductProvider extends BaseProvider
 
 		$products = $this->loadProperties($products, $iblockInfo->getProductIblockId(), $iblockInfo);
 
-		if ($iblockInfo->canHaveSku())
+		if ($shouldLoadOffers && $iblockInfo->canHaveSku())
 		{
 			$products = $this->loadOffers($products, $iblockInfo, $offerFilter);
 		}
 
 		$products = $this->loadPrices($products);
+
+		if ($parameters['searchString'])
+		{
+			$products = $this->loadBarcodes($products, $parameters['searchString']);
+		}
 
 		return $products;
 	}
@@ -477,8 +581,62 @@ class ProductProvider extends BaseProvider
 		while ($price = $priceTableResult->fetch())
 		{
 			$productId = $variationToProductMap[$price['PRODUCT_ID']];
-			$formattedPrice = \CCurrencyLang::CurrencyFormat($price['PRICE'], $price['CURRENCY'], true);
+
+			$priceValue = $price['PRICE'];
+			$currency = $price['CURRENCY'];
+			if (!empty($this->getCurrency()) && $this->getCurrency() !== $currency)
+			{
+				$priceValue = \CCurrencyRates::ConvertCurrency($priceValue, $currency, $this->getCurrency());
+				$currency = $this->getCurrency();
+			}
+
+			$formattedPrice = \CCurrencyLang::CurrencyFormat($priceValue, $currency, true);
 			$elements[$productId]['PRICE'] = $formattedPrice;
+		}
+
+		return $elements;
+	}
+
+	private function loadBarcodes(array $elements, string $searchString): array
+	{
+		if (empty($elements))
+		{
+			return [];
+		}
+
+		$variationToProductMap = [];
+		foreach ($elements as $id => $element)
+		{
+			$element['BARCODE'] = null;
+			$variationToProductMap[$element['ID']] = $id;
+		}
+
+		$variationIds = array_keys($variationToProductMap);
+
+		if (empty($variationIds))
+		{
+			return $elements;
+		}
+
+		$barcodeRaw = \Bitrix\Catalog\StoreBarcodeTable::getList([
+			'filter' => [
+				'=PRODUCT_ID' => $variationIds,
+				'BARCODE' => $searchString . '%'
+			],
+			'select' => ['BARCODE', 'PRODUCT_ID']
+		]);
+
+		while ($barcode = $barcodeRaw->fetch())
+		{
+			$variationId = $barcode['PRODUCT_ID'];
+			$productId = $variationToProductMap[$variationId];
+
+			if (!isset($productId))
+			{
+				continue;
+			}
+
+			$elements[$productId]['BARCODE'] = $barcode['BARCODE'];
 		}
 
 		return $elements;
@@ -541,7 +699,10 @@ class ProductProvider extends BaseProvider
 		$skuTreeProperties = null;
 		if ($iblockInfo->getSkuIblockId() === $iblockId)
 		{
-			$skuTreeProperties = array_map('intval', PropertyCatalogFeature::getOfferTreePropertyCodes($iblockId) ?? []);
+			$skuTreeProperties = array_map(
+				'intval',
+				PropertyCatalogFeature::getOfferTreePropertyCodes($iblockId) ?? []
+			);
 			if (!empty($skuTreeProperties))
 			{
 				$propertyIds = array_merge($propertyIds, $skuTreeProperties);
@@ -707,7 +868,7 @@ class ProductProvider extends BaseProvider
 		return array_map('intval', array_column($properties, 'ID'));
 	}
 
-	private function shouldDisableCache(array $products): bool
+	protected function shouldDisableCache(array $products): bool
 	{
 		if (count($products) >= self::PRODUCT_LIMIT)
 		{

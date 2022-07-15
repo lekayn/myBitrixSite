@@ -51,6 +51,8 @@ export class BaseField extends EventEmitter
 		this.property = Type.isString(this.data.property) ? this.data.property : '';
 		this.style = Reflect.has(this.data, 'style') ? this.data.style : '';
 		this.cache = new Cache.MemoryCache();
+		this.contentRoot = Reflect.has(this.data, 'contentRoot') ? this.data.contentRoot : null;
+		this.readyToSave = true;    // false - if data not loaded yet
 
 		const {onValueChange} = this.data;
 		this.onValueChangeHandler = Type.isFunction(onValueChange) ? onValueChange : (() => {});
@@ -72,14 +74,7 @@ export class BaseField extends EventEmitter
 			Dom.addClass(this.layout, this.className);
 		}
 
-		if (
-			Type.isString(this.descriptionText)
-			&& this.descriptionText !== ''
-		)
-		{
-			this.description = BaseField.createDescription(this.descriptionText);
-			Dom.append(this.description, this.layout);
-		}
+		this.setDescription(this.descriptionText);
 
 		if (this.data.disabled === true)
 		{
@@ -89,11 +84,43 @@ export class BaseField extends EventEmitter
 		Event.bind(this.input, 'paste', this.onPaste);
 
 		this.init();
+
+		if (this.data.help)
+		{
+			BX.Dom.append(top.BX.UI.Hint.createNode(this.data.help), this.header);
+			top.BX.UI.Hint.init(BX.Landing.UI.Panel.StylePanel.getInstance().layout);
+		}
 	}
 
 	setTitle(title: string)
 	{
 		this.header.innerHTML = Text.encode(title);
+	}
+
+	getDescription(): ?HTMLDivElement
+	{
+		return this.layout.querySelector('.landing-ui-field-description');
+	}
+
+	setDescription(description: string)
+	{
+		if (
+			Type.isString(description)
+			&& description !== ''
+		)
+		{
+			this.descriptionText = description;
+			this.description = BaseField.createDescription(this.descriptionText);
+			Dom.remove(this.getDescription());
+			Dom.append(this.description, this.layout);
+		}
+	}
+
+	removeDescription()
+	{
+		Dom.remove(this.getDescription());
+		this.description = null;
+		this.descriptionText = '';
 	}
 
 	createInput(): HTMLDivElement
@@ -179,6 +206,7 @@ export class BaseField extends EventEmitter
 		});
 
 		this.emit('change', event);
+		this.emit('onChange', event);
 	}
 
 	enable()
@@ -195,6 +223,7 @@ export class BaseField extends EventEmitter
 
 	// eslint-disable-next-line class-methods-use-this
 	reset() {}
+	onFrameLoad() {}
 
 	clone(data): BaseField
 	{
@@ -211,5 +240,34 @@ export class BaseField extends EventEmitter
 	setLayoutClass(className: string)
 	{
 		Dom.addClass(this.layout, className);
+	}
+
+	/**
+	 * If field has inline style-properties (f.e. css variables) - get name of them
+ 	 * @returns {string[]}
+	 */
+	getInlineProperties(): [string]
+	{
+		return [];
+	}
+
+	/**
+	 * If field need match computed styles by node - get name of style properties
+	 * @returns {string[]}
+	 */
+	getComputedProperties(): [string]
+	{
+		// todo: get from typeSetting
+		return [];
+	}
+
+	/**
+	 * If field work with pseudo element - return them (f.e. :after)
+	 * @returns {?string}
+	 */
+	getPseudoElement(): ?string
+	{
+		// todo: from type settings
+		return null;
 	}
 }

@@ -315,7 +315,19 @@ class EventHandler
 
 		return $list;
 	}
-
+	public static function onSenderConsentMessageBuildersList(): array
+	{
+		$list = [];
+		$list[] = 'Bitrix\Sender\Integration\Sender\Mail\ConsentBuilderMail';
+		$list[] = 'Bitrix\Sender\Integration\Sender\Mail\TestConsentBuilderMail';
+		return $list;
+	}
+	public static function onSenderConsentResponseList(): array
+	{
+		$list = [];
+		$list[] = 'Bitrix\Sender\Integration\Sender\Mail\ConsentResponseMail';
+		return $list;
+	}
 	/**
 	 * Handler of event sender/onSenderTransportList.
 	 *
@@ -389,7 +401,7 @@ class EventHandler
 		if (Bitrix24\Service::isCloud() && isset($data['fields']['STATUS']))
 		{
 			$oldRow = LetterTable::getRowById($data['primary']['ID']);
-			$updatedBy = isset($data['fields']['UPDATED_BY']) ? $data['fields']['UPDATED_BY'] : $oldRow['UPDATED_BY'];
+			$updatedBy = $data['fields']['UPDATED_BY'] ?? $oldRow['UPDATED_BY'];
 
 			if (in_array($data['fields']['STATUS'], Dispatch\Semantics::getWorkStates()))
 			{
@@ -416,6 +428,11 @@ class EventHandler
 
 				if (!$letter->getMessage()->isAvailable())
 				{
+					if ($letter->getState()->isWaiting() || $letter->getState()->isSending())
+					{
+						$letter->stop();
+					}
+
 					$result->addError(
 						new MainEntity\EntityError(
 							Loc::getMessage("SENDER_LETTER_ONBEFOREUPDATE_ERROR_FEATURE_NOT_AVAILABLE"), 'FEATURE_NOT_AVAILABLE'

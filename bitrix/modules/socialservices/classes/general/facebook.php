@@ -49,7 +49,7 @@ class CSocServFacebook extends CSocServAuth
 		if($urlPreviewEnable === 'Y')
 		{
 			$result[] = ['facebook_instagram_url_preview_enable', Loc::getMessage('socserv_fb_instagram_url_preview'), '', ['checkbox']];
-			$result[] = ['note' => Loc::getMessage('socserv_fb_sett_note_oembed')];
+			$result[] = ['note' => Loc::getMessage('socserv_fb_sett_note_oembed_2')];
 		}
 
 		return $result;
@@ -198,7 +198,7 @@ class CSocServFacebook extends CSocServAuth
 		$url = ($APPLICATION->GetCurDir() == "/login/") ? "" : $APPLICATION->GetCurDir();
 		$aRemove = array("logout", "auth_service_error", "auth_service_id", "code", "error_reason", "error", "error_description", "check_key", "current_fieldset");
 
-		if(isset($_REQUEST["state"]))
+		if(isset($_REQUEST["state"]) && $bSuccess)
 		{
 			$arState = array();
 			parse_str($_REQUEST["state"], $arState);
@@ -369,7 +369,6 @@ class CFacebookInterface extends CSocServOAuthTransport
 
 	protected $scope = array(
 		"email",
-		"user_friends",
 	);
 
 	public function __construct($appID = false, $appSecret = false, $code=false)

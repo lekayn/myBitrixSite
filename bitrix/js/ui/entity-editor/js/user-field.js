@@ -39,6 +39,8 @@ if(typeof BX.UI.EntityUserFieldManager === "undefined")
 
 		this._enableMandatoryControl = true;
 		this._config = null;
+
+		this._contextParams = {};
 	};
 	BX.UI.EntityUserFieldManager.prototype =
 	{
@@ -53,6 +55,7 @@ if(typeof BX.UI.EntityUserFieldManager === "undefined")
 			this._creationSignature = BX.prop.getString(this._settings, "creationSignature", "");
 			this._creationPageUrl = BX.prop.getString(this._settings, "creationPageUrl", "");
 			this._enableMandatoryControl = BX.prop.getBoolean(this._settings, "enableMandatoryControl", true);
+			this._contextParams = BX.prop.getObject(this._settings, "contextParams", {});
 
 			//region Bind EntityEditorControlFactory Method
 			if(typeof BX.UI.EntityEditorControlFactory !== "undefined")
@@ -267,8 +270,14 @@ if(typeof BX.UI.EntityUserFieldManager === "undefined")
 				{
 					fieldData["SETTINGS"] = {};
 				}
+			}
 
-				fieldData["SETTINGS"]["DISPLAY"] = "UI";
+			if(
+				typeId === BX.UI.EntityUserFieldType.enumeration
+				|| typeId === BX.UI.EntityUserFieldType.crmStatus
+			)
+			{
+				fieldData["SETTINGS"]["DISPLAY"] = (fieldData["SETTINGS"]["DISPLAY"] || "UI");
 			}
 
 			if(typeId === BX.UI.EntityUserFieldType.boolean)
@@ -290,6 +299,8 @@ if(typeof BX.UI.EntityUserFieldManager === "undefined")
 
 				fieldData["SETTINGS"]["PRECISION"] = 2;
 			}
+
+			fieldData["CONTEXT_PARAMS"] = this._contextParams;
 
 			if(mode === BX.UI.EntityEditorMode.view)
 			{
@@ -639,6 +650,8 @@ if(typeof BX.UI.EntityEditorUserField === "undefined")
 
 		this._isLoaded = false;
 		this._focusOnLoad = false;
+
+		this.isClickBinded = false;
 	};
 
 	BX.extend(BX.UI.EntityEditorUserField, BX.UI.EntityEditorField);
@@ -1060,9 +1073,10 @@ if(typeof BX.UI.EntityEditorUserField === "undefined")
 		if(fieldType === BX.UI.EntityUserFieldType.employee)
 		{
 			var button = this._innerWrapper.querySelector('.feed-add-destination-link');
-			if(button)
+			if(button && this.isClickBinded)
 			{
 				BX.bind(button, "click", BX.delegate(this.onEmployeeSelectorOpen, this));
+				this.isClickBinded = true;
 			}
 		}
 
@@ -1680,6 +1694,47 @@ if(typeof BX.UI.EntityEditorUserFieldConfigurator === "undefined")
 		);
 	};
 
+	BX.UI.EntityEditorUserFieldConfigurator.prototype.layoutInnerConfigurator = function(innerConfig, listItems, nextNode)
+	{
+		if (
+			BX.Type.isPlainObject(innerConfig)
+			&& BX.Type.isArray(listItems)
+			&& this._enumConfigurator === null
+		)
+		{
+			var enums = [];
+
+			for (var i = 0; i < listItems.length; i++)
+			{
+				enums.push({
+					ID: listItems[i]["VALUE"],
+					VALUE: listItems[i]["NAME"],
+					XML_ID: ""
+				});
+			}
+
+			var fieldSettings = this._settings.field._schemeElement._data.fieldInfo.SETTINGS;
+			var showDisplaySettings = false;
+
+			if (this._typeId === BX.UI.EntityUserFieldType.enumeration)
+			{
+				showDisplaySettings = true;
+			}
+
+			this._enumConfigurator = BX.UI.EntityEditorEnumConfigurator.create({
+				enumInfo: {
+					enumItems: enums,
+					innerConfig: innerConfig,
+				},
+				wrapper: this._wrapper,
+				nextNode: (BX.Type.isDomNode(nextNode) ? nextNode : null),
+				display: (fieldSettings ? fieldSettings.DISPLAY : null),
+				showDisplaySettings: showDisplaySettings,
+			});
+			this._enumConfigurator.layout();
+		}
+	}
+
 	BX.UI.EntityEditorUserFieldConfigurator.prototype.layoutInternal = function()
 	{
 		this._wrapper.appendChild(this.getInputContainer());
@@ -1690,9 +1745,12 @@ if(typeof BX.UI.EntityEditorUserFieldConfigurator === "undefined")
 			{
 				var fieldInfo = (this._field) ? this._field.getFieldInfo() : {};
 				var enums = BX.prop.getArray(fieldInfo, "ENUM", []);
+				var settings = BX.prop.getObject(fieldInfo, 'SETTINGS', null);
 				this._enumConfigurator = BX.UI.EntityEditorUserFieldEnumConfigurator.create({
 					enumInfo: { enumItems: enums },
-					wrapper: this._wrapper
+					wrapper: this._wrapper,
+					display: (settings ? settings.DISPLAY : null),
+					showDisplaySettings: true,
 				});
 				this._enumConfigurator.layout();
 			}
@@ -1761,10 +1819,6 @@ if(typeof BX.UI.EntityEditorUserFieldConfigurator === "undefined")
 					}.bind(this)
 				);
 			}
-			else
-			{
-				console.error("Invalid field inner configuration.");
-			}
 		}
 	};
 
@@ -1794,7 +1848,7 @@ if(typeof BX.UI.EntityEditorUserFieldConfigurator === "undefined")
 
 		if(this._typeId !== "boolean")
 		{
-			if(this._enableMandatoryControl)
+			if(this.getEditor().canChangeCommonConfiguration() && this._enableMandatoryControl)
 			{
 				if(this._mandatoryConfigurator)
 				{
@@ -1831,7 +1885,7 @@ if(typeof BX.UI.EntityEditorUserFieldConfigurator === "undefined")
 
 		//region Show Always
 		this._showAlwaysCheckBox = this.createOption(
-			{ caption: BX.message("UI_ENTITY_EDITOR_SHOW_ALWAYS"), helpUrl: "https://helpdesk.bitrix24.ru/open/7046149/", helpCode: "9627471" }
+			{ caption: BX.message("UI_ENTITY_EDITOR_SHOW_ALWAYS"), helpCode: "9627471" }
 		);
 		this._showAlwaysCheckBox.checked = isNew
 			? BX.prop.getBoolean(this._settings, "showAlways", true)
@@ -1854,6 +1908,7 @@ if(typeof BX.UI.EntityEditorUserFieldConfigurator === "undefined")
 		{
 			params["innerConfig"] = (this._field) ? this._field.getInnerConfig() : {};
 			params["enumeration"] = this._enumConfigurator.prepareSaveParams();
+			params['display'] = this._enumConfigurator.getDisplaySelectValue();
 		}
 
 		if (this._field)

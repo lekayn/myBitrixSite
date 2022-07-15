@@ -1,4 +1,4 @@
-<?
+<?php
 $MESS["IBLIST_A_BAD_BLOCK_TYPE_ID"] = "Неверный тип блока.";
 $MESS["IBLIST_A_BAD_IBLOCK"] = "Информационный блок не найден или доступ к нему запрещен.";
 $MESS["IBLIST_A_SECTIONS"] = "Разделы";
@@ -41,7 +41,9 @@ $MESS["IBLIST_A_CATALOG_AVAILABLE"] = "Доступность";
 $MESS["IBLIST_A_CATALOG_AVAILABLE_TITLE_EXT"] = "Доступность товара (не эквивалентна возможности покупки)";
 $MESS["IBLIST_A_CATALOG_BUNDLE"] = "Наличие набора";
 $MESS["IBLIST_A_CATALOG_QUANTITY_EXT"] = "Доступное количество";
+$MESS["IBLIST_A_CATALOG_QUANTITY_NEW_CARD"] = "Доступный остаток";
 $MESS["IBLIST_A_CATALOG_QUANTITY_RESERVED"] = "Зарезервировано";
+$MESS["IBLIST_A_CATALOG_QUANTITY_RESERVED_NEW_CARD"] = "В резерве";
 $MESS["IBLIST_A_CATALOG_QUANTITY_TRACE"] = "Уменьшать количество при заказе";
 $MESS["IBLIST_A_CATALOG_QUANTITY_TRACE_EXT"] = "Количественный учет";
 $MESS["IBLIST_A_CATALOG_CAN_BUY_ZERO"] = "Покупка при отсутствии";
@@ -153,7 +155,6 @@ $MESS["IBLIST_A_CATALOG_WIDTH"] = "Ширина (мм)";
 $MESS["IBLIST_A_CATALOG_LENGTH"] = "Длина (мм)";
 $MESS["IBLIST_A_CATALOG_HEIGHT"] = "Высота (мм)";
 $MESS["IBLIST_A_CATALOG_EXTRA_DESCRIPTION"] = "Наценка #VALUE# к базовой цене";
-$MESS["IBLIST_A_ERR_PRODUCT_LIMIT"] = "Превышено ограничение на количество товаров, используемых в лендингах. В каталоге найдено #COUNT# таких товаров (лимит - #LIMIT#).";
 $MESS["IBLIST_PRODUCTS_INSTAGRAM"] = "Товары Instagram";
 $MESS["IBLIST_A_CATALOG_SKU_PRICE"] = "от #PRICE#";
 $MESS["IBLIST_A_CATALOG_EMPTY_VALUE"] = "не выбрано";
@@ -161,4 +162,3 @@ $MESS["IBLIST_A_CATALOG_DEFAULT"] = "(по умолчанию)";
 $MESS["IBLIST_A_ERR_BUILDER_ADSENT"] = "Не найден генератор ссылок.";
 $MESS["IBLIST_A_CATALOG_PRODUCT"] = "Товар";
 $MESS["IBLIST_A_CATALOG_PRODUCT_TITLE"] = "Товар";
-?>

@@ -1,12 +1,20 @@
-(function (exports,main_core,main_core_events,main_loader) {
+(function (exports,main_core,main_core_events) {
 	'use strict';
 
 	var ImageInput = /*#__PURE__*/function () {
+	  babelHelpers.createClass(ImageInput, null, [{
+	    key: "getById",
+	    value: function getById(id) {
+	      return ImageInput.imageInputInstances.get(id) || null;
+	    }
+	  }]);
+
 	  function ImageInput(id) {
 	    var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
 	    babelHelpers.classCallCheck(this, ImageInput);
 	    babelHelpers.defineProperty(this, "onUploaderIsInitedHandler", this.handleOnUploaderIsInited.bind(this));
 	    babelHelpers.defineProperty(this, "values", new Map());
+	    babelHelpers.defineProperty(this, "newValues", new Map());
 	    this.id = id;
 	    this.wrapper = BX(id);
 	    this.productId = options.productId;
@@ -14,6 +22,15 @@
 	    this.iblockId = options.iblockId;
 	    this.saveable = options.saveable;
 	    this.inputId = options.inputId;
+	    this.ajaxStatus = ImageInput.WAIT_STATUS;
+
+	    if (options.hideAddButton === true) {
+	      var addButton = this.wrapper.querySelector('[data-role="image-add-button"]');
+
+	      if (main_core.Type.isDomNode(addButton)) {
+	        addButton.style.display = 'none';
+	      }
+	    }
 
 	    if (main_core.Type.isObject(options.values)) {
 	      for (var key in options.values) {
@@ -28,6 +45,8 @@
 	    if (this.isSaveable()) {
 	      main_core_events.EventEmitter.subscribe('onUploaderIsInited', this.onUploaderIsInitedHandler);
 	    }
+
+	    ImageInput.imageInputInstances.set(this.id, this);
 	  }
 
 	  babelHelpers.createClass(ImageInput, [{
@@ -47,6 +66,7 @@
 	        this.uploaderFieldMap = new Map();
 	        main_core_events.EventEmitter.subscribe(uploader, 'onFileIsDeleted', this.onFileDelete.bind(this));
 	        main_core_events.EventEmitter.subscribe(uploader, 'onFileIsUploaded', this.onFileUpload.bind(this));
+	        main_core_events.EventEmitter.subscribe(uploader, 'onDone', this.onDone.bind(this));
 	        main_core_events.EventEmitter.subscribe(uploader, 'onQueueIsChanged', this.onQueueIsChanged.bind(this));
 	      }
 	    }
@@ -113,6 +133,15 @@
 	      }
 	    }
 	  }, {
+	    key: "onDone",
+	    value: function onDone() {
+	      if (this.newValues.size > 0 && this.isSaveable()) {
+	        this.save();
+	      }
+
+	      this.newValues.clear();
+	    }
+	  }, {
 	    key: "onFileUpload",
 	    value: function onFileUpload(event) {
 	      var _event$getCompatData7 = event.getCompatData(),
@@ -137,10 +166,7 @@
 	      };
 	      var fileFieldName = this.uploaderFieldMap.get(itemId) || itemId;
 	      this.values.set(fileFieldName, photoItem);
-
-	      if (this.isSaveable()) {
-	        this.save();
-	      }
+	      this.newValues.set(fileFieldName, photoItem);
 	    }
 	  }, {
 	    key: "save",
@@ -151,13 +177,15 @@
 	        clearTimeout(this.submitFileTimeOut);
 	      }
 
-	      var values = {};
-	      this.values.forEach(function (file, id) {
-	        values[id] = file;
-	      });
 	      var requestId = main_core.Text.getRandom(20);
 	      this.refreshImageSelectorId = requestId;
 	      this.submitFileTimeOut = setTimeout(function () {
+	        var values = {};
+
+	        _this.values.forEach(function (file, id) {
+	          values[id] = file;
+	        });
+
 	        main_core.ajax.runAction('catalog.productSelector.saveMorePhoto', {
 	          json: {
 	            productId: _this.productId,
@@ -166,8 +194,22 @@
 	            imageValues: values
 	          }
 	        }).then(function (response) {
+	          var _response$data;
+
 	          if (!_this.refreshImageSelectorId === requestId) {
 	            return;
+	          }
+
+	          _this.values.clear();
+
+	          if (main_core.Type.isObject((_response$data = response.data) === null || _response$data === void 0 ? void 0 : _response$data.values)) {
+	            for (var key in response.data.values) {
+	              if (!response.data.values.hasOwnProperty(key)) {
+	                continue;
+	              }
+
+	              _this.values.set(key, response.data.values[key]);
+	            }
 	          }
 
 	          main_core.Runtime.html(_this.wrapper, response.data.input);
@@ -179,7 +221,10 @@
 	  return ImageInput;
 	}();
 
+	babelHelpers.defineProperty(ImageInput, "imageInputInstances", new Map());
+	babelHelpers.defineProperty(ImageInput, "PROCESS_STATUS", 'PROCESS');
+	babelHelpers.defineProperty(ImageInput, "WAIT_STATUS", 'WAIT');
 	main_core.Reflection.namespace('BX.Catalog').ImageInput = ImageInput;
 
-}((this.window = this.window || {}),BX,BX.Event,BX));
+}((this.window = this.window || {}),BX,BX.Event));
 //# sourceMappingURL=script.js.map

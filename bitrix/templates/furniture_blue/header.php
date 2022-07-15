@@ -91,25 +91,24 @@ $APPLICATION->IncludeFile(
 			<div id="banner-overlay"></div>	
 		</div>
 		
-<?php if($APPLICATION->GetCurPage() !== "/it-services/"): ?>
-
 		<div id="content">
 		
 			<div id="sidebar">
 <?$APPLICATION->IncludeComponent("bitrix:menu", "left", array(
 	"ROOT_MENU_TYPE" => "left",
-		"MENU_CACHE_TYPE" => "A",
-		"MENU_CACHE_TIME" => "36000000",
-		"MENU_CACHE_USE_GROUPS" => "Y",
-		"MENU_CACHE_GET_VARS" => "",
-		"MAX_LEVEL" => "1",
-		"CHILD_MENU_TYPE" => "left",
-		"USE_EXT" => "Y",
-		"ALLOW_MULTI_SELECT" => "N"
+	"MENU_CACHE_TYPE" => "A",
+	"MENU_CACHE_TIME" => "36000000",
+	"MENU_CACHE_USE_GROUPS" => "Y",
+	"MENU_CACHE_GET_VARS" => array(
+	),
+	"MAX_LEVEL" => "1",
+	"CHILD_MENU_TYPE" => "left",
+	"USE_EXT" => "Y",
+	"ALLOW_MULTI_SELECT" => "N"
 	),
 	false,
 	array(
-	"ACTIVE_COMPONENT" => "Y"
+		"ACTIVE_COMPONENT" => "Y"
 	)
 );?>
 				<div class="content-block">
@@ -156,4 +155,3 @@ $APPLICATION->IncludeFile(
 		
 			<div id="workarea">
 				<h1 id="pagetitle"><?$APPLICATION->ShowTitle(false);?></h1>
-<?php endif; ?>

@@ -20,11 +20,13 @@ class Access
 	public const ENTITY_TYPE_APP = 'app';
 	public const ENTITY_TYPE_APP_STATUS = 'status';
 	public const ENTITY_TYPE_INTEGRATION = 'integration';
+	public const ENTITY_TYPE_AP_CONNECT = 'ap_connect';
 	public const ENTITY_TYPE_WEBHOOK = 'webhook';
 	public const ENTITY_COUNT = 'count';
 
 	public const ACTION_INSTALL = 'install';
 	public const ACTION_OPEN = 'open';
+	public const ACTION_BUY = 'buy';
 
 	public const MODULE_ID = 'rest';
 	public const OPTION_ACCESS_ACTIVE = 'access_active';
@@ -181,6 +183,10 @@ class Access
 				{
 					$restUnlimitedFinish = Option::get(static::MODULE_ID, static::OPTION_REST_UNLIMITED_FINISH, null);
 					$count = (int) \Bitrix\Bitrix24\Feature::getVariable('rest_no_subscribe_access_limit');
+					if (\CBitrix24::getLicensePrefix() === 'ua')
+					{
+						$count = -1;
+					}
 				}
 			}
 			else
@@ -285,6 +291,10 @@ class Access
 	 */
 	public static function getHelperCode($action = '', $entityType = '', $entityData = []) : string
 	{
+		if ($action === static::ACTION_BUY)
+		{
+			return 'limit_subscription_market_trial_access';
+		}
 
 		if ($entityType === static::ENTITY_TYPE_APP && !is_array($entityData))
 		{
@@ -299,14 +309,14 @@ class Access
 
 		$isSubscriptionFinished = $dateFinish && $dateFinish < (new Date());
 		$isSubscriptionAccess = Client::isSubscriptionAccess();
-		$isSubscriptionDemoAvailable = Client::isSubscriptionDemoAvailable();
+		$isSubscriptionDemoAvailable = Client::isSubscriptionDemoAvailable() && !$dateFinish;
 		$isSubscriptionAvailable = Client::isSubscriptionAvailable();
 		$canBuySubscription = Client::canBuySubscription();
 
 		$license = $isB24 ? \CBitrix24::getLicenseFamily() : '';
-		$isDemo = $license === "demo";
+		$isDemo = $license === 'demo';
 		$isMinLicense = $isB24 && mb_strpos($license, 'project') === 0;
-		$isMaxLicense = $isB24 && mb_strpos($license, 'company') === 0;
+		$isMaxLicense = $isB24 && ($license === 'ent' || $license === 'pro' || mb_strpos($license, 'company') === 0);
 
 		$isMaxApplication = false;
 		if ($maxCount >= 0 && $entity[static::ENTITY_COUNT] >= $maxCount)
@@ -330,7 +340,7 @@ class Access
 		}
 
 		$isFreeEntity = false;
-		if ($entityType === static::ENTITY_TYPE_INTEGRATION)
+		if ($entityType === static::ENTITY_TYPE_INTEGRATION || $entityType === static::ENTITY_TYPE_AP_CONNECT)
 		{
 			$isFreeEntity = true;
 		}
@@ -338,6 +348,7 @@ class Access
 		{
 			if (
 				$entityData['ID'] > 0
+				&& $entityData['ACTIVE']
 				&& (
 					$entityData['STATUS'] === AppTable::STATUS_FREE
 					|| $entityData['STATUS'] === AppTable::STATUS_LOCAL
@@ -347,8 +358,8 @@ class Access
 				$isFreeEntity = true;
 			}
 			elseif (
-				!$entityData['ID']
-				&& (
+				!$entityData['ACTIVE']
+				&& !(
 					$entityData['BY_SUBSCRIPTION'] === 'Y'
 					|| ($entityData['FREE'] === 'N' && !empty($entityData['PRICE']))
 				)
@@ -399,6 +410,10 @@ class Access
 				{
 					$code = 'limit_free_rest_hold_no_demo';
 				}
+				elseif ($entityType === static::ENTITY_TYPE_AP_CONNECT)
+				{
+					$code = 'limit_market_bus';
+				}
 				else
 				{
 					$code = 'limit_free_rest_hold';
@@ -425,14 +440,21 @@ class Access
 					$code = 'limit_subscription_market_tarifwithmarket';
 					if ($action === static::ACTION_OPEN)
 					{
-						$code = 'limit_free_apps_buy_license_with_plus';
+						$code = 'installed_plus_buy_license_with_plus';
 					}
 				}
 			}
 			elseif ($isB24 && !$isUsedDemoLicense)
 			{
 				// activate demo license
-				$code = 'limit_free_rest_hold';
+				if ($entityType === static::ENTITY_TYPE_AP_CONNECT)
+				{
+					$code = 'limit_market_bus';
+				}
+				else
+				{
+					$code = 'limit_free_rest_hold';
+				}
 			}
 			elseif ($isB24 && !$isMaxApplicationDemo)
 			{
@@ -464,7 +486,14 @@ class Access
 			if (!$isUsedDemoLicense)
 			{
 				// activate demo license
-				$code = 'limit_free_apps_need_demo';
+				if ($entityType === static::ENTITY_TYPE_AP_CONNECT)
+				{
+					$code = 'limit_market_bus';
+				}
+				else
+				{
+					$code = 'limit_free_apps_need_demo';
+				}
 			}
 			else
 			{
@@ -573,7 +602,10 @@ class Access
 	 */
 	public static function isActiveRules()
 	{
-		return Option::get(static::MODULE_ID, static::OPTION_ACCESS_ACTIVE, 'N') === 'Y';
+		return
+			ModuleManager::isModuleInstalled('bitrix24')
+			|| Option::get(static::MODULE_ID, static::OPTION_ACCESS_ACTIVE, 'N') === 'Y'
+		;
 	}
 
 	/**

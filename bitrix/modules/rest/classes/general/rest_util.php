@@ -11,7 +11,7 @@ class CRestUtil
 	const EVENTS = '_events';
 	const PLACEMENTS = '_placements';
 
-	const HANDLER_SESSION_TTL = 3;
+	const HANDLER_SESSION_TTL = 7;
 
 	const BATCH_MAX_LENGTH = 50;
 
@@ -128,6 +128,20 @@ class CRestUtil
 		if(static::isAdmin())
 		{
 			return true;
+		}
+
+		if (
+			is_array($appInfo)
+			&& $appInfo['TYPE'] === \Bitrix\Rest\AppTable::TYPE_CONFIGURATION
+			&& !empty($appInfo['MANIFEST']['CODE'])
+		)
+		{
+			$access = \Bitrix\Rest\Configuration\Manifest::checkAccess(
+				\Bitrix\Rest\Configuration\Manifest::ACCESS_TYPE_IMPORT,
+				$appInfo['MANIFEST']['CODE']
+			);
+
+			return $access['result'];
 		}
 
 		$hasAccess = $USER->CanAccess(static::getInstallAccessList());
@@ -649,6 +663,7 @@ class CRestUtil
 			try
 			{
 				\Bitrix\Rest\OAuthService::register();
+				\Bitrix\Rest\OAuthService::getEngine()->getClient()->getApplicationList();
 			}
 			catch(\Bitrix\Main\SystemException $e)
 			{

@@ -1,54 +1,41 @@
-import { Vue } from 'ui.vue';
-import { Component, RestMethod, EventType } from 'sale.checkout.const';
-import { ajax, Event } from 'main.core';
-import { MixinLoader } from "sale.checkout.view.mixins";
+import { BitrixVue } from 'ui.vue';
 
-Vue.component('sale-checkout-view-payment', {
-	props: ['order', 'config'],
-	mixins:[MixinLoader],
+import './pay-system-application'
+import './payment-paid-application'
+
+BitrixVue.component('sale-checkout-view-payment', {
+	props: ['order', 'payments', 'paySystems', 'check', 'config'],
 	methods:
-		{
-			getBlockHtml() {
-
-				const fields = {
-					accessCode: this.order.hash,
-					orderId: this.order.id,
-					returnUrl: this.config.returnUrl,
-				}
-
-				ajax.runComponentAction(
-					Component.bitrixSaleOrderCheckout,
-					RestMethod.saleEntityPaymentPay,
-					{
-						data: {
-							fields: fields
-						}
-					})
-					.then((response) => {
-						let html = response.data.html;
-						let wrapper = this.$refs.paymentSystemList;
-
-						BX.html(wrapper, html);
-
-						Event.EventEmitter.emit(EventType.paysystem.afterInitList, {});
-
-						BX.addCustomEvent('onChangePaySystems', () => {
-
-							Event.EventEmitter.emit(EventType.paysystem.beforeInitList, {});
-
-							this.getBlockHtml()
-						});
-					})
-			}
-		},
-	mounted()
 	{
-		this.getBlockHtml();
+		hasPaymentPaidY()
+		{
+			return this
+			.getPaymentPaidY()
+				.length > 0
+		},
+		getPaymentPaidY()
+		{
+			const result = [];
+			let list = this.payments;
+			list.forEach((fields) =>
+			{
+				if(fields.paid !== 'N')
+				{
+					result.push(fields)
+				}
+			})
+			return result
+		},
 	},
 	// language=Vue
 	template: `
-		<div style='position: relative;' ref="container">
-			<div ref="paymentSystemList"/>
-		</div>
+	  <div>
+	  <template v-if="hasPaymentPaidY()">
+        <sale-checkout-view-payment-payment_paid_application :order="order" :payments="getPaymentPaidY()" :paySystems="paySystems" :check="check" :config="config"/>
+      </template>
+      <template v-else>
+        <sale-checkout-view-payment-pay_system_application :order="order" :paySystems="paySystems" :config="config"/>
+	  </template>
+	</div>
 	`
 });

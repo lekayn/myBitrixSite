@@ -65,7 +65,7 @@ else
 				'ELEMENT_SORT_ORDER' => 'desc',
 				'ELEMENT_SORT_FIELD2' => '',
 				'ELEMENT_SORT_ORDER2' => '',
-				'FILTER_NAME' => 'arrFilter',
+				'FILTER_NAME' => $classBlock->get('FILTER_NAME'),
 				'INCLUDE_SUBSECTIONS' => 'Y',
 				'SHOW_ALL_WO_SECTION' => 'Y',
 				'PAGE_ELEMENT_COUNT' => '6',
@@ -174,10 +174,7 @@ else
 				'BACKGROUND_IMAGE' => 'UF_BACKGROUND_IMAGE',
 				'DISABLE_INIT_JS_IN_COMPONENT' => 'N',
 				'CUSTOM_FILTER' => '',
-				'PRODUCT_BLOCKS_ORDER' => 'props,sku,price,quantity,buttons,quantityLimit,compare',
-				//"PRODUCT_ROW_VARIANTS" => "[{'VARIANT':'3','BIG_DATA':false},{'VARIANT':'3','BIG_DATA':false},{'VARIANT':'3','BIG_DATA':false}]",
 				'SHOW_SLIDER' => 'Y',
-				'ENLARGE_PRODUCT' => 'STRICT',
 				'LABEL_PROP_MOBILE' => [
 					0 => 'NEWPRODUCT',
 					1 => 'SALELEADER',
@@ -195,6 +192,8 @@ else
 				'CYCLIC_LOADING_COUNTER_NAME' => 'cycleCount',
 				'SECTIONS_OFFSET_MODE' => 'F',
 				'SECTIONS_SECTION_ID' => $classBlock->get('LANDING_SECTION_ID'),
+				'SECTIONS_ADDITIONAL_COUNT_ELEMENTS_FILTER' => $classBlock->get('FILTER_NAME'),
+				'SECTIONS_HIDE_SECTIONS_WITH_ZERO_COUNT_ELEMENTS' => 'Y',
 				'PROPERTY_CODE_MOBILE' => [
 					0 => 'ARTNUMBER',
 					1 => 'MANUFACTURER',

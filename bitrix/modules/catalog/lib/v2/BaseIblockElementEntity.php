@@ -194,7 +194,11 @@ abstract class BaseIblockElementEntity extends BaseEntity implements HasProperty
 		elseif ($name === 'DETAIL_PICTURE' || $name === 'PREVIEW_PICTURE')
 		{
 			$imageCollection = $this->getImageCollection();
-			$image = ($name === 'DETAIL_PICTURE') ? $imageCollection->getDetailImage() : $imageCollection->getPreviewImage();
+			$image =
+				$name === 'DETAIL_PICTURE'
+					? $imageCollection->getDetailImage()
+					: $imageCollection->getPreviewImage();
+
 			if (is_numeric($value))
 			{
 				$value = \CFile::MakeFileArray($value);
@@ -340,6 +344,10 @@ abstract class BaseIblockElementEntity extends BaseEntity implements HasProperty
 			'QUANTITY_TRACE' => MapTypeCaster::Y_OR_N_OR_D,
 			'CAN_BUY_ZERO' => MapTypeCaster::Y_OR_N_OR_D,
 			'SUBSCRIBE' => MapTypeCaster::Y_OR_N_OR_D,
+
+			// TODO: change this horror
+			'UF_PRODUCT_GROUP' => MapTypeCaster::NULLABLE_INT,
+			'UF_PRODUCT_MAPPING' => MapTypeCaster::NULLABLE_MULTI_INT,
 		];
 	}
 }

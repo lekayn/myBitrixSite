@@ -2,6 +2,7 @@
 	"use strict";
 
 	BX.namespace("BX.Landing.UI.Field");
+	BX.Runtime.loadExtension('landing.ui.component.link');
 
 	var isFunction = BX.Landing.Utils.isFunction;
 	var isPlainObject = BX.Landing.Utils.isPlainObject;
@@ -10,6 +11,11 @@
 	var escapeHtml = BX.Landing.Utils.escapeHtml;
 	var addClass = BX.Landing.Utils.addClass;
 	var clone = BX.Landing.Utils.clone;
+
+	var REG_CLASS_FONT = /g-font-(?!size-|weight-)[a-z0-9-]+/ig;
+	var REG_NAME_FONT = /[a-z0-9 ]*[a-z0-9]/i;
+	var REG_SYNTAX = /['|"]/g;
+	var REG_SPACE = / /g;
 
 	/**
 	 * Implements interface for works with text field
@@ -28,6 +34,12 @@
 		this.headlessMode = data.headlessMode === true;
 		this.frame = data.frame;
 		this.items = [];
+		this.defaultFontFamily = null;
+		this.defaultFontLink = new BX.Landing.UI.Component.Link({
+			text: BX.Landing.Loc.getMessage("LANDING_EDIT_BLOCK_DEFAULT_FONT"),
+		});
+
+		addClass(this.defaultFontLink.getLayout(), "landing-ui-field-font-link");
 
 		if (isPlainObject(data.items))
 		{
@@ -40,7 +52,6 @@
 		// Make event external event handler
 		this.onChangeHandler = isFunction(data.onChange) ? data.onChange : (function() {});
 		this.onValueChangeHandler = isFunction(data.onValueChange) ? data.onValueChange : (function() {});
-
 		if (this.value)
 		{
 			this.content = escapeHtml(this.value.family);
@@ -54,28 +65,32 @@
 
 		if (this.frame)
 		{
-			var element = this.frame.document.querySelectorAll(this.selector)[0];
+			this.element = this.frame.document.querySelectorAll(this.selector)[0];
 
-			if (element)
+			if (this.element)
 			{
-				var family = BX.style(element, "font-family");
+				var family = BX.style(this.element, "font-family");
 
 				if (family)
 				{
-					family = family.replace(/['|"]/g, "");
+					family = family.replace(REG_SYNTAX, "");
 					this.content = family.split(",")[0];
 					this.input.innerHTML = this.content;
 				}
+
+				this.createLinkContainer();
+				this.setConditionLink();
 			}
 		}
 
 		bind(this.input, "click", proxy(this.onInputClick, this));
+		this.defaultFontLink.subscribe('onClick', proxy(this.onLinkClick, this));
 	};
 
 
 	function makeFontClassName(family)
 	{
-		return "g-font-" + family.toLowerCase().replace(/ /g, "-");
+		return "g-font-" + family.toLowerCase().replace(REG_SPACE, "-");
 	}
 
 
@@ -105,16 +120,79 @@
 			}.bind(this));
 		},
 
+		/**
+		 * Handles link click event
+		 * @param {MouseEvent} event
+		 */
+		onLinkClick: function()
+		{
+			if (this.defaultFontFamily)
+			{
+				var foundedClasses = this.element.classList.value.match(REG_CLASS_FONT);
+				if (foundedClasses !== null)
+				{
+					var element = this.element;
+					foundedClasses.forEach(function(foundedClass) {
+						element.classList.remove(foundedClass);
+					});
+				}
+				this.content = this.defaultFontFamily.replace(REG_SYNTAX, "").split(",")[0];
+				var font = {
+					family: this.content
+				};
+				this.setValue(font);
+			}
+		},
+
+		createLinkContainer: function()
+		{
+			this.linkContainer = document.createElement("div");
+			this.linkContainer.classList.add('landing-ui-component-link-container');
+			this.layout.append(this.linkContainer);
+		},
+
+		setConditionLink: function()
+		{
+			if (this.element)
+			{
+				var setHeaderTags = ['H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7'];
+				this.defaultFontFamily = getComputedStyle(document.body).fontFamily;
+				this.isHeaderElement = setHeaderTags.includes(this.element.tagName);
+				if (this.isHeaderElement)
+				{
+					var emptyHeader = document.createElement("H2");
+					document.body.appendChild(emptyHeader);
+					this.defaultFontFamily = getComputedStyle(emptyHeader).fontFamily;
+					emptyHeader.remove();
+				}
+				this.defaultFont = this.defaultFontFamily.match(REG_NAME_FONT)[0];
+				this.currentFont = getComputedStyle(this.element).fontFamily.match(REG_NAME_FONT)[0];
+				if (this.defaultFont !== this.currentFont)
+				{
+					this.linkContainer.append(this.defaultFontLink.getLayout());
+				}
+				else
+				{
+					if (this.linkContainer.hasChildNodes())
+					{
+						this.linkContainer.removeChild(this.linkContainer.firstChild);
+					}
+				}
+			}
+		},
+
 		setValue: function(value)
 		{
 			if (isPlainObject(value))
 			{
 				var className = makeFontClassName(value.family);
-				var family = value.family.replace(/ /g, "+");
+				var weightList = [100, 200, 300, 400, 500, 600, 700, 800, 900];
+				var weightParams = ':wght@' + weightList.join(';');
+				var family = value.family.replace(REG_SPACE, "+");
+				var familyParams = family + weightParams;
 				var href = BX.Landing.UI.Panel.GoogleFonts.getInstance().client.makeUrl({
-					family: family
+					family: familyParams
 				});
-				href += ':300,400,500,600,700,900';
 
 				if (this.headlessMode)
 				{
@@ -171,11 +249,12 @@
 					headString = headString
 						.replace("async@load", "all")
 						.replace(/data-loadcss="true"/g, "");
-
 					BX.Landing.Backend.getInstance()
 						.action("Landing::updateHead", {content: headString});
 				}
 			}
+
+			this.setConditionLink();
 		},
 
 		getValue: function()

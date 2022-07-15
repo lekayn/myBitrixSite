@@ -10,6 +10,7 @@ namespace Bitrix\Sender;
 use Bitrix\Main\DB\SqlExpression;
 use Bitrix\Main\Entity;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ORM\Query\Query;
 use Bitrix\Main\Type as MainType;
 
 use Bitrix\Sender\Internals\Model;
@@ -174,10 +175,10 @@ class MailingTable extends Entity\DataManager
 		$data = $event->getParameters();
 
 		$primary = array('MAILING_ID' => $data['primary']['ID']);
-		MailingGroupTable::delete($primary);
-		MailingChainTable::delete($primary);
-		MailingSubscriptionTable::delete($primary);
-		PostingTable::delete($primary);
+		MailingGroupTable::deleteList($primary);
+		MailingChainTable::deleteList($primary);
+		MailingSubscriptionTable::deleteList($primary);
+		PostingTable::deleteList($primary);
 
 		return $result;
 	}
@@ -666,6 +667,30 @@ class MailingTable extends Entity\DataManager
 
 		return $cache[$mailingId];
 	}
+
+	/**
+	 * @param array $filter
+	 * @return \Bitrix\Main\DB\Result
+	 * @throws \Bitrix\Main\ArgumentException
+	 * @throws \Bitrix\Main\DB\SqlQueryException
+	 * @throws \Bitrix\Main\SystemException
+	 */
+	public static function deleteList(array $filter): \Bitrix\Main\DB\Result
+	{
+		$entity = static::getEntity();
+		$connection = $entity->getConnection();
+
+		\CTimeZone::disable();
+		$sql = sprintf(
+			'DELETE FROM %s WHERE %s',
+			$connection->getSqlHelper()->quote($entity->getDbTableName()),
+			Query::buildFilterSql($entity, $filter)
+		);
+		$res = $connection->query($sql);
+		\CTimeZone::enable();
+
+		return $res;
+	}
 }
 
 
@@ -708,8 +733,48 @@ class MailingGroupTable extends Entity\DataManager
 			),
 		);
 	}
+
+	/**
+	 * @param array $filter
+	 * @return \Bitrix\Main\DB\Result
+	 * @throws \Bitrix\Main\ArgumentException
+	 * @throws \Bitrix\Main\DB\SqlQueryException
+	 * @throws \Bitrix\Main\SystemException
+	 */
+	public static function deleteList(array $filter): \Bitrix\Main\DB\Result
+	{
+		$entity = static::getEntity();
+		$connection = $entity->getConnection();
+
+		\CTimeZone::disable();
+		$sql = sprintf(
+			'DELETE FROM %s WHERE %s',
+			$connection->getSqlHelper()->quote($entity->getDbTableName()),
+			Query::buildFilterSql($entity, $filter)
+		);
+		$res = $connection->query($sql);
+		\CTimeZone::enable();
+
+		return $res;
+	}
 }
 
+/**
+ * Class MailingSubscriptionTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_MailingSubscription_Query query()
+ * @method static EO_MailingSubscription_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_MailingSubscription_Result getById($id)
+ * @method static EO_MailingSubscription_Result getList(array $parameters = array())
+ * @method static EO_MailingSubscription_Entity getEntity()
+ * @method static \Bitrix\Sender\EO_MailingSubscription createObject($setDefaultValues = true)
+ * @method static \Bitrix\Sender\EO_MailingSubscription_Collection createCollection()
+ * @method static \Bitrix\Sender\EO_MailingSubscription wakeUpObject($row)
+ * @method static \Bitrix\Sender\EO_MailingSubscription_Collection wakeUpCollection($rows)
+ */
 class MailingSubscriptionTable extends Entity\DataManager
 {
 	/**
@@ -821,5 +886,30 @@ class MailingSubscriptionTable extends Entity\DataManager
 		}
 
 		return $result->isSuccess();
+	}
+
+
+	/**
+	 * @param array $filter
+	 * @return \Bitrix\Main\DB\Result
+	 * @throws \Bitrix\Main\ArgumentException
+	 * @throws \Bitrix\Main\DB\SqlQueryException
+	 * @throws \Bitrix\Main\SystemException
+	 */
+	public static function deleteList(array $filter): \Bitrix\Main\DB\Result
+	{
+		$entity = static::getEntity();
+		$connection = $entity->getConnection();
+
+		\CTimeZone::disable();
+		$sql = sprintf(
+			'DELETE FROM %s WHERE %s',
+			$connection->getSqlHelper()->quote($entity->getDbTableName()),
+			Query::buildFilterSql($entity, $filter)
+		);
+		$res = $connection->query($sql);
+		\CTimeZone::enable();
+
+		return $res;
 	}
 }

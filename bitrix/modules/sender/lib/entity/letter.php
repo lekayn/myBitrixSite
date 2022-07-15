@@ -16,6 +16,7 @@ use Bitrix\Main\Result;
 use Bitrix\Main\Type\Date;
 use Bitrix\Main\Type\DateTime;
 use Bitrix\Sender\Dispatch;
+use Bitrix\Sender\FileTable;
 use Bitrix\Sender\Integration;
 use Bitrix\Sender\Internals\Model\LetterSegmentTable;
 use Bitrix\Sender\Internals\Model\LetterTable;
@@ -541,7 +542,7 @@ class Letter extends Base
 
 		$oldSegments = $this->loadDataSegments($id);
 		$letter = LetterTable::getById($id)->fetch();
-		LetterSegmentTable::delete(array('LETTER_ID' => $id));
+		LetterSegmentTable::deleteList(array('LETTER_ID' => $id));
 
 		$isChanged = false;
 		$dataToInsert = [];
@@ -971,6 +972,15 @@ class Letter extends Base
 		$instance = static::create()->mergeData($data);
 		$instance->save();
 		$this->getErrorCollection()->add($instance->getErrors());
+
+		if (!is_null($this->getMessage()->getConfiguration()->get('MESSAGE')))
+		{
+			FileTable::syncFiles(
+				$instance->getId(),
+				0,
+				$this->getMessage()->getConfiguration()->get('MESSAGE')
+			);
+		}
 
 		return $instance->getId();
 	}

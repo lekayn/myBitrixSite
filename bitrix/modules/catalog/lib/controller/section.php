@@ -32,18 +32,19 @@ final class Section extends Controller
 			$select = empty($select)? ['*']:$select;
 			$order = empty($order)? ['ID'=>'ASC']:$order;
 
+			if (isset($filter['IBLOCK_SECTION_ID']))
+			{
+				$filter['SECTION_ID'] = $filter['IBLOCK_SECTION_ID'];
+				unset($filter['IBLOCK_SECTION_ID']);
+			}
+
 			$r = \CIBlockSection::GetList($order, $filter, false, $select, self::getNavData($pageNavigation->getOffset()));
 			while ($l = $r->fetch())
 				$result[] = $l;
 
 			return new Page('SECTIONS', $result, function() use ($filter)
 			{
-				$list = [];
-				$r = \CIBlockSection::GetList([], $filter);
-				while ($l = $r->fetch())
-					$list[] = $l;
-
-				return count($list);
+				return (int)\CIBlockSection::GetList([], $filter, []);
 			});
 		}
 		else

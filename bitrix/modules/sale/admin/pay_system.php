@@ -101,6 +101,8 @@ if (($ids = $lAdmin->GroupAction()) && $saleModulePermissions >= "W")
 					continue 2;
 				}
 
+				$paySystem = \Bitrix\Sale\PaySystem\Manager::getById($id);
+
 				$result = \Bitrix\Sale\PaySystem\Manager::delete($id);
 				if (!$result->isSuccess())
 				{
@@ -108,6 +110,15 @@ if (($ids = $lAdmin->GroupAction()) && $saleModulePermissions >= "W")
 						$lAdmin->AddGroupError(join(', ', $result->getErrorMessages()), $id);
 					else
 						$lAdmin->AddGroupError(GetMessage("SPSAN_ERROR_DELETE"), $id);
+				}
+				elseif (is_array($paySystem))
+				{
+					$paySysntemStatisticLabel = $paySystem['ACTION_FILE'];
+					if (!empty($paySystem['PS_MODE']))
+					{
+						$paySysntemStatisticLabel .= ':' . $paySystem['PS_MODE'];
+					}
+					AddEventToStatFile('sale', 'deletePaysystem', '', $paySysntemStatisticLabel);
 				}
 
 				break;

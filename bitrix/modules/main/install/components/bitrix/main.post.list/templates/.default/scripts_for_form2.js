@@ -1,4 +1,8 @@
 ;(function() {
+
+	if (!!window.UCForm)
+		return;
+
 	var repo = {};
 	window.UCForm = function(formId)
 	{
@@ -83,28 +87,13 @@
 				return;
 			}
 			// region change Submit handlers
-			if (this.getLHE().__mpl_changed_binding !== true)
-			{
-				this.getLHE().params["ctrlEnterHandler"] = function() {
+			this.getLHE().exec(function() {
+				BX.removeAllCustomEvents(this.getLHE().oEditor, "OnCtrlEnter");
+				BX.addCustomEvent(this.getLHE().oEditor, "OnCtrlEnter", function() {
 					this.getLHE().oEditor.SaveContent();
 					BX.onCustomEvent(eventNode, "OnButtonClick", ["submit"]);
-				}.bind(this);
-				if (this.getLHE().oEditor)
-				{
-					setTimeout(function() {
-						if (this.getLHE().__mpl_changed_binding !== true)
-						{
-							this.getLHE().__mpl_changed_binding = true;
-							BX.removeAllCustomEvents(this.getLHE().oEditor, "OnCtrlEnter");
-							BX.addCustomEvent(this.getLHE().oEditor, "OnCtrlEnter", this.getLHE().params["ctrlEnterHandler"]);
-						}
-					}.bind(this), 1000);
-				}
-				else
-				{
-					this.getLHE().__mpl_changed_binding = true;
-				}
-			}
+				}.bind(this));
+			}.bind(this));
 			//endregion
 
 			var eventNode = this.getLHEEventNode();
@@ -209,7 +198,8 @@
 					{
 						if (author.id > 0)
 						{
-							author = '<span id="' + this.getLHE().oEditor.SetBxTag(false, {tag: "postuser", params: {value : author.id}}) + '" class="bxhtmled-metion">' + author.name.replace(/</gi, "&lt;").replace(/>/gi, "&gt;") + "</span>";
+							author = '<span id="' + this.getLHE().oEditor.SetBxTag(false, {tag: "postuser", userId: author.id, userName: author.name}) +
+								'" class="bxhtmled-metion">' + author.name.replace(/</gi, "&lt;").replace(/>/gi, "&gt;") + "</span>";
 						}
 						else
 						{
@@ -308,7 +298,7 @@
 			{
 				this.getLHE().exec(window.BxInsertMention, [{
 					item: {entityId: user.id, name: user.name},
-					type: 'users',
+					type: 'user',
 					formID: this.formId,
 					editorId: this.getLHE().oEditorId,
 					bNeedComa: true,
@@ -369,8 +359,6 @@
 				this.clearNotification(res, "feed-add-error");
 			}
 			BX.onCustomEvent(this.form, "OnUCFormClear", [this]);
-			// clear visual editor data
-			BX.onCustomEvent(this.getLHEEventNode(), "onReinitializeBefore", [this.getLHE()]);
 
 			var filesForm = BX.findChild(this.form, {"className": "wduf-placeholder-tbody" }, true, false);
 			if (filesForm !== null && typeof filesForm != "undefined")
@@ -392,11 +380,27 @@
 			{
 				this.getLHE().oEditor.Focus();
 				setTimeout(function() {
-					placeholderNode.scrollIntoView(false);
-				}, 100);
+					if (!this.isElementCompletelyVisibleOnScreen(placeholderNode))
+					{
+						placeholderNode.scrollIntoView({
+							behavior: 'smooth',
+							block: 'end',
+							inline: 'nearest',
+						});
+					}
+				}.bind(this), 100);
 				return true;
 			}
-			
+
+			if (
+				this.getLHEEventNode()
+				&& this.getLHEEventNode().style.display !== "none"
+				&& BX.Dom.getPosition(placeholderNode).y > BX.Dom.getPosition(this.getLHEEventNode()).y
+			)
+			{
+				window.scrollTo(window.scrollX, window.scrollY - this.getLHEEventNode().offsetHeight + 10);
+			}
+
 			this.hide(true);
 
 			this.setCurrentEntity(entity, messageId);
@@ -406,9 +410,24 @@
 			placeholderNode.appendChild(this.form);
 			BX.onCustomEvent(this.form, "OnUCFormBeforeShow", [this, text, data]);
 			BX.show(placeholderNode);
-			BX.onCustomEvent(this.getLHEEventNode(), "OnShowLHE", ["show"]);
+			BX.onCustomEvent(this.getLHEEventNode(), "OnShowLHE", ["show", null, this.id]);
 			BX.onCustomEvent(this.form, "OnUCFormAfterShow", [this, text, data]);
 			return true;
+		},
+		isElementCompletelyVisibleOnScreen: function(element)
+		{
+			var coords = BX.LazyLoad.getElementCoords(element);
+			var windowTop = window.pageYOffset || document.documentElement.scrollTop;
+			var windowBottom = windowTop + document.documentElement.clientHeight;
+
+			coords.bottom = coords.top + element.offsetHeight;
+
+			return (
+				coords.top > windowTop
+				&& coords.top < windowBottom
+				&& coords.bottom < windowBottom
+				&& coords.bottom > windowTop
+			);
 		},
 		onSubmitSuccess : function(data) {
 			this.closeWait();
@@ -435,7 +454,7 @@
 			this.busy = false;
 			BX.onCustomEvent(window, "OnUCFormResponse", [ENTITY_XML_ID, data["messageId"], this, data]);
 		},
-		onSubmitFailed : function(data){
+		onSubmitFailed : function(data) {
 			this.closeWait();
 			if (BX.type.isPlainObject(data))
 			{
@@ -450,11 +469,7 @@
 				}
 				else if (BX.type.isArray(data["errors"]))
 				{
-					message = "";
-					for (var ii = 0; ii < data["errors"].length; ii++)
-					{
-						message += data["errors"][ii]["message"];
-					}
+					message = data["errors"].map(function(error) { return error.message; }).join('<br \>');
 				}
 				this.showError(message);
 			}

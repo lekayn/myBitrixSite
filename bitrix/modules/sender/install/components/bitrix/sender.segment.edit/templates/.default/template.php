@@ -17,7 +17,6 @@ use Bitrix\Sender\Posting\SegmentDataBuilder;
 Extension::load([
 	"pull.client",
 	'ui.notification',
-	'ui.notification',
 	'ui',
 	'ui.alerts',
 ]);
@@ -320,7 +319,7 @@ $containerId = 'bx-sender-segment-edit';
 			BX.ready(function() {
 				setTimeout(function(){
 					BX.UI.Notification.Center.notify({
-						content: '<?=Loc::getMessage('SENDER_SEGMENT_CREATED')?>',
+						content: '<?=CUtil::JSEscape(htmlspecialcharsbx(Loc::getMessage('SENDER_SEGMENT_CREATED')))?>',
 						position: 'top-right',
 						autoHideDelay: 15000,
 					});

@@ -8,6 +8,9 @@
 
 if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
 
+use Bitrix\Main\HttpResponse;
+use Bitrix\Main\Application;
+
 IncludeModuleLangFile(__FILE__);
 
 define("ADMIN_THEMES_PATH", "/bitrix/themes");
@@ -417,9 +420,6 @@ var phpVars = {
 	}
 }
 
-use Bitrix\Main\HttpResponse;
-use Bitrix\Main\Application;
-
 class CAdminAjaxHelper
 {
 	/** @var  \Bitrix\Main\Context */
@@ -505,6 +505,33 @@ class CAdminAjaxHelper
 
 class CAdminSidePanelHelper extends CAdminAjaxHelper
 {
+	/** @var bool */
+	protected $publicPageProcessMode;
+
+	public function __construct()
+	{
+		parent::__construct();
+		$this->initPublicPageProcessMode();
+	}
+
+	protected function initPublicPageProcessMode()
+	{
+		$this->setPublicPageProcessMode(
+			$this->isPublicSidePanel()
+			|| (defined("PUBLIC_MODE") && PUBLIC_MODE == 1)
+		);
+	}
+
+	public function setPublicPageProcessMode(bool $mode): void
+	{
+		$this->publicPageProcessMode = $mode;
+	}
+
+	public function getPublicPageProcessMode(): bool
+	{
+		return $this->publicPageProcessMode;
+	}
+
 	public function setSkipResponse($skip)
 	{
 		$this->skipResponse = $skip;
@@ -631,7 +658,7 @@ class CAdminSidePanelHelper extends CAdminAjaxHelper
 
 	public function editUrlToPublicPage($url)
 	{
-		if ($this->isPublicSidePanel() || (defined("PUBLIC_MODE") && PUBLIC_MODE == 1))
+		if ($this->getPublicPageProcessMode())
 		{
 			$url = str_replace(".php", "/", $url);
 		}
@@ -643,8 +670,11 @@ class CAdminSidePanelHelper extends CAdminAjaxHelper
 	{
 		if ($this->isPublicFrame())
 		{
+			$url = (strpos($url, '/') === 0 ? $url: '/');
+			$url = '/'.ltrim($url, '/');
+
 			echo "<script>";
-			echo "top.window.location.href = '".$url."';";
+			echo "top.window.location.href = '".CUtil::JSEscape($url)."';";
 			echo "</script>";
 			exit;
 		}
@@ -1878,7 +1908,7 @@ class CAdminSorting
 	{
 		$this->by_name = $by_name;
 		$this->ord_name = $ord_name;
-		$this->table_id = $table_id;
+		$this->table_id = preg_replace('/[^a-z0-9_]/i', '', $table_id);
 		$this->by_initial = $by_initial;
 		$this->order_initial = $order_initial;
 
@@ -2033,7 +2063,7 @@ class CAdminResult extends CDBResult
 	public function __construct($res, $table_id)
 	{
 		parent::__construct($res);
-		$this->table_id = $table_id;
+		$this->table_id = preg_replace('/[^a-z0-9_]/i', '', $table_id);
 	}
 
 	public function NavStart($nPageSize=20, $bShowAll=true, $iNumPage=false)

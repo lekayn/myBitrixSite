@@ -182,78 +182,81 @@ class FileType extends BaseType
 		// old mechanism
 		if(is_array($value))
 		{
-			//Protect from user manipulation
-			if(isset($value['old_id']) && $value['old_id'] > 0)
-			{
-				if(is_array($userField['VALUE']))
-				{
-					if(!in_array($value['old_id'], $userField['VALUE']))
-					{
-						unset($value['old_id']);
-					}
-				}
-				else
-				{
-					if($userField['VALUE'] != $value['old_id'])
-					{
-						unset($value['old_id']);
-					}
-				}
-			}
+			$userFieldValues = (is_array($userField['VALUE']) ? $userField['VALUE'] : [$userField['VALUE']]);
+			$valueHasOldId = !empty($value['old_id']);
 
-			if($value['del'] && $value['old_id'])
+			//Protect from user manipulation
+			if($valueHasOldId)
 			{
-				\CFile::Delete($value['old_id']);
-				$value['old_id'] = false;
+				$value['old_id'] = (is_array($value['old_id']) ? $value['old_id'] : [$value['old_id']]);
+				foreach ($value['old_id'] as $key => $oldId)
+				{
+					if(!in_array($oldId, $userFieldValues))
+					{
+						unset($value['old_id'][$key]);
+					}
+				}
+
+				if ($value['del'])
+				{
+					foreach ($value['old_id'] as $oldId)
+					{
+						\CFile::Delete($oldId);
+					}
+					$value['old_id'] = false;
+				}
 			}
 
 			if($value['error'])
 			{
-				return $value['old_id'];
+				return (is_array($value['old_id']) ? $value['old_id'][0] : $value['old_id']);
 			}
-			else
+
+			if($valueHasOldId)
 			{
-				if($value['old_id'])
+				foreach ($value['old_id'] as $oldId)
 				{
-					\CFile::Delete($value['old_id']);
+					\CFile::Delete($oldId);
 				}
-				$value['MODULE_ID'] = 'main';
+			}
+			$value['MODULE_ID'] = 'main';
 
-				if (!empty($value['name']))
-				{
-					return \CFile::SaveFile($value, 'uf');
-				}
+			if (!empty($value['name']))
+			{
+				return \CFile::SaveFile($value, 'uf');
+			}
+			return false;
+		}
 
+		// new mechanism - mail.file.input
+		$fileInputUtility = FileInputUtility::instance();
+		$controlId = $fileInputUtility->getUserFieldCid($userField);
+
+		if($value > 0)
+		{
+			$delResult = $fileInputUtility->checkDeletedFiles($controlId);
+			if(in_array($value, $delResult))
+			{
 				return false;
 			}
-		}
-		// new mechanism - mail.file.input
-		else
-		{
-			$fileInputUtility = FileInputUtility::instance();
-			$controlId = $fileInputUtility->getUserFieldCid($userField);
 
-			if($value > 0)
+			if (is_array($userField['VALUE']) && in_array($value, $userField['VALUE']))
 			{
-				$checkResult = $fileInputUtility->checkFiles($controlId, [$value]);
-
-				if(!in_array($value, $checkResult))
-				{
-					$value = false;
-				}
+				return $value;
 			}
 
-			if($value > 0)
+			if (!is_array($userField['VALUE']) && (int)$userField['VALUE'] === $value)
 			{
-				$delResult = $fileInputUtility->checkDeletedFiles($controlId);
-				if(in_array($value, $delResult))
-				{
-					$value = false;
-				}
+				return $value;
 			}
 
-			return $value;
+			$checkResult = $fileInputUtility->checkFiles($controlId, [$value]);
+			if(!in_array($value, $checkResult))
+			{
+				$value = false;
+			}
 		}
+		return $value;
 	}
 
 	public static function onSearchIndex(array $userField): ?string

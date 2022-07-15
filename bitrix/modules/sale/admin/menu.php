@@ -10,6 +10,8 @@ use Bitrix\Main\Loader;
 use Bitrix\Main\Config\Option;
 use Bitrix\Main\ModuleManager;
 use Bitrix\Main\EventManager;
+use Bitrix\Sale\Configuration;
+use Bitrix\Sale\ShopSitesController;
 
 IncludeModuleLangFile(__FILE__);
 $aMenu = array();
@@ -149,15 +151,18 @@ if ($APPLICATION->GetGroupRight("sale")!="D")
 
 	/* Orders End*/
 
-	$aMenu[] = array(
-		"parent_menu" => "global_menu_marketing",
-		"sort" => 800,
-		"text" => GetMessage("SALE_BIGDATA"),
-		"title" => GetMessage("SALE_BIGDATA"),
-		"icon" => "sale_menu_icon_bigdata",
-		"url" => "sale_personalization.php?lang=".LANGUAGE_ID,
-		"items_id" => "sale_personalization",
-	);
+	if (Loader::includeModule('sale') && \Bitrix\Sale\Configuration::isCanUsePersonalization())
+	{
+		$aMenu[] = array(
+			"parent_menu" => "global_menu_marketing",
+			"sort" => 800,
+			"text" => GetMessage("SALE_BIGDATA"),
+			"title" => GetMessage("SALE_BIGDATA"),
+			"icon" => "sale_menu_icon_bigdata",
+			"url" => "sale_personalization.php?lang=".LANGUAGE_ID,
+			"items_id" => "sale_personalization",
+		);
+	}
 
 	$aMenu[] = array(
 		"parent_menu" => "global_menu_marketing",
@@ -168,6 +173,50 @@ if ($APPLICATION->GetGroupRight("sale")!="D")
 		"url" => "update_system_market.php?category=89&lang=".LANGUAGE_ID,
 		"items_id" => "update_system_market",
 	);
+
+	$region = \Bitrix\Main\Application::getInstance()->getLicense()->getRegion();
+	$isAllowedRegion = $region !== null && $region !== 'ru';
+
+	$hasShops = !empty(ShopSitesController::getShops());
+
+	if ($isAllowedRegion && $hasShops)
+	{
+		$aMenu[] = array(
+			"parent_menu" => "global_menu_marketing",
+			"sort" => 1200,
+			"text" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES"),
+			"title" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES"),
+			"icon" => "sale_menu_icon_facebook",
+			"items_id" => "facebook_audiences",
+			"items" => [
+				[
+					"text" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES_ADD_TO_CART"),
+					"url" => "facebook_audiences_add_to_cart.php?lang=" . LANGUAGE_ID,
+					"title" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES_ADD_TO_CART"),
+				],
+				[
+					"text" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES_INITIATE_CHECKOUT"),
+					"url" => "facebook_audiences_initiate_checkout.php?lang=" . LANGUAGE_ID,
+					"title" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES_INITIATE_CHECKOUT"),
+				],
+				[
+					"text" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES_ADD_PAYMENT_INFO"),
+					"url" => "facebook_audiences_add_payment_info.php?lang=" . LANGUAGE_ID,
+					"title" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES_ADD_PAYMENT_INFO"),
+				],
+				[
+					"text" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES_CUSTOMIZE_PRODUCT"),
+					"url" => "facebook_audiences_customize_product.php?lang=" . LANGUAGE_ID,
+					"title" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES_CUSTOMIZE_PRODUCT"),
+				],
+				[
+					"text" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES_CONTACT"),
+					"url" => "facebook_audiences_contact.php?lang=" . LANGUAGE_ID,
+					"title" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES_CONTACT"),
+				],
+			]
+		);
+	}
 
 	/* Catalog Begin*/
 	// included in catalog/general/admin.php
@@ -227,7 +276,10 @@ if ($APPLICATION->GetGroupRight("sale")!="D")
 				"sort" => 302,
 			];
 
-			if (\Bitrix\Sale\Cashbox\CheckManager::isAvailableCorrection())
+			if (
+				IsModuleInstalled('crm')
+				&& \Bitrix\Sale\Cashbox\CheckManager::isAvailableCorrection()
+			)
 			{
 				$arMenu["items"][] = [
 					"text" => GetMessage("SALE_CASHBOX_CHECK_CORRECTION"),
@@ -270,14 +322,17 @@ if ($APPLICATION->GetGroupRight("sale")!="D")
 				"items" => Array(),
 			);
 
-		$arMenu["items"][] = array(
-			"text" =>  GetMessage("SALE_SYNC_DESCR"),
-			"title" => GetMessage("SALE_SYNC_TITLE"),
-			"url" => "sale_synchronizer_settings.php?lang=".LANGUAGE_ID,
-			"more_url" => array("sale_synchronizer_settings.php"),
-			"items_id" => "sale_synchronizer_settings",
-			"sort" => 302,
-		);
+		if (Loader::includeModule('sale') && Configuration::isAvailableOrdersImportFromB24())
+		{
+			$arMenu["items"][] = array(
+				"text" =>  GetMessage("SALE_SYNC_DESCR"),
+				"title" => GetMessage("SALE_SYNC_TITLE"),
+				"url" => "sale_synchronizer_settings.php?lang=".LANGUAGE_ID,
+				"more_url" => array("sale_synchronizer_settings.php"),
+				"items_id" => "sale_synchronizer_settings",
+				"sort" => 302,
+			);
+		}
 
 		$aMenu[] = $arMenu;
 	}
@@ -464,8 +519,8 @@ if ($boolStore || $bViewAll)
 	$arMenu = array(
 		"parent_menu" => "global_menu_store",
 		"sort" => 550,
-		"text" => GetMessage("SALE_STORE"),
-		"title" => GetMessage("SALE_STORE_DESCR"),
+		"text" => GetMessage("SALE_STORE_1"),
+		"title" => GetMessage("SALE_STORE_DESCR_1"),
 		"icon" => "sale_menu_icon_store",
 		"page_icon" => "sale_page_icon_store",
 		"items_id" => "menu_catalog_store",
@@ -898,22 +953,26 @@ if ($APPLICATION->GetGroupRight("sale") == "W" ||
 		}
 		/* LOCATIONS END */
 
-		$arMenu["items"][] = array(
-			"text" => GetMessage("MAIN_MENU_1C_INTEGRATION"),
-			"title" => GetMessage("MAIN_MENU_1C_INTEGRATION_TITLE"),
-			"url" => "1c_admin.php?lang=".LANGUAGE_ID,
-			"more_url" => array("1c_admin.php"),
-			"items" => array(
-				array(
-					"text" => GetMessage("MAIN_MENU_1C_INTEGRATION_LOG"),
-					"title" => GetMessage("MAIN_MENU_1C_INTEGRATION_LOG_TITLE"),
-					"url" => "sale_exchange_log.php?lang=".LANGUAGE_ID,
-					"items_id" => "sale_exchange_log",
-				)
-			),
-			"items_id" => "1c_admin",
-			"sort" => 726,
-		);
+		if (Loader::includeModule('sale') && \Bitrix\Sale\Configuration::isCanUse1c())
+		{
+			$arMenu["items"][] = array(
+				"text" => GetMessage("MAIN_MENU_1C_INTEGRATION"),
+				"title" => GetMessage("MAIN_MENU_1C_INTEGRATION_TITLE"),
+				"url" => "1c_admin.php?lang=".LANGUAGE_ID,
+				"more_url" => array("1c_admin.php"),
+				"items" => array(
+					array(
+						"text" => GetMessage("MAIN_MENU_1C_INTEGRATION_LOG"),
+						"title" => GetMessage("MAIN_MENU_1C_INTEGRATION_LOG_TITLE"),
+						"url" => "sale_exchange_log.php?lang=".LANGUAGE_ID,
+						"items_id" => "sale_exchange_log",
+					)
+				),
+				"items_id" => "1c_admin",
+				"sort" => 726,
+			);
+		}
+
 		$arMenu["items"][] = array(
 			"text" => GetMessage("MAIN_MENU_REPORT_EDIT"),
 			"title" => GetMessage("MAIN_MENU_REPORT_EDIT_TITLE"),

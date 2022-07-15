@@ -1,6 +1,5 @@
 <?php
-
-return array (
+return array (
   'utf_mode' => 
   array (
     'value' => true,
@@ -28,7 +27,7 @@ return array (
   array (
     'value' => 
     array (
-      'debug' => true,
+      'debug' => false,
       'handled_errors_types' => 4437,
       'exception_errors_types' => 4437,
       'ignore_silence' => false,
@@ -46,7 +45,7 @@ return array (
       array (
         'className' => '\\Bitrix\\Main\\DB\\MysqliConnection',
         'host' => 'localhost',
-        'database' => 'sitemanager2',
+        'database' => 'sitemanager3',
         'login' => 'root',
         'password' => '1',
         'options' => 2.0,
@@ -58,7 +57,7 @@ return array (
   array (
     'value' => 
     array (
-      'crypto_key' => '03845b33c63125ffd2c42d5c66c851b2',
+      'crypto_key' => 'e36eb3b2a560cb8825930fccee2128a2',
     ),
     'readonly' => true,
   ),

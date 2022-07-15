@@ -37,3 +37,5 @@ DROP TABLE if exists b_sender_timeline_queue;
 DROP TABLE if exists b_sender_group_data;
 DROP TABLE if exists b_sender_group_state;
 DROP TABLE if exists b_sender_group_queue;
+DROP TABLE if exists b_sender_group_thread;
+DROP TABLE if exists b_sender_file;

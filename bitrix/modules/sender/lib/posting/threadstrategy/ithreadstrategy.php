@@ -1,4 +1,4 @@
-<?
+<?php
 
 namespace Bitrix\Sender\Posting\ThreadStrategy;
 
@@ -22,4 +22,5 @@ interface IThreadStrategy
 	function updateStatus(string $status): bool;
 
 	function lastThreadId(): int;
+	function isProcessLimited(): bool;
 }

@@ -7,6 +7,7 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 use \Bitrix\Landing\Hook;
 use Bitrix\Landing\Hook\Page\Theme;
 use \Bitrix\Landing\Landing;
+use \Bitrix\Landing\Folder;
 use \Bitrix\Landing\Manager;
 use \Bitrix\Landing\Rights;
 use \Bitrix\Landing\TemplateRef;
@@ -35,7 +36,7 @@ class LandingEditComponent extends LandingBaseFormComponent
 	/**
 	 * Default site color (lightblue bitrix color)
 	 */
-	public const DEFAULT_SITE_COLOR = '#6ab8ee';
+	public const DEFAULT_SITE_COLOR = '#2fc6f6';
 
 	/**
 	 * Default color picker color
@@ -258,6 +259,7 @@ class LandingEditComponent extends LandingBaseFormComponent
 			$this->checkParam('PAGE_URL_LANDINGS', '');
 			$this->checkParam('PAGE_URL_LANDING_VIEW', '');
 			$this->checkParam('PAGE_URL_SITE_EDIT', '');
+			$this->checkParam('PAGE_URL_FOLDER_EDIT', '');
 
 			\Bitrix\Landing\Site\Type::setScope(
 				$this->arParams['TYPE']
@@ -268,8 +270,8 @@ class LandingEditComponent extends LandingBaseFormComponent
 
 			$this->arResult['TEMPLATES'] = $this->getTemplates();
 			$this->arResult['LANDING'] = $landing = $this->getRow();
-			$this->arResult['SPECIAL_TYPE'] = $this->getSpecialTypeSite(
-				$this->arParams['SITE_ID']
+			$this->arResult['SPECIAL_TYPE'] = $this->getSpecialTypeSiteByLanding(
+				\Bitrix\Landing\Landing::createInstance($this->id, ['skip_blocks' => true])
 			);
 			$this->arResult['LANDINGS'] = $this->arParams['SITE_ID'] > 0
 				? $this->getLandings(array(
@@ -297,54 +299,48 @@ class LandingEditComponent extends LandingBaseFormComponent
 				$this->addError('ACCESS_DENIED', '', true);
 			}
 
+			if (!$this->id)
+			{
+				parent::executeComponent();
+				return;
+			}
+
 			// if current page in folder
-			if ($this->id)
+			$this->arResult['FOLDER'] = [];// backward compatibility
+			$this->arResult['LAST_FOLDER'] = [];
+			$this->arResult['FOLDER_PATH'] = '';
+			if ($landing['FOLDER_ID']['CURRENT'])
 			{
-				$this->arResult['FOLDER'] = array();
-				if ($this->arResult['LANDING']['FOLDER_ID']['CURRENT'])
-				{
-					$folderId = $this->arResult['LANDING']['FOLDER_ID']['CURRENT'];
-					$res = Landing::getList(array(
-						'select' => array(
-							'*'
-						),
-						'filter' => array(
-							'ID' => $folderId
-						)
-					));
-					if ($row = $res->fetch())
-					{
-						$this->arResult['FOLDER'] = $row;
-					}
-				}
+				$this->arResult['FOLDER_PATH'] = Folder::getFullPath(
+					$landing['FOLDER_ID']['CURRENT'],
+					$landing['SITE_ID']['CURRENT'],
+					$this->arResult['LAST_FOLDER']
+				);
 			}
 
-			if ($this->id)
+			$this->arResult['SITES'] = $sites = $this->getSites();
+
+			// types mismatch
+			$availableType = [$this->arParams['TYPE']];
+			if ($this->arParams['TYPE'] == 'STORE')
 			{
-				$this->arResult['SITES'] = $sites = $this->getSites();
-
-				// types mismatch
-				$availableType = [$this->arParams['TYPE']];
-				if ($this->arParams['TYPE'] == 'STORE')
-				{
-					$availableType[] = 'SMN';
-				}
-				if (
-					!isset($sites[$this->arParams['SITE_ID']]) ||
-					!in_array($sites[$this->arParams['SITE_ID']]['TYPE'], $availableType)
-				)
-				{
-					\localRedirect($this->getRealFile());
-				}
-
-				$this->arResult['IS_INTRANET'] = $this->isIntranet();
-				\Bitrix\Landing\Hook::setEditMode();
-				$this->arResult['HOOKS'] = $this->getHooks();
-				$this->arResult['HOOKS_SITE'] = $this->getHooks('Site', $this->arParams['SITE_ID']);
-				$this->arResult['TEMPLATES_REF'] = TemplateRef::getForLanding($this->id);
-				$this->arResult['META'] = $this->getMeta();
-				$this->arResult['DOMAINS'] = $this->getDomains();
+				$availableType[] = 'SMN';
 			}
+			if (
+				!isset($sites[$this->arParams['SITE_ID']]) ||
+				!in_array($sites[$this->arParams['SITE_ID']]['TYPE'], $availableType)
+			)
+			{
+				\localRedirect($this->getRealFile());
+			}
+
+			$this->arResult['IS_INTRANET'] = $this->isIntranet();
+			\Bitrix\Landing\Hook::setEditMode();
+			$this->arResult['HOOKS'] = $this->getHooks();
+			$this->arResult['HOOKS_SITE'] = $this->getHooks('Site', $this->arParams['SITE_ID']);
+			$this->arResult['TEMPLATES_REF'] = TemplateRef::getForLanding($this->id);
+			$this->arResult['META'] = $this->getMeta();
+			$this->arResult['DOMAINS'] = $this->getDomains();
 
 			$this->arResult['COLORS'] = Theme::getColorCodes();
 			$this->arResult['PREPARE_COLORS'] = self::prepareColors($this->arResult['COLORS']);
@@ -370,7 +366,7 @@ class LandingEditComponent extends LandingBaseFormComponent
 			$this->arResult['CURRENT_THEME'] = self::getCurrentTheme($this->arResult['HOOKS'], $this->arResult['COLORS']);
 			$this->arResult['SLIDER_CODE'] = Restriction\Hook::getRestrictionCodeByHookCode('THEME');
 			$this->arResult['ALLOWED_HOOK'] = Restriction\Manager::isAllowed($this->arResult['SLIDER_CODE']);
-			if (!$this->arResult['ALLOWED_HOOK'] && !(in_array(substr($this->arResult['CURRENT_THEME'], 1), $this->arResult['PREPARE_COLORS']['allColors'], true)))
+			if (!$this->arResult['ALLOWED_HOOK'] && !(in_array($this->arResult['CURRENT_THEME'], $this->arResult['PREPARE_COLORS']['allColors'], true)))
 			{
 				$this->arResult['LAST_CUSTOM_COLOR'] = $this->arResult['CURRENT_THEME'];
 				$this->arResult['CURRENT_THEME'] = self::DEFAULT_SITE_COLOR;
@@ -432,13 +428,6 @@ class LandingEditComponent extends LandingBaseFormComponent
 					$primary['ID'],
 					$data
 				);
-				if (
-					$landing['ACTIVE']['STORED'] === 'Y' &&
-					Manager::getOption('public_hook_on_save') == 'Y'
-				)
-				{
-					Hook::publicationLanding($primary['ID']);
-				}
 			}
 		);
 

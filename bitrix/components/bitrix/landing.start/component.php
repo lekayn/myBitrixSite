@@ -92,6 +92,7 @@ $defaultUrlTemplates404 = array(
 	'site_edit' => 'site/edit/#site_edit#/',
 	'site_design' => 'site/design/#site_edit#/',
 	'site_master' => 'site/master/#site_edit#/',
+	'site_contacts' => 'site/contacts/#site_edit#/',
 	'site_domain' => 'site/domain/#site_edit#/',
 	'site_domain_switch' => 'site/domain_switch/#site_edit#/',
 	'site_cookies' => 'site/cookies/#site_edit#/',
@@ -102,7 +103,8 @@ $defaultUrlTemplates404 = array(
 	'domain_edit' => 'domain/edit/#domain_edit#/',
 	'roles' => 'roles/',
 	'notes' => 'notes/',
-	'role_edit' => 'role/edit/#role_edit#/'
+	'role_edit' => 'role/edit/#role_edit#/',
+	'folder_edit' => 'folder/edit/#folder_edit#/'
 );
 $urlTpls = array(
 	'sites' => array(),
@@ -110,6 +112,7 @@ $urlTpls = array(
 	'site_edit' => array('site_edit'),
 	'site_design' => array('site_edit'),
 	'site_master' => array('site_edit'),
+	'site_contacts' => array('site_edit'),
 	'site_domain' => array('site_edit'),
 	'site_domain_switch' => array('site_edit'),
 	'site_cookies' => array('site_edit'),
@@ -120,7 +123,8 @@ $urlTpls = array(
 	'domain_edit' => array('domain_edit'),
 	'roles' => array(),
 	'notes' => array(),
-	'role_edit' => array('role_edit')
+	'role_edit' => array('role_edit'),
+	'folder_edit' => array('folder_edit')
 );
 
 // init vars
@@ -267,7 +271,7 @@ if (
 			'ID'
 		),
 		'filter' => array(
-			'SITE_ID' => SITE_ID,
+			'=SITE_ID' => SITE_ID,
 			'=CONDITION' => $condition
 		)
 	));
@@ -521,6 +525,18 @@ if (
 )
 {
 	LocalRedirect(SITE_DIR, true);
+}
+
+if (!empty($arParams['PAGE_URL_SITE_SHOW']))
+{
+	$url = Manager::getOption('tmp_last_show_url', '');
+	if ($url !== $arParams['PAGE_URL_SITE_SHOW'])
+	{
+		Manager::setOption(
+			'tmp_last_show_url',
+			$arParams['PAGE_URL_SITE_SHOW']
+		);
+	}
 }
 
 $this->IncludeComponentTemplate($componentPage);

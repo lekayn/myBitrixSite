@@ -3238,12 +3238,27 @@ class CAllSaleBasket
 					foreach ($basketFromFUser as $basketItemFrom)
 					{
 						/** @var Sale\BasketItem $basketItem */
-						$basketItem = $basketToFUser->getExistsItemByItem($basketItemFrom);
-						if ($basketItem)
+						$basketItemFromProperties =
+							($tmp = $basketItemFrom->getPropertyCollection())
+								? $tmp->getPropertyValues()
+								: []
+						;
+						$basketItems = $basketToFUser->getExistsItems(
+							$basketItemFrom->getField('MODULE'),
+							$basketItemFrom->getField('PRODUCT_ID'),
+							$basketItemFromProperties
+						);
+						
+						if (count($basketItems) === 1)
 						{
+							$basketItem = current($basketItems);
 							$basketItem->setField('QUANTITY', $basketItem->getQuantity() + $basketItemFrom->getQuantity());
 							$basketItemFrom->delete();
 						}
+						/* 
+						 * if there is no such product in the 'toFUser' basket
+						 * or there are several of them, then add a new basket item with the same product.
+						 */
 						else
 						{
 							$basketItemFrom->setFieldNoDemand('FUSER_ID', $TO_FUSER_ID);
@@ -3989,7 +4004,7 @@ class CAllSaleUser
 		$allowUpdate = !array_key_exists('update', $params) || $params['update'] === true;
 
 		CSaleUser::UpdateSessionSaleUserID();
-		$ID = $_SESSION["SALE_USER_ID"];
+		$ID = $_SESSION["SALE_USER_ID"] ?? 0;
 
 		if(COption::GetOptionString("sale", "encode_fuser_id", "N") != "Y")
 		{
@@ -4038,7 +4053,7 @@ class CAllSaleUser
 	public static function UpdateSessionSaleUserID()
 	{
 		global $USER;
-		if ((string)$_SESSION["SALE_USER_ID"] !== "" && intval($_SESSION["SALE_USER_ID"])."|" != $_SESSION["SALE_USER_ID"]."|")
+		if (isset($_SESSION["SALE_USER_ID"]) && (string)$_SESSION["SALE_USER_ID"] !== "" && intval($_SESSION["SALE_USER_ID"])."|" != $_SESSION["SALE_USER_ID"]."|")
 		{
 			$arRes = CSaleUser::GetList(array("CODE" => $_SESSION["SALE_USER_ID"]));
 			if(!empty($arRes))

@@ -16,6 +16,7 @@ return [
 			'name' => Loc::getMessage('LANDING_BLOCK_40_6_IMG'),
 			'type' => 'img',
 			'dimensions' => ['width' => 1110],
+			'create2xByDefault' => false,
 		],
 		'.landing-block-card-title' => [
 			'name' => Loc::getMessage('LANDING_BLOCK_40_6_TITLE'),
@@ -29,6 +30,7 @@ return [
 			'name' => Loc::getMessage('LANDING_BLOCK_40_6_IMG'),
 			'type' => 'img',
 			'dimensions' => ['width' => 1110],
+			'create2xByDefault' => false,
 		],
 		'.landing-block-card-title-2' => [
 			'name' => Loc::getMessage('LANDING_BLOCK_40_6_TITLE'),
@@ -54,7 +56,7 @@ return [
 		],
 		'.landing-block-card-title' => [
 			'name' => Loc::getMessage('LANDING_BLOCK_40_6_TITLE'),
-			'type' => ['typo', 'border-color', 'border-width', 'heading'],
+			'type' => ['typo', 'border-width', 'heading'],
 		],
 		'.landing-block-card-text' => [
 			'name' => Loc::getMessage('LANDING_BLOCK_40_6_TEXT'),
@@ -66,7 +68,7 @@ return [
 		],
 		'.landing-block-card-title-2' => [
 			'name' => Loc::getMessage('LANDING_BLOCK_40_6_TITLE'),
-			'type' => ['typo', 'border-color', 'border-width', 'heading'],
+			'type' => ['typo', 'border-width', 'heading'],
 		],
 		'.landing-block-card-text-2' => [
 			'name' => Loc::getMessage('LANDING_BLOCK_40_6_TEXT'),

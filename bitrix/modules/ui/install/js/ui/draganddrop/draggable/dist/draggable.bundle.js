@@ -27,6 +27,10 @@ this.BX.UI = this.BX.UI || {};
 	  return DragStartSensorEvent;
 	}(BaseEvent);
 
+	function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); enumerableOnly && (symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; })), keys.push.apply(keys, symbols); } return keys; }
+
+	function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = null != arguments[i] ? arguments[i] : {}; i % 2 ? ownKeys(Object(source), !0).forEach(function (key) { babelHelpers.defineProperty(target, key, source[key]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } return target; }
+
 	var Sensor = /*#__PURE__*/function (_EventEmitter) {
 	  babelHelpers.inherits(Sensor, _EventEmitter);
 
@@ -45,7 +49,7 @@ this.BX.UI = this.BX.UI || {};
 	    var dropzone = options.dropzone;
 	    _this.containers = main_core.Type.isArray(container) ? babelHelpers.toConsumableArray(container) : [container];
 	    _this.dropzones = main_core.Type.isArrayLike(dropzone) ? babelHelpers.toConsumableArray(dropzone) : [dropzone];
-	    _this.options = babelHelpers.objectSpread({
+	    _this.options = _objectSpread({
 	      delay: 0
 	    }, options);
 	    return _this;
@@ -568,6 +572,17 @@ this.BX.UI = this.BX.UI || {};
 	  return TouchSensor;
 	}(Sensor);
 
+	var DragBeforeStartEvent = /*#__PURE__*/function (_BaseEvent) {
+	  babelHelpers.inherits(DragBeforeStartEvent, _BaseEvent);
+
+	  function DragBeforeStartEvent() {
+	    babelHelpers.classCallCheck(this, DragBeforeStartEvent);
+	    return babelHelpers.possibleConstructorReturn(this, babelHelpers.getPrototypeOf(DragBeforeStartEvent).apply(this, arguments));
+	  }
+
+	  return DragBeforeStartEvent;
+	}(BaseEvent);
+
 	var DragStartEvent = /*#__PURE__*/function (_BaseEvent) {
 	  babelHelpers.inherits(DragStartEvent, _BaseEvent);
 
@@ -711,25 +726,11 @@ this.BX.UI = this.BX.UI || {};
 	  return DragDropEvent;
 	}(BaseEvent);
 
-	function _templateObject2() {
-	  var data = babelHelpers.taggedTemplateLiteral(["<div>", "</div>"]);
+	var _templateObject, _templateObject2, _templateObject3;
 
-	  _templateObject2 = function _templateObject2() {
-	    return data;
-	  };
+	function ownKeys$1(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); enumerableOnly && (symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; })), keys.push.apply(keys, symbols); } return keys; }
 
-	  return data;
-	}
-
-	function _templateObject() {
-	  var data = babelHelpers.taggedTemplateLiteral(["<div></div>"]);
-
-	  _templateObject = function _templateObject() {
-	    return data;
-	  };
-
-	  return data;
-	}
+	function _objectSpread$1(target) { for (var i = 1; i < arguments.length; i++) { var source = null != arguments[i] ? arguments[i] : {}; i % 2 ? ownKeys$1(Object(source), !0).forEach(function (key) { babelHelpers.defineProperty(target, key, source[key]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys$1(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } return target; }
 	var defaultSensors = [MouseSensor, TouchSensor];
 	var optionsKey = Symbol('options');
 	var sensorsKey = Symbol('sensors');
@@ -804,7 +805,7 @@ this.BX.UI = this.BX.UI || {};
 	      }
 	    }
 
-	    _this.setOptions(babelHelpers.objectSpread({}, _this.getOptions(), options));
+	    _this.setOptions(_objectSpread$1(_objectSpread$1({}, _this.getOptions()), options));
 
 	    var _this$getOptions = _this.getOptions(),
 	        sensors = _this$getOptions.sensors;
@@ -827,7 +828,7 @@ this.BX.UI = this.BX.UI || {};
 	  }, {
 	    key: "setOptions",
 	    value: function setOptions(options) {
-	      this[optionsKey] = babelHelpers.objectSpread({}, options);
+	      this[optionsKey] = _objectSpread$1({}, options);
 
 	      if (!main_core.Type.isString(this[optionsKey].dragElement)) {
 	        this[optionsKey].dragElement = this[optionsKey].draggable;
@@ -1038,6 +1039,10 @@ this.BX.UI = this.BX.UI || {};
 
 	        var source = _this11.getSource();
 
+	        if (source === null) {
+	          return main_core.Tag.render(_templateObject || (_templateObject = babelHelpers.taggedTemplateLiteral(["<div></div>"])));
+	        }
+
 	        var sourceRect = _this11.getSourceClientRect();
 
 	        var dropPreview;
@@ -1046,7 +1051,7 @@ this.BX.UI = this.BX.UI || {};
 	          dropPreview = main_core.Runtime.clone(source);
 	          main_core.Dom.addClass(dropPreview, 'ui-draggable--drop-preview-clone');
 	        } else {
-	          dropPreview = main_core.Tag.render(_templateObject());
+	          dropPreview = main_core.Tag.render(_templateObject2 || (_templateObject2 = babelHelpers.taggedTemplateLiteral(["<div></div>"])));
 	        }
 
 	        main_core.Dom.addClass(dropPreview, 'ui-draggable--drop-preview');
@@ -1313,21 +1318,21 @@ this.BX.UI = this.BX.UI || {};
 	    value: function invalidateContainersCache() {
 	      var _this19 = this;
 
-	      this.cache.delete('draggableElements');
+	      this.cache["delete"]('draggableElements');
 	      this.getContainers().forEach(function (container) {
-	        return _this19.cache.delete(container);
+	        return _this19.cache["delete"](container);
 	      });
 	    }
 	  }, {
 	    key: "invalidateCache",
 	    value: function invalidateCache() {
-	      this.cache.delete('source');
-	      this.cache.delete('sourceClientRect');
-	      this.cache.delete('dropPreview');
-	      this.cache.delete('sortOffsetY');
-	      this.cache.delete('sortOffsetX');
-	      this.cache.delete('sourceLeftOffset');
-	      this.cache.delete('sourceLeftMargin');
+	      this.cache["delete"]('source');
+	      this.cache["delete"]('sourceClientRect');
+	      this.cache["delete"]('dropPreview');
+	      this.cache["delete"]('sortOffsetY');
+	      this.cache["delete"]('sortOffsetX');
+	      this.cache["delete"]('sourceLeftOffset');
+	      this.cache["delete"]('sourceLeftMargin');
 	      this.invalidateContainersCache();
 	    }
 	  }, {
@@ -1506,6 +1511,20 @@ this.BX.UI = this.BX.UI || {};
 	          clientX = _event$data.clientX,
 	          clientY = _event$data.clientY;
 	      var source = this.getDraggableElementByChild(originalSource);
+	      var dragBeforeStartEvent = new DragBeforeStartEvent({
+	        clientX: clientX,
+	        clientY: clientY,
+	        source: source,
+	        sourceContainer: sourceContainer,
+	        originalSource: originalSource
+	      });
+	      this.emit('beforeStart', dragBeforeStartEvent);
+
+	      if (dragBeforeStartEvent.isDefaultPrevented()) {
+	        event.preventDefault();
+	        return;
+	      }
+
 	      this.setSource(source);
 	      var sourceDepth = this.getElementDepth(source);
 	      var sourceRect = this.getSourceClientRect();
@@ -1520,7 +1539,7 @@ this.BX.UI = this.BX.UI || {};
 	      if (type !== Draggable.HEADLESS) {
 	        var clone = main_core.Runtime.clone(source);
 	        main_core.Dom.style(clone, 'margin', 0);
-	        draggable = main_core.Tag.render(_templateObject2(), clone);
+	        draggable = main_core.Tag.render(_templateObject3 || (_templateObject3 = babelHelpers.taggedTemplateLiteral(["<div>", "</div>"])), clone);
 	        main_core.Dom.style(draggable, {
 	          width: "".concat(sourceRect.width, "px"),
 	          height: "".concat(sourceRect.height, "px"),
@@ -1722,7 +1741,7 @@ this.BX.UI = this.BX.UI || {};
 	      }
 
 	      if (main_core.Type.isDomNode(over) && source !== over) {
-	        var dragOverEvent = new DragOverEvent(babelHelpers.objectSpread({}, dragMoveEvent.data, {
+	        var dragOverEvent = new DragOverEvent(_objectSpread$1(_objectSpread$1({}, dragMoveEvent.data), {}, {
 	          over: over,
 	          originalOver: originalOver,
 	          overContainer: overContainer
@@ -1734,7 +1753,7 @@ this.BX.UI = this.BX.UI || {};
 	        }
 
 	        if (over !== this.lastOver) {
-	          var dragEnterEvent = new DragEnterEvent(babelHelpers.objectSpread({}, dragMoveEvent.data, {
+	          var dragEnterEvent = new DragEnterEvent(_objectSpread$1(_objectSpread$1({}, dragMoveEvent.data), {}, {
 	            enter: over,
 	            enterContainer: overContainer
 	          }));
@@ -1747,7 +1766,7 @@ this.BX.UI = this.BX.UI || {};
 	      if (!over || over !== this.lastOver) {
 	        if (this.lastOver) {
 	          var outContainer = this.getContainerByChild(this.lastOver);
-	          var dragOutEvent = new DragOutEvent(babelHelpers.objectSpread({}, dragMoveEvent, {
+	          var dragOutEvent = new DragOutEvent(_objectSpread$1(_objectSpread$1({}, dragMoveEvent), {}, {
 	            out: this.lastOver,
 	            outContainer: outContainer
 	          }));
@@ -1762,13 +1781,13 @@ this.BX.UI = this.BX.UI || {};
 	      var dropzoneOver = this.getDropzoneByChild(sourceOver);
 
 	      if (dropzoneOver) {
-	        var dragOverDropzoneEvent = new DragOverDropzoneEvent(babelHelpers.objectSpread({}, dragMoveEvent.data, {
+	        var dragOverDropzoneEvent = new DragOverDropzoneEvent(_objectSpread$1(_objectSpread$1({}, dragMoveEvent.data), {}, {
 	          dropzone: dropzoneOver
 	        }));
 	        this.emit('dropzone:over', dragOverDropzoneEvent);
 
 	        if (dropzoneOver !== this.lastOverDropzone) {
-	          var dragEnterDropzoneEvent = new DragEnterDropzoneEvent(babelHelpers.objectSpread({}, dragMoveEvent.data, {
+	          var dragEnterDropzoneEvent = new DragEnterDropzoneEvent(_objectSpread$1(_objectSpread$1({}, dragMoveEvent.data), {}, {
 	            dropzone: dropzoneOver
 	          }));
 	          this.emit('dropzone:enter', dragEnterDropzoneEvent);
@@ -1778,7 +1797,7 @@ this.BX.UI = this.BX.UI || {};
 	      this.lastOverDropzone = this.lastOverDropzone || dropzoneOver;
 
 	      if (dropzoneOver !== this.lastOverDropzone) {
-	        var dragOutDropzoneEvent = new DragOutDropzoneEvent(babelHelpers.objectSpread({}, dragMoveEvent.data, {
+	        var dragOutDropzoneEvent = new DragOutDropzoneEvent(_objectSpread$1(_objectSpread$1({}, dragMoveEvent.data), {}, {
 	          dropzone: this.lastOverDropzone
 	        }));
 	        this.emit('dropzone:out', dragOutDropzoneEvent);
@@ -1786,13 +1805,13 @@ this.BX.UI = this.BX.UI || {};
 	      }
 
 	      if (overContainer) {
-	        var dragOverContainerEvent = new DragOverContainerEvent(babelHelpers.objectSpread({}, dragMoveEvent.data, {
+	        var dragOverContainerEvent = new DragOverContainerEvent(_objectSpread$1(_objectSpread$1({}, dragMoveEvent.data), {}, {
 	          over: overContainer
 	        }));
 	        this.emit('container:over', dragOverContainerEvent);
 
 	        if (overContainer !== this.lastOverContainer) {
-	          var dragEnterContainerEvent = new DragEnterContainerEvent(babelHelpers.objectSpread({}, dragMoveEvent.data, {
+	          var dragEnterContainerEvent = new DragEnterContainerEvent(_objectSpread$1(_objectSpread$1({}, dragMoveEvent.data), {}, {
 	            enter: overContainer
 	          }));
 	          this.emit('container:enter', dragEnterContainerEvent);
@@ -1862,7 +1881,7 @@ this.BX.UI = this.BX.UI || {};
 	      this.lastOverContainer = this.lastOverContainer || overContainer;
 
 	      if (overContainer !== this.lastOverContainer) {
-	        var dragOutContainerEvent = new DragOutContainerEvent(babelHelpers.objectSpread({}, dragMoveEvent.data, {
+	        var dragOutContainerEvent = new DragOutContainerEvent(_objectSpread$1(_objectSpread$1({}, dragMoveEvent.data), {}, {
 	          out: this.lastOverContainer
 	        }));
 	        this.emit('container:out', dragOutContainerEvent);
@@ -1874,7 +1893,7 @@ this.BX.UI = this.BX.UI || {};
 	    value: function onDragEnd(event) {
 	      var _this24 = this;
 
-	      var dragEndEvent = new DragEndEvent(babelHelpers.objectSpread({}, this.dragStartEvent.data, {
+	      var dragEndEvent = new DragEndEvent(_objectSpread$1(_objectSpread$1({}, this.dragStartEvent.data), {}, {
 	        clientX: event.data.clientX,
 	        clientY: event.data.clientY,
 	        end: this.lastOver,
@@ -1948,7 +1967,7 @@ this.BX.UI = this.BX.UI || {};
 	  }, {
 	    key: "onDragDrop",
 	    value: function onDragDrop(event) {
-	      var dragDropEvent = new DragDropEvent(babelHelpers.objectSpread({}, this.dragStartEvent.data, {
+	      var dragDropEvent = new DragDropEvent(_objectSpread$1(_objectSpread$1({}, this.dragStartEvent.data), {}, {
 	        clientX: event.data.clientX,
 	        clientY: event.data.clientY,
 	        dropzone: event.data.dropzone

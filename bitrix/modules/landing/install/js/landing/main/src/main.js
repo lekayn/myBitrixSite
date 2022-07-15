@@ -1,31 +1,28 @@
-import {Event, Type, Dom, Cache, Tag, Text} from 'main.core';
+import {Type, Dom, Cache, Tag, Text, Runtime} from 'main.core';
+import {EventEmitter} from 'main.core.events';
 import {Env} from 'landing.env';
 import {Loc} from 'landing.loc';
 import {Content} from 'landing.ui.panel.content';
+import {SaveBlock} from 'landing.ui.panel.saveblock';
 import {SliderHacks} from 'landing.sliderhacks';
 import {PageObject} from 'landing.pageobject';
 import hasBlock from './internal/has-block';
 import hasCreateButton from './internal/has-create-button';
 import onAnimationEnd from './internal/on-animation-end';
 import isEmpty from './internal/is-empty';
-
-const LANG_RU = 'ru';
-const LANG_BY = 'by';
-const LANG_KZ = 'kz';
-const LANG_LA = 'la';
-const LANG_DE = 'de';
-const LANG_BR = 'br';
-const LANG_UA = 'ua';
+import {Backend} from 'landing.backend';
 
 BX.Landing.getMode = () => 'edit';
 
 /**
  * @memberOf BX.Landing
  */
-export class Main extends Event.EventEmitter
+export class Main extends EventEmitter
 {
 	static TYPE_PAGE = 'PAGE';
 	static TYPE_STORE = 'STORE';
+	static TYPE_KNOWLEDGE = 'KNOWLEDGE';
+	static TYPE_GROUP = 'GROUP';
 
 	static getMode()
 	{
@@ -61,6 +58,7 @@ export class Main extends Event.EventEmitter
 
 		this.id = id;
 		this.options = Object.freeze(options);
+		this.blocks = this.options.blocks;
 		this.currentBlock = null;
 		this.isDesignBlockModeFlag = this.options["design_block"] === true;
 		this.loadedDeps = {};
@@ -78,6 +76,24 @@ export class Main extends Event.EventEmitter
 		{
 			BX.Landing.UI.Panel.StatusPanel.getInstance().show();
 		}
+
+		const pageType = Env.getInstance().getType();
+		if (
+			pageType === Main.TYPE_KNOWLEDGE
+			|| pageType === Main.TYPE_GROUP
+		)
+		{
+			const mainArea = document.querySelector('.landing-main');
+			if (Type.isDomNode(mainArea))
+			{
+				Dom.addClass(mainArea, 'landing-ui-collapse');
+			}
+		}
+	}
+
+	isCrmFormPage(): boolean
+	{
+		return Env.getInstance().getOptions().specialType === 'crm_forms';
 	}
 
 	isDesignBlockMode()
@@ -85,12 +101,29 @@ export class Main extends Event.EventEmitter
 		return this.isDesignBlockModeFlag;
 	}
 
+	getSaveBlockPanel(): Content
+	{
+		const panel = new SaveBlock('save_block_panel', {block: this.currentBlock});
+		panel.layout.hidden = true;
+		panel.content.hidden = false;
+		Dom.append(panel.layout, document.body);
+
+		return panel;
+	}
+
 	getBlocksPanel(): Content
 	{
 		return this.cache.remember('blockPanel', () => {
 			const blocksPanel = this.createBlocksPanel();
 			setTimeout(() => {
-				blocksPanel.sidebarButtons.get(this.options.default_section).layout.click();
+				if (blocksPanel.sidebarButtons.get(this.options.default_section))
+				{
+					blocksPanel.sidebarButtons.get(this.options.default_section).layout.click();
+				}
+				else
+				{
+					[...blocksPanel.sidebarButtons][0].layout.click();
+				}
 			});
 			blocksPanel.layout.hidden = true;
 			blocksPanel.content.hidden = false;
@@ -355,19 +388,36 @@ export class Main extends Event.EventEmitter
 	 * @param {BX.Landing.Block} block
 	 * @param {HTMLElement} [area]
 	 * @param [button]
+	 * @param [insertBefore]
 	 */
-	showBlocksPanel(block, area, button)
+	showBlocksPanel(block, area, button, insertBefore)
 	{
 		this.currentBlock = block;
 		this.currentArea = area;
-		this.getBlocksPanel().show();
+		this.insertBefore = insertBefore;
 
+		BX.Landing.UI.Panel.EditorPanel.getInstance().hide();
+
+		if (this.isCrmFormPage())
+		{
+			const rootWindow = PageObject.getRootWindow();
+			Dom.append(this.getBlocksPanel().layout, rootWindow.document.body);
+			Dom.append(this.getBlocksPanel().overlay, rootWindow.document.body);
+		}
+
+		this.getBlocksPanel().show();
 		this.disableAddBlockButtons();
 
 		if (!!area && !!button)
 		{
 			this.onCreateButtonMouseout(area, button);
 		}
+	}
+
+	showSaveBlock(block)
+	{
+		this.currentBlock = block;
+		this.getSaveBlockPanel().show();
 	}
 
 	disableAddBlockButtons()
@@ -450,48 +500,32 @@ export class Main extends Event.EventEmitter
 	 */
 	showSliderFeedbackForm(data = {})
 	{
-		if (!this.sliderFeedbackInited)
-		{
-			this.sliderFeedbackInited = true;
-			this.sliderFeedback = new Content('slider_feedback', {
-				title: Loc.getMessage('LANDING_PANEL_FEEDBACK_TITLE'),
-				className: 'landing-ui-panel-feedback',
-			});
-			Dom.append(this.sliderFeedback.layout, document.body);
-			this.sliderFormLoader = new BX.Loader({target: this.sliderFeedback.content});
-			this.sliderFormLoader.show();
-			this.initFeedbackForm();
-		}
-
-		data.bitrix24 = this.options.server_name;
-		data.siteId = this.options.site_id;
-		data.siteUrl = this.options.url;
-		data.siteTemplate = this.options.xml_id;
-		data.productType = this.options.productType || 'Undefined';
-		data.typeproduct = (() => {
-			if (this.options.params.type === 'GROUP')
+		Runtime.loadExtension('ui.feedback.form').then(() => {
+			const data = {};
+			data.bitrix24 = this.options.server_name;
+			data.siteId = this.options.site_id;
+			data.siteUrl = this.options.url;
+			data.siteTemplate = this.options.xml_id;
+			data.productType = this.options.productType || 'Undefined';
+			data.typeproduct = (() =>
 			{
-				return 'KNOWLEDGE_GROUP';
-			}
+				if (this.options.params.type === Main.TYPE_GROUP)
+				{
+					return 'KNOWLEDGE_GROUP';
+				}
 
-			return this.options.params.type;
-		})();
+				return this.options.params.type;
+			})();
 
-		const form = this.getFeedbackFormOptions();
-
-		window.b24formFeedBack({
-			id: form.id,
-			lang: form.lang,
-			sec: form.sec,
-			type: 'slider_inline',
-			node: this.sliderFeedback.content,
-			handlers: {
-				load: this.onSliderFormLoaded.bind(this),
-			},
-			presets: Type.isPlainObject(data) ? data : {},
+			BX.UI.Feedback.Form.open(
+				{
+					id: Math.random()+'',
+					forms: this.getFeedbackFormOptions(),
+					presets: data,
+				}
+			);
 		});
 
-		this.sliderFeedback.show();
 	}
 
 
@@ -502,33 +536,14 @@ export class Main extends Event.EventEmitter
 	// eslint-disable-next-line class-methods-use-this
 	getFeedbackFormOptions()
 	{
-		const currentLanguage = Loc.getMessage('LANGUAGE_ID');
-		let options = {id: '16', sec: '3h483y', lang: 'en'};
-
-		switch (currentLanguage)
-		{
-			case LANG_RU:
-			case LANG_BY:
-			case LANG_KZ:
-				options = {id: '8', sec: 'x80yjw', lang: 'ru'};
-				break;
-			case LANG_LA:
-				options = {id: '14', sec: 'wu561i', lang: 'la'};
-				break;
-			case LANG_DE:
-				options = {id: '10', sec: 'eraz2q', lang: 'de'};
-				break;
-			case LANG_BR:
-				options = {id: '12', sec: 'r6wvge', lang: 'br'};
-				break;
-			case LANG_UA:
-				options = {id: '18', sec: 'd9e09o', lang: 'ua'};
-				break;
-			default:
-				break;
-		}
-
-		return options;
+		return [
+			{zones: ['en', 'eu', 'in', 'uk'], id: 16, lang: 'en', sec: '3h483y'},
+			{zones: ['ru', 'by', 'kz'], id: 8, lang: 'ru', sec: 'x80yjw'},
+			{zones: ['ua'], id: 18, lang: 'ua', sec: 'd9e09o'},
+			{zones: ['la', 'co', 'mx'], id: 14, lang: 'la', sec: 'wu561i'},
+			{zones: ['de'], id: 10, lang: 'de', sec: 'eraz2q'},
+			{zones: ['com.br', 'br'], id: 12, lang: 'br', sec: 'r6wvge'},
+		];
 	}
 
 
@@ -556,6 +571,7 @@ export class Main extends Event.EventEmitter
 	// eslint-disable-next-line class-methods-use-this
 	initFeedbackForm()
 	{
+		const rootWindow = PageObject.getRootWindow();
 		((w, d, u, b) => {
 			w.Bitrix24FormObject = b; w[b] = w[b] || function() {
 				// eslint-disable-next-line prefer-rest-params
@@ -567,7 +583,7 @@ export class Main extends Event.EventEmitter
 			const s = d.createElement('script');
 			const r = 1 * new Date(); s.async = 1; s.src = `${u}?${r}`;
 			const h = d.getElementsByTagName('script')[0]; h.parentNode.insertBefore(s, h);
-		})(window, document, 'https://landing.bitrix24.ru/bitrix/js/crm/form_loader.js', 'b24formFeedBack');
+		})(rootWindow, rootWindow.document, 'https://landing.bitrix24.ru/bitrix/js/crm/form_loader.js', 'b24formFeedBack');
 	}
 
 
@@ -587,6 +603,80 @@ export class Main extends Event.EventEmitter
 		});
 	}
 
+	/**
+	 * Adds dynamically new block to the category.
+	 * @param {string} category Category code.
+	 * @param {{code: string, name: string, preview: string, section: Array<string>}} block Block data.
+	 */
+	addNewBlockToCategory(category, block)
+	{
+		if (this.blocks[category])
+		{
+			const blockCode = block['codeOriginal'] || block['code'];
+			if (category === 'last')
+			{
+				if (!this.lastBlocks)
+				{
+					this.lastBlocks = Object.keys(this.blocks.last.items);
+				}
+				this.lastBlocks.unshift(blockCode);
+			}
+			else
+			{
+				this.blocks[category].items[blockCode] = block;
+			}
+			this.onBlocksListCategoryChange(category);
+		}
+	}
+
+	removeBlockFromList(blockCode: string)
+	{
+		let removed = false;
+		for (let category in this.blocks)
+		{
+			if (this.blocks[category].items[blockCode] !== undefined)
+			{
+				delete this.blocks[category].items[blockCode];
+				removed = true;
+			}
+		}
+		if (this.lastBlocks.indexOf(blockCode) !== -1)
+		{
+			this.lastBlocks.splice(this.lastBlocks.indexOf(blockCode), 1);
+			removed = true;
+		}
+
+		// refresh panel
+		if (removed)
+		{
+			const activeCategoryButton = this.getBlocksPanel().sidebarButtons.find((button) => {
+				return Dom.hasClass(button.layout, 'landing-ui-active');
+			});
+			if (activeCategoryButton)
+			{
+				this.onBlocksListCategoryChange(activeCategoryButton.id);
+			}
+		}
+	}
+
+	/**
+	 * Returns page's template code if exists.
+	 * @return {string|null}
+	 */
+	getTemplateCode()
+	{
+		let { tplCode } = Env.getInstance().getOptions();
+		if (tplCode.indexOf('@') > 0)
+		{
+			tplCode = tplCode.split('@')[1];
+		}
+		if (!tplCode || tplCode.length <= 0)
+		{
+			tplCode = null;
+		}
+		return tplCode;
+	}
+
 
 	/**
 	 * Handles event on blocks list category change
@@ -594,6 +684,7 @@ export class Main extends Event.EventEmitter
 	 */
 	onBlocksListCategoryChange(category)
 	{
+		const templateCode = this.getTemplateCode();
 		this.getBlocksPanel().content.hidden = false;
 
 		this.getBlocksPanel().sidebarButtons.forEach((button) => {
@@ -607,7 +698,7 @@ export class Main extends Event.EventEmitter
 		{
 			if (!this.lastBlocks)
 			{
-				this.lastBlocks = Object.keys(this.options.blocks.last.items);
+				this.lastBlocks = Object.keys(this.blocks.last.items);
 			}
 
 			this.lastBlocks = [...new Set(this.lastBlocks)];
@@ -620,9 +711,16 @@ export class Main extends Event.EventEmitter
 			return;
 		}
 
-		Object.keys(this.options.blocks[category].items).forEach((blockKey) => {
-			const block = this.options.blocks[category].items[blockKey];
-			this.getBlocksPanel().appendCard(this.createBlockCard(blockKey, block));
+		Object.keys(this.blocks[category].items).forEach((blockKey) => {
+			const block = this.blocks[category].items[blockKey];
+			const blockTplCode = (block['tpl_code'] && block['tpl_code'].length > 0) ? block['tpl_code'] : null;
+			if (
+				!templateCode || !blockTplCode ||
+				(blockTplCode && blockTplCode === templateCode)
+			)
+			{
+				this.getBlocksPanel().appendCard(this.createBlockCard(blockKey, block));
+			}
 		});
 
 		if (this.getBlocksPanel().content.scrollTop)
@@ -751,7 +849,7 @@ export class Main extends Event.EventEmitter
 	{
 		if (this.lastBlocks)
 		{
-			this.lastBlocks.unshift(res.manifest.code);
+			this.lastBlocks.unshift(res.manifest.codeOriginal || res.manifest.code);
 		}
 
 		const self = this;
@@ -815,6 +913,7 @@ export class Main extends Event.EventEmitter
 					designed: res.designed,
 					anchor: res.anchor,
 					dynamicParams: res.dynamicParams,
+					repoId: res.repoId,
 				});
 
 				return self.runBlockScripts(res)
@@ -851,7 +950,9 @@ export class Main extends Event.EventEmitter
 				});
 			})
 			.then((res) => {
-				const p = this.addBlock(res, preventHistory);
+				res.manifest.codeOriginal = blockCode;
+				const p = this.addBlock(res, preventHistory, false);
+				this.insertBefore = false;
 				this.adjustEmptyAreas();
 				void this.hideBlockLoader();
 				this.enableAddBlockButtons();
@@ -867,16 +968,21 @@ export class Main extends Event.EventEmitter
 	 */
 	insertToBlocksFlow(element)
 	{
-		const insertAfterCurrentBlock = (
+		const isCurrentBlockAvailable = (
 			this.currentBlock
 			&& this.currentBlock.node
 			&& this.currentBlock.node.parentNode
 		);
 
-		if (insertAfterCurrentBlock)
+		if (isCurrentBlockAvailable && !this.insertBefore)
 		{
 			Dom.insertAfter(element, this.currentBlock.node);
 			return;
+		}
+
+		if (isCurrentBlockAvailable && this.insertBefore)
+		{
+			Dom.insertBefore(element, this.currentBlock.node);
 		}
 
 		Dom.prepend(element, this.currentArea);
@@ -1063,8 +1169,26 @@ export class Main extends Event.EventEmitter
 			if (!restoreId)
 			{
 				requestBody.fields = fields;
-				return BX.Landing.Backend.getInstance()
-					.action('Landing::addBlock', requestBody, {code: blockCode});
+				return Backend
+					.getInstance()
+					.action('Landing::addBlock', requestBody, {code: blockCode})
+					.then((result) => {
+						if (this.insertBefore)
+						{
+							return Backend
+								.getInstance()
+								.action('Landing::upBlock', {
+									lid,
+									siteId,
+									block: result.id,
+								})
+								.then(() => {
+									return result;
+								});
+						}
+
+						return result;
+					});
 			}
 
 			requestBody = {
@@ -1109,6 +1233,10 @@ export class Main extends Event.EventEmitter
 			title: block.name,
 			image: block.preview,
 			code: blockKey,
+			app_expired: block.app_expired,
+			favorite: !!block.favorite,
+			favoriteMy: !!block.favoriteMy,
+			repo_id: block.repo_id,
 			mode,
 			isNew: block.new === true,
 			onClick: this.onAddBlock.bind(this, blockKey),

@@ -53,22 +53,33 @@
 			this.actions = eval(actions);
 			this.types = eval(types);
 
-			BX.addCustomEvent(window, 'Dropdown::change', BX.proxy(function(id, event, item, dataItem) {
-				this.isPanelControl(BX(id))&& this._dropdownChange(id, event, item, dataItem);
-			}, this));
+			BX.addCustomEvent(window, 'Dropdown::change', BX.proxy(this._dropdownEventHandle, this));
 
-			BX.addCustomEvent(window, 'Dropdown::load', BX.proxy(function(id, event, item, dataItem) {
-				this.isPanelControl(BX(id)) && this._dropdownChange(id, event, item, dataItem);
-			}, this));
+			BX.addCustomEvent(window, 'Dropdown::load', BX.proxy(this._dropdownEventHandle, this));
 
 			var panel = this.getPanel();
 			BX.bind(panel, 'change', BX.delegate(this._checkboxChange, this));
 			BX.bind(panel, 'click', BX.delegate(this._clickOnButton, this));
 
-			BX.addCustomEvent(window, 'Grid::updated', function() {
-				var cancelButton = BX('grid_cancel_button');
-				cancelButton && BX.fireEvent(BX.firstChild(cancelButton), 'click');
-			});
+			BX.addCustomEvent(window, 'Grid::updated', BX.proxy(this._gridUpdatedEventHandle, this));
+		},
+
+		destroy: function()
+		{
+			BX.removeCustomEvent(window, 'Dropdown::change', BX.proxy(this._dropdownEventHandle, this));
+			BX.removeCustomEvent(window, 'Dropdown::load', BX.proxy(this._dropdownEventHandle, this));
+			BX.removeCustomEvent(window, 'Grid::updated', BX.proxy(this._gridUpdatedEventHandle, this));
+		},
+
+		_gridUpdatedEventHandle: function()
+		{
+			var cancelButton = BX('grid_cancel_button');
+			cancelButton && BX.fireEvent(BX.firstChild(cancelButton), 'click');
+		},
+
+		_dropdownEventHandle: function(id, event, item, dataItem)
+		{
+			this.isPanelControl(BX(id)) && this._dropdownChange(id, event, item, dataItem);
 		},
 
 		resetForAllCheckbox: function()
@@ -158,7 +169,9 @@
 
 		createDropdown: function(data, relative)
 		{
-			var container = this.createContainer(data.ID, relative);
+			var emptyText = data.EMPTY_TEXT || '';
+			var isMultiple = data.MULTIPLE === 'Y';
+			var container = this.createContainer(data.ID, relative, {});
 			var dropdown = BX.create('div', {
 				props: {
 					className: 'main-dropdown main-grid-panel-control',
@@ -167,13 +180,15 @@
 				attrs: {
 					name: data.NAME,
 					'data-name': data.NAME,
+					'data-empty-text': emptyText,
+					'data-multiple': isMultiple ? 'Y' : 'N',
 					'data-items': JSON.stringify(data.ITEMS),
-					'data-value': data.ITEMS[0].VALUE,
+					'data-value': isMultiple ? '' : data.ITEMS[0].VALUE,
 					'data-popup-position': 'fixed'
 				},
 				children: [BX.create('span', {
 					props: {className: 'main-dropdown-inner'},
-					html: data.ITEMS[0].NAME
+					html: isMultiple ? emptyText : data.ITEMS[0].NAME
 				})]
 			});
 
@@ -184,7 +199,7 @@
 
 		createCheckbox: function(data, relative)
 		{
-			var checkbox = this.createContainer(data.ID, relative);
+			var checkbox = this.createContainer(data.ID, relative, {});
 
 			var inner = BX.create('span', {
 				props: {
@@ -251,7 +266,7 @@
 		 */
 		createText: function(data, relative)
 		{
-			var container = this.createContainer(data.ID, relative);
+			var container = this.createContainer(data.ID, relative, {});
 			var title = BX.type.isNotEmptyString(data["TITLE"]) ? data["TITLE"] : "";
 			if(title !== "")
 			{
@@ -292,7 +307,11 @@
 
 		createHidden: function(data, relative)
 		{
-			var container = this.createContainer(data.ID, relative);
+			var container = this.createContainer(
+				data.ID,
+				relative,
+				{ CLASS: 'main-grid-panel-hidden-control-container' }
+			);
 			container.appendChild(
 				BX.create(
 					'input',
@@ -339,7 +358,7 @@
 
 			this.prepareButton();
 
-			let container = this.createContainer(data.ID, relative);
+			let container = this.createContainer(data.ID, relative, {});
 			container.appendChild(this.button);
 
 			return container;
@@ -394,7 +413,7 @@
 		 */
 		createLink: function(data, relative)
 		{
-			var container = this.createContainer(data.ID, relative);
+			var container = this.createContainer(data.ID, relative, {});
 			var link = BX.create('a', {
 				props: {
 					className: 'main-grid-link' + (data.CLASS ? ' ' + data.CLASS : ''),
@@ -414,7 +433,11 @@
 
 		createCustom: function(data, relative)
 		{
-			var container = this.createContainer(data.ID, relative);
+			var container = this.createContainer(
+				data.ID,
+				relative,
+				{ CLASS: 'main-grid-panel-hidden-control-container' }
+			);
 
 			var custom = BX.create('div', {
 				props: {
@@ -428,14 +451,15 @@
 			return container;
 		},
 
-		createContainer: function(id, relative)
+		createContainer: function(id, relative, options)
 		{
 			id = id.replace('_control', '');
 			relative = relative.replace('_control', '');
+			options = options || {};
 
 			return BX.create('span', {
 				props: {
-					className: this.parent.settings.get('classPanelControlContainer'),
+					className: this.parent.settings.get('classPanelControlContainer') + (options.CLASS ? ' ' + options.CLASS : ''),
 					id: id
 				},
 				attrs: {
@@ -533,7 +557,7 @@
 
 		createDate: function(data, relative)
 		{
-			var container = this.createContainer(data.ID, relative);
+			var container = this.createContainer(data.ID, relative, {});
 			var date = BX.decl({
 				block: 'main-ui-date',
 				mix: ['main-grid-panel-date'],
@@ -867,8 +891,9 @@
 					if (self.isDropdown(current))
 					{
 						var dropdownValue = BX.data(current, 'value');
+						var multiple = BX.data(current, 'multiple') === 'Y';
 						dropdownValue = (dropdownValue !== null && dropdownValue !== undefined) ? dropdownValue : '';
-						data[BX.data(current, 'name')] = dropdownValue;
+						data[BX.data(current, 'name')] = multiple ? dropdownValue.split(',') : dropdownValue;
 					}
 
 					if (self.isSelect(current))

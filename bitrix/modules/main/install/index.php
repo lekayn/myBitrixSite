@@ -173,19 +173,27 @@ class main extends CModule
 		$eventManager->registerEventHandler('main', 'onGetUserFieldValues', 'main', '\Bitrix\Main\UserField\Internal\UserFieldHelper', 'onGetUserFieldValues');
 		$eventManager->registerEventHandler('main', 'onUpdateUserFieldValues', 'main', '\Bitrix\Main\UserField\Internal\UserFieldHelper', 'onUpdateUserFieldValues');
 		$eventManager->registerEventHandler('main', 'onDeleteUserFieldValues', 'main', '\Bitrix\Main\UserField\Internal\UserFieldHelper', 'onDeleteUserFieldValues');
+		$eventManager->registerEventHandler('main', 'OnAfterUserTypeAdd', 'main', '\Bitrix\Main\ORM\Entity', 'onUserTypeChange');
+		$eventManager->registerEventHandler('main', 'OnAfterUserTypeUpdate', 'main', '\Bitrix\Main\ORM\Entity', 'onUserTypeChange');
+		$eventManager->registerEventHandler('main', 'OnAfterUserTypeDelete', 'main', '\Bitrix\Main\ORM\Entity', 'onUserTypeChange');
 
 		if (LANGUAGE_ID == "ru")
+		{
+			COption::SetOptionString("main", "~new_license18_0_sign", "Y");
 			COption::SetOptionString("main", "vendor", "1c_bitrix");
+			COption::SetOptionString("main", "update_site", "www.1c-bitrix.ru");
+		}
 		else
+		{
+			COption::SetOptionString("main", "~new_license17_5_sign", "Y");
 			COption::SetOptionString("main", "vendor", "bitrix");
+			COption::SetOptionString("main", "update_site", "www.bitrixsoft.com");
+		}
 
 		COption::SetOptionString("main", "PARAM_MAX_SITES", "2");
 		COption::SetOptionString("main", "PARAM_MAX_USERS", "0");
-		COption::SetOptionString("main", "distributive6", "Y");
-		COption::SetOptionString("main", "~new_license11_sign", "Y");
 		COption::SetOptionString("main", "GROUP_DEFAULT_TASK", "1");
 		COption::SetOptionString("main", "admin_lid", LANGUAGE_ID);
-		COption::SetOptionString("main", "update_site", "www.bitrixsoft.com");
 		COption::SetOptionString("main", "update_site_ns", "Y");
 		COption::SetOptionString("main", "optimize_css_files", "Y");
 		COption::SetOptionString("main", "optimize_js_files", "Y");
@@ -273,10 +281,6 @@ class main extends CModule
 			$rsGroup = CGroup::GetByID($arGroup["~ID"]);
 			if ($rsGroup->Fetch())
 				continue;
-
-			//mssql does not allow insert identity by default
-			if($DB->type == "MSSQL")
-				unset($arGroup["~ID"]);
 
 			$success = (bool)$group->Add($arGroup);
 			if (!$success)

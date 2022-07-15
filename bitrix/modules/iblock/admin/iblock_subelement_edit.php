@@ -1,8 +1,7 @@
 <?
-use Bitrix\Main,
-	Bitrix\Main\Loader,
-	Bitrix\Iblock,
-	Bitrix\Catalog;
+use Bitrix\Main;
+use Bitrix\Main\Loader;
+use Bitrix\Iblock;
 
 /** @global CUser $USER */
 /** @global CMain $APPLICATION */
@@ -38,8 +37,8 @@ $arIBTYPE = false; // initial value
 $arElement = false; // initial value
 $prev_arElement = array(); // initial value
 $PROP = array();
-define("MODULE_ID", "iblock");
-define("ENTITY", "CIBlockDocument");
+const MODULE_ID = "iblock";
+const ENTITY = "CIBlockDocument";
 define("DOCUMENT_TYPE", "iblock_".$IBLOCK_ID);
 define("BX_SUB_SETTINGS",(isset($_REQUEST['bxsku']) && $_REQUEST['bxsku'] == 'Y'));
 
@@ -70,11 +69,13 @@ $arShowTabs = array(
 $bCatalog = false;
 $arSubCatalog = false;
 $bCatalog = Loader::includeModule('catalog');
+$catalogTabNames = [];
 if ($bCatalog)
 {
 	$arSubCatalog = CCatalogSku::GetInfoByOfferIBlock($IBLOCK_ID);
 	if (empty($arSubCatalog) || !is_array($arSubCatalog))
 		$bCatalog = false;
+	$catalogTabNames = CCatalogAdminTools::getTabDescriptions();
 }
 
 if (!$bCatalog)
@@ -258,9 +259,9 @@ do{ //one iteration loop
 	if ($arShowTabs['catalog'])
 		$aTabs[] = array(
 			"DIV" => "sub_edit10",
-			"TAB" => GetMessage("IBLOCK_TCATALOG"),
+			"TAB" => $catalogTabNames[CCatalogAdminTools::TAB_CATALOG]['NAME'],
 			"ICON"=>"iblock_element",
-			"TITLE"=>GetMessage("IBLOCK_TCATALOG"),
+			"TITLE" => $catalogTabNames[CCatalogAdminTools::TAB_CATALOG]['TITLE'],
 			"required" => true,
 	);
 	if ($arShowTabs['product_group'])
@@ -1787,7 +1788,11 @@ $tabControl->EndCustomField("SUB_TAGS",
 if ($arShowTabs['catalog'])
 {
 	$tabControl->BeginNextFormTab();
-	$tabControl->BeginCustomField("CATALOG", GetMessage("IBLOCK_TCATALOG"), true);
+	$tabControl->BeginCustomField(
+		'CATALOG',
+		$catalogTabNames[CCatalogAdminTools::TAB_CATALOG]['NAME'],
+		true
+	);
 	include($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/catalog/admin/templates/subproduct_edit.php");
 	$tabControl->EndCustomField("CATALOG", "");
 }

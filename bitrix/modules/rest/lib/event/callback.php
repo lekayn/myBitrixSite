@@ -1,7 +1,9 @@
 <?php
 namespace Bitrix\Rest\Event;
 
+use Bitrix\Rest\AppTable;
 use Bitrix\Rest\EventTable;
+use Bitrix\Rest\Tools\Diagnostics\LoggerManager;
 
 /**
  * Class Callback
@@ -23,7 +25,21 @@ class Callback
 	 */
 	public static function __callStatic($name, $arguments)
 	{
+		$logger = LoggerManager::getInstance()->getLogger();
 		$event = Sender::parseEventName($name);
+		if ($logger)
+		{
+			$logger->debug(
+				"\n{delimiter}\n"
+				. "{date} - {host}\n{delimiter}\n"
+				. "Event {eventName} starts. \n{delimiter}\n"
+				. "{arguments}",
+				[
+					'eventName' => $event['EVENT'],
+					'arguments' => $arguments,
+				]
+			);
+		}
 
 		$provider = new \CRestProvider();
 		$description = $provider->getDescription();
@@ -65,17 +81,69 @@ class Callback
 
 		if(array_key_exists('EVENT_REST', $event))
 		{
-			$dbRes = EventTable::getList(array(
-				'filter' => array(
-					'=EVENT_NAME' => toUpper($event['EVENT_REST']['EVENT']),
-				),
-				'select' => array('*', 'APP_CODE' => 'REST_APP.CLIENT_ID'),
-			));
+			$dbRes = EventTable::getList(
+				[
+					'filter' => [
+						'=EVENT_NAME' => toUpper($event['EVENT_REST']['EVENT']),
+					],
+					'select' => [
+						'*',
+						'APP_CODE' => 'REST_APP.CLIENT_ID',
+						'APP_ACTIVE' => 'REST_APP.ACTIVE',
+						'APP_INSTALLED' => 'REST_APP.INSTALLED',
+					],
+				]
+			);
 
 			$dataProcessed = !is_array($event['EVENT_REST']['HANDLER']) || !is_callable($event['EVENT_REST']['HANDLER']);
 			$call = array();
-			while($handler = $dbRes->fetch())
+			while ($handler = $dbRes->fetch())
 			{
+				if (!empty($handler['APP_CODE']))
+				{
+					if (
+						$handler['APP_ACTIVE'] !== AppTable::ACTIVE
+						|| $handler['APP_INSTALLED'] !== AppTable::INSTALLED
+					)
+					{
+						if ($logger)
+						{
+							$logger->error(
+								"\n{delimiter}\n"
+								. "{date} - {host}\n{delimiter}\n"
+								. "Event {eventName} skipped because inactive app: \n"
+								. "{handler}",
+								[
+									'eventName' => $event['EVENT'],
+									'handler' => $handler,
+								]
+							);
+						}
+
+						continue;
+					}
+
+					$appStatus = AppTable::getAppStatusInfo($handler['APP_CODE'], '');
+					if ($appStatus['PAYMENT_EXPIRED'] === 'Y')
+					{
+						if ($logger)
+						{
+							$logger->error(
+								"\n{delimiter}\n"
+								. "{date} - {host}\n{delimiter}\n"
+								. "Event {eventName} skipped because PAYMENT_EXPIRED: \n"
+								. "{appStatus}",
+								[
+									'eventName' => $event['EVENT'],
+									'appStatus' => $appStatus,
+								]
+							);
+						}
+
+						continue;
+					}
+				}
+
 				$handlerArguments = $arguments;
 				$handlerFound = true;
 
@@ -88,6 +156,20 @@ class Callback
 					}
 					catch(\Exception $e)
 					{
+						if ($logger)
+						{
+							$logger->error(
+								"\n{delimiter}\n"
+								. "{date} - {host}\n{delimiter}\n"
+								. "Event {eventName} exception: \n"
+								. "{errorCode}: {errorMessage}",
+								[
+									'eventName' => $event['EVENT'],
+									'errorCode' => $e->getCode(),
+									'errorMessage' => $e->getMessage(),
+								]
+							);
+						}
 					}
 				}
 				else

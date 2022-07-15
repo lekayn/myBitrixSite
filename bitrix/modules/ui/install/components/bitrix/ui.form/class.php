@@ -40,7 +40,12 @@ class UIFormComponent extends \CBitrixComponent
 	{
 		$this->initialize();
 		$this->emitOnUIFormInitializeEvent();
-		$this->includeComponentTemplate();
+
+		if (!$this->arParams['SKIP_TEMPLATE'])
+		{
+			$this->includeComponentTemplate();
+		}
+
 		return $this->arResult;
 	}
 
@@ -77,10 +82,12 @@ class UIFormComponent extends \CBitrixComponent
 			'CONFIG_ID' => null,
 			'READ_ONLY' => null,
 			'INITIAL_MODE' => '',
+			'SKIP_TEMPLATE' => false,
 			'ENABLE_MODE_TOGGLE' => true,
 			'ENABLE_CONFIG_CONTROL' => true,
 			'ENABLE_VISIBILITY_POLICY' => true,
 			'ENABLE_TOOL_PANEL' => true,
+			'IS_TOOL_PANEL_ALWAYS_VISIBLE' => false,
 			'ENABLE_BOTTOM_PANEL' => true,
 			'ENABLE_FIELDS_CONTEXT_MENU' => true,
 			'IS_EMBEDDED' => null,
@@ -101,6 +108,7 @@ class UIFormComponent extends \CBitrixComponent
 			'ENABLE_REQUIRED_USER_FIELD_CHECK' => true,
 			'ENABLE_USER_FIELD_CREATION' => false,
 			'ENABLE_USER_FIELD_MANDATORY_CONTROL' => true,
+			'ENABLE_PAGE_TITLE_CONTROLS' => false,
 			'USER_FIELD_ENTITY_ID' => '',
 			'USER_FIELD_PREFIX' => '',
 			'USER_FIELD_CREATE_PAGE_URL' => '',
@@ -115,6 +123,13 @@ class UIFormComponent extends \CBitrixComponent
 			'CONTEXT_ID' => '',
 			'CONTEXT' => [],
 			'COMPONENT_AJAX_DATA' => [],
+			'CUSTOM_TOOL_PANEL_BUTTONS' => [],
+			'TOOL_PANEL_BUTTONS_ORDER' => [
+				'VIEW' => [],
+				'EDIT' => [
+					UI\EntityEditor\Action::DEFAULT_ACTION_BUTTON_ID, UI\EntityEditor\Action::CANCEL_ACTION_BUTTON_ID,
+				],
+			],
 			'SCOPE' => null,
 			'SCOPE_PREFIX' => '',
 		];
@@ -190,12 +205,12 @@ class UIFormComponent extends \CBitrixComponent
 		$config = null;
 		if (!$isForceDefaultConfig)
 		{
-			if(
-				$configScope === UI\Form\EntityEditorConfigScope::CUSTOM
-				&& array_key_exists($userScopeId, $userScopes)
-			)
+			if($configScope === UI\Form\EntityEditorConfigScope::CUSTOM)
 			{
-				$config = Scope::getInstance()->getScopeById($userScopeId);
+				if (array_key_exists($userScopeId, $userScopes))
+				{
+					$config = Scope::getInstance()->getScopeById($userScopeId);
+				}
 				if(!$config)
 				{
 					$configScope = UI\Form\EntityEditorConfigScope::UNDEFINED;
@@ -387,7 +402,7 @@ class UIFormComponent extends \CBitrixComponent
 	{
 		return (is_null($parent) || $parent === self::COLUMN_DEFAULT ? '' : $parent . '.') . $configItem['name'];
 	}
-	
+
 	protected function getFieldsInfo(array $entityFields, array $entityData): array
 	{
 		$availableFields = [];

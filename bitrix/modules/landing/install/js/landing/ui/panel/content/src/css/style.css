@@ -34,11 +34,15 @@
 	left: 0;
 	right: auto;
 	z-index: 322;
-	-webkit-box-shadow: 0 0 16px 0 rgba(0,0,0,.1);
-	box-shadow: 0 0 16px 0 rgba(0,0,0,.1);
+	/*box-shadow: 0 0 16px 0 rgba(0,0,0,.1);*/  /* chrome have bug with box shadow, see 0145815 */
 	transform: translateX(-100%);
 	opacity: 0;
-	contain: layout;
+}
+
+.landing-ui-panel-show-from-right.landing-ui-panel-content {
+	left: auto;
+	right: 0;
+	transform: translateX(100%);
 }
 
 .landing-ui-panel.landing-ui-panel-link {
@@ -59,6 +63,15 @@
 
 .landing-ui-panel-content.landing-ui-hide {
 	animation: hideContentPanel 400ms ease both;
+	visibility: visible;
+}
+
+.landing-ui-panel-show-from-right.landing-ui-panel-content.landing-ui-show {
+	animation: showContentPanelFromRight 400ms ease both;
+}
+
+.landing-ui-panel-show-from-right.landing-ui-panel-content.landing-ui-hide {
+	animation: hideContentPanelToRight 400ms ease both;
 	visibility: visible;
 }
 
@@ -85,6 +98,31 @@
 		visibility: hidden;
 		opacity: 0;
 		transform: translateX(-100%);
+	}
+}
+
+@keyframes showContentPanelFromRight {
+	0% {
+		opacity: 0;
+		transform: translateX(100%);
+	}
+	100% {
+		visibility: visible;
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+@keyframes hideContentPanelToRight {
+	0% {
+		visibility: visible;
+		opacity: 1;
+		transform: translateX(0);
+	}
+	100% {
+		visibility: hidden;
+		opacity: 0;
+		transform: translateX(100%);
 	}
 }
 
@@ -175,6 +213,7 @@
 	align-items: center;
 	justify-content: center;
 	box-shadow: 0 -2px 4px 0 #c6c9cb;
+	transform: translateZ(0);
 }
 
 .landing-ui-panel-content-footer:empty {
@@ -243,4 +282,8 @@
 .landing-ui-hide-action-panels .landing-ui-panel-content-action,
 .landing-ui-hide-action-panels .landing-ui-panel-block-action {
 	display: none!important;
+}
+
+.landing-ui-panel-show-from-right .landing-ui-panel-content-close {
+	display: none;
 }

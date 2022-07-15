@@ -38,7 +38,7 @@ foreach($arLangs as $adminLang)
 	if ($adminLang['SELECTED'])
 	{
 		$arLangButton = array(
-			"TEXT"=>ToUpper($adminLang["LID"]),
+			"TEXT"=>strtoupper($adminLang["LID"]),
 			"TITLE"=>$adminLang["NAME"],
 			"LINK"=>htmlspecialcharsback($adminLang["PATH"]),
 			"SECTION" => 1,
@@ -77,7 +77,7 @@ $APPLICATION->ShowCSS();
 $APPLICATION->ShowHeadStrings();
 $APPLICATION->ShowHeadScripts();
 ?>
-<title><?echo htmlspecialcharsex($APPLICATION->GetTitle(false, true))?> - <?echo COption::GetOptionString("main","site_name", $_SERVER["SERVER_NAME"])?></title>
+<title><?echo htmlspecialcharsex($APPLICATION->GetTitle(false, true))?> - <?= htmlspecialcharsbx(COption::GetOptionString("main","site_name", $_SERVER["SERVER_NAME"])) ?></title>
 </head>
 <body id="bx-admin-prefix">
 <!--[if lte IE 7]>

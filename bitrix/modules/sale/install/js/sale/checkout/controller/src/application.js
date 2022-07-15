@@ -1,232 +1,299 @@
-import {Runtime, Event, ajax} from 'main.core';
-import {BasketRestHandler} from 'sale.checkout.provider.rest'
+import { Runtime, ajax } from 'main.core';
+import { EventEmitter } from 'main.core.events'
+import { BasketRestHandler } from 'sale.checkout.provider.rest'
 import {
-    Application as ApplicationConst,
-    RestMethod as RestMethodConst,
-    Component as ComponentConst,
-    Consent as ConsentConst,
-    Loader as LoaderConst,
-    EventType
+	Application as ApplicationConst,
+	RestMethod as RestMethodConst,
+	Component as ComponentConst,
+	Consent as ConsentConst,
+	Loader as LoaderConst,
+	EventType
 } from 'sale.checkout.const';
 
-import {Timer} from 'sale.checkout.lib';
-import {History} from 'sale.checkout.lib';
+import { History } from 'sale.checkout.lib';
 
-import {Basket} from "./basket";
+import { Basket } from "./basket";
 
 export class Application
 {
-    constructor(option)
-    {
-        this.init(option)
-            .then(() => this.initProvider())
-            .then(() => this.iniController())
-            .then(() => this.subscribeToEvents())
-            .then(() => this.subscribeToStoreChanges())
-    }
+	constructor(option)
+	{
+		this.init(option)
+			.then(() => this.initProvider())
+			.then(() => this.iniController())
+			.then(() => this.subscribeToEvents())
+			.then(() => this.subscribeToStoreChanges())
+	}
 
-    init(option)
-    {
-        this.store = option.store;
-        this.timer = new Timer();
-        return new Promise((resolve, reject) => resolve());
-    }
+	/**
+	 * @private
+	 */
+	init(option)
+	{
+		this.store = option.store;
+		return new Promise((resolve, reject) => resolve());
+	}
 
-    initProvider()
-    {
-        this.provider = BasketRestHandler.create({store: this.store})
-        return new Promise((resolve, reject) => resolve());
-    }
+	/**
+	 * @private
+	 */
+	initProvider()
+	{
+		this.provider = BasketRestHandler.create({store: this.store})
+		return new Promise((resolve, reject) => resolve());
+	}
 
-    iniController()
-    {
-        this.basket = new Basket().setStore(this.store).setProvider(this.provider);
-        return new Promise((resolve, reject) => resolve());
-    }
+	/**
+	 * @private
+	 */
+	iniController()
+	{
+		this.basket = new Basket().setStore(this.store).setProvider(this.provider);
+		return new Promise((resolve, reject) => resolve());
+	}
 
-    executeRestAnswer(command, result, extra)
-    {
-        return this.provider.execute(command, result, extra);
-    }
+	/**
+	 * @private
+	 */
+	executeRestAnswer(command, result, extra)
+	{
+		return this.provider.execute(command, result, extra);
+	}
 
-    subscribeToEvents()
-    {
-        Event.EventEmitter.subscribe(EventType.order.success, (e)=>this.basket.handlerOrderSuccess(e));
-        
-        // Event.EventEmitter.subscribe(EventType.basket.removeProduct, Runtime.debounce((e)=>this.basket.handlerSuccessRemove(e), 500, this));
-        Event.EventEmitter.subscribe(EventType.basket.buttonRemoveProduct, Runtime.debounce((e)=>this.basket.handlerRemove(e), 500, this));
+	/**
+	 * @private
+	 */
+	subscribeToEvents()
+	{
+		EventEmitter.subscribe(EventType.order.success, (e)=>this.basket.handlerOrderSuccess(e));
 
-        Event.EventEmitter.subscribe(EventType.basket.buttonPlusProduct, (e) => this.basket.handlerQuantityPlus(e));
-        Event.EventEmitter.subscribe(EventType.basket.buttonMinusProduct, (e) => this.basket.handlerQuantityMinus(e));
-        Event.EventEmitter.subscribe(EventType.basket.buttonRestoreProduct, Runtime.debounce((e) => this.basket.handlerRestore(e), 500, this));
-        Event.EventEmitter.subscribe(EventType.basket.needRefresh, (e) => this.basket.handlerNeedRefreshY(e));
-        Event.EventEmitter.subscribe(EventType.basket.refreshAfter, (e) => this.basket.handlerNeedRefreshN(e));
-        
-        // Event.EventEmitter.subscribe(EventType.property.validate,           (e) => this.handlerValidateProperty(e));
+		EventEmitter.subscribe(EventType.basket.removeProduct, (e)=>this.basket.handlerRemoveProductSuccess(e));
+		EventEmitter.subscribe(EventType.basket.restoreProduct, (e)=>this.basket.handlerRestoreProductSuccess(e));
 
-        Event.EventEmitter.subscribe(EventType.consent.refused, () => this.handlerConsentRefused());
-        Event.EventEmitter.subscribe(EventType.consent.accepted, () => this.handlerConsentAccepted());
+		EventEmitter.subscribe(EventType.basket.buttonRemoveProduct, Runtime.debounce((e)=>this.basket.handlerRemove(e), 500, this));
+		EventEmitter.subscribe(EventType.basket.buttonPlusProduct, (e) => this.basket.handlerQuantityPlus(e));
+		EventEmitter.subscribe(EventType.basket.buttonMinusProduct, (e) => this.basket.handlerQuantityMinus(e));
+		EventEmitter.subscribe(EventType.basket.inputChangeQuantityProduct, (e) => this.basket.handlerChangeQuantity(e));
+		EventEmitter.subscribe(EventType.basket.buttonRestoreProduct, Runtime.debounce((e) => this.basket.handlerRestore(e), 500, this));
+		EventEmitter.subscribe(EventType.basket.needRefresh, (e) => this.basket.handlerNeedRefreshY(e));
+		EventEmitter.subscribe(EventType.basket.refreshAfter, (e) => this.basket.handlerNeedRefreshN(e));
+	
+		EventEmitter.subscribe(EventType.basket.changeSku, (e) => this.basket.handlerChangeSku(e));
+		
+		EventEmitter.subscribe(EventType.consent.refused, () => this.handlerConsentRefused());
+		EventEmitter.subscribe(EventType.consent.accepted, () => this.handlerConsentAccepted());
+	
+		EventEmitter.subscribe(EventType.element.buttonCheckout, Runtime.debounce(() => this.handlerCheckout(), 1000, this));
+		EventEmitter.subscribe(EventType.element.buttonShipping, Runtime.debounce(() => this.handlerShipping(), 1000, this));
+	
+		EventEmitter.subscribe(EventType.paysystem.beforeInitList, () => this.paySystemSetStatusWait());
+		EventEmitter.subscribe(EventType.paysystem.afterInitList, () => this.paySystemSetStatusNone());
+	}
 
-        // Event.EventEmitter.subscribe(EventType.application.none, () => this.handlerApplicationStatusNone());
-        // Event.EventEmitter.subscribe(EventType.application.wait, () => this.handlerApplicationStatusWait());
+	/**
+	 * @private
+	 */
+	subscribeToStoreChanges()
+	{
+		// this.store.subscribe((mutation, state) => {
+		//	 const { payload, type } = mutation;
+		//	 if (type === 'basket/setNeedRefresh')
+		//	 {
+		//	 	alert('@@');
+		//	 	this.getData();
+		//	 }
+		// });
 
-        Event.EventEmitter.subscribe(EventType.element.buttonCheckout, Runtime.debounce(() => this.handlerCheckout(), 1000, this));
-        Event.EventEmitter.subscribe(EventType.element.buttonShipping, Runtime.debounce(() => this.handlerShipping(), 1000, this));
+		return new Promise((resolve, reject) => resolve());
+	}
 
-        Event.EventEmitter.subscribe(EventType.paysystem.beforeInitList, ()=>this.paySystemSetStatusWait());
-        Event.EventEmitter.subscribe(EventType.paysystem.afterInitList, ()=>this.paySystemSetStatusNone());
+	/**
+	 * @private
+	 */
+	paySystemSetStatusWait()
+	{
+		let paySystem = { status: LoaderConst.status.wait};
+		return this.store.dispatch('pay-system/setStatus', paySystem);
+	}
 
-        return new Promise((resolve, reject) => resolve());
-    }
+	/**
+	 * @private
+	 */
+	paySystemSetStatusNone()
+	{
+		let paySystem = { status: LoaderConst.status.none};
+		return this.store.dispatch('pay-system/setStatus', paySystem);
+	}
 
-    subscribeToStoreChanges()
-    {
-        // this.store.subscribe((mutation, state) => {
-        //     const { payload, type } = mutation;
-        //     if (type === 'basket/setNeedRefresh')
-        //     {
-        //     	alert('@@');
-        //     	this.getData();
-        //     }
-        // });
+	/**
+	 * @private
+	 */
+	appSetStatusWait()
+	{
+		let app = { status: LoaderConst.status.wait};
+		return this.store.dispatch('application/setStatus', app);
+	}
 
-        return new Promise((resolve, reject) => resolve());
-    }
-    
-    paySystemSetStatusWait()
-    {
-        let paySystem = { status: LoaderConst.status.wait};
-        return this.store.dispatch('pay-system/setStatus', paySystem);
-    }
+	/**
+	 * @private
+	 */
+	appSetStatusNone()
+	{
+		let app = { status: LoaderConst.status.none};
+		return this.store.dispatch('application/setStatus', app);
+	}
 
-    paySystemSetStatusNone()
-    {
-        let paySystem = { status: LoaderConst.status.none};
-        return this.store.dispatch('pay-system/setStatus', paySystem);
-    }
+	/**
+	 * @private
+	 */
+	handlerConsentAccepted()
+	{
+		this.store.dispatch('consent/setStatus', ConsentConst.status.accepted);
+	}
 
-    appSetStatusWait()
-    {
-        let app = { status: LoaderConst.status.wait};
-        return this.store.dispatch('application/setStatus', app);
-    }
+	/**
+	 * @private
+	 */
+	handlerConsentRefused()
+	{
+		this.store.dispatch('consent/setStatus', ConsentConst.status.refused);
+	}
 
-    appSetStatusNone()
-    {
-        let app = { status: LoaderConst.status.none};
-        return this.store.dispatch('application/setStatus', app);
-    }
+	/**
+	 * @private
+	 */
+	handlerCheckout()
+	{
+		BX.onCustomEvent(ConsentConst.validate.submit, []);
 
-    handlerConsentAccepted()
-    {
-        this.store.dispatch('consent/setStatus', ConsentConst.status.accepted);
-    }
+		const consent = this.store.getters['consent/get'];
+		const consentStatus = this.store.getters['consent/getStatus'];
+		const allowed = consent.id > 0 ?  consentStatus === ConsentConst.status.accepted:true;
 
-    handlerConsentRefused()
-    {
-        this.store.dispatch('consent/setStatus', ConsentConst.status.refused);
-    }
+		if(allowed)
+		{
+			// this.propertiesValidate();
+			// this.propertiesIsValid() ? alert('propsSuccess'):alert('propsError')
+ 
+			this.appSetStatusWait();
 
-    handlerCheckout()
-    {
-        BX.onCustomEvent(ConsentConst.validate.submit, []);
+			this.saveOrder()
+				.then(() => {
+						this.appSetStatusNone()
+							.then(()=>
+							{
+								let order = this.store.getters['order/getOrder'];
 
-        const consent = this.store.getters['consent/get'];
-        const consentStatus = this.store.getters['consent/getStatus'];
-        const allowed = consent.id > 0 ?  consentStatus === ConsentConst.status.accepted:true;
+								if(order.id>0)
+								{
+									const url = History.pushState(
+										this.store.getters['application/getPathLocation'],
+										{
+											accountNumber: order.accountNumber,
+											access: order.hash
+										})
 
-        if(allowed)
-        {
-            // this.propertiesValidate();
-            // this.propertiesIsValid() ? alert('propsSuccess'):alert('propsError')
+									this.store.dispatch('application/setPathLocation', url);
+								}
+							})
+					}
+				)
+				.catch(() => this.appSetStatusNone())
+		}
+	}
 
-            this.appSetStatusWait();
+	/**
+	 * @private
+	 */
+	handlerShipping()
+	{
+		this.store.dispatch('application/setStage', {stage: ApplicationConst.stage.view});
+		// todo
+		delete BX.UserConsent;
+		
+		let order = this.store.getters['order/getOrder'];
+		if(order.id>0)
+		{
+			const component = ComponentConst.bitrixSaleOrderCheckout;
+			const cmd = RestMethodConst.saleEntityPaymentPay;
+			return ajax.runComponentAction(
+				component,
+				cmd,
+				{
+					data: {
+						fields: {
+							orderId: order.id,
+							accessCode: order.hash
+						}
+					},
+					signedParameters: this.store.getters['application/getSignedParameters']
+				}
+			)
+		}
+	}
 
-            this.saveOrder()
-                .then(() => {
-                        this.appSetStatusNone()
-                            .then(()=>
-                            {
-                                let order = this.store.getters['order/getOrder'];
+	/**
+	 * @private
+	 */
+	saveOrder()
+	{
+		const component = ComponentConst.bitrixSaleOrderCheckout;
+		const cmd = RestMethodConst.saleEntitySaveOrder;
+		return ajax.runComponentAction(
+			component,
+			cmd,
+			{
+				data: {
+					fields: {
+						siteId: this.store.getters['application/getSiteId'],
+						personTypeId: this.store.getters['application/getPersonTypeId'],
+						tradingPlatformId: this.store.getters['application/getTradingPlatformId'],
+						properties: this.preparePropertyFields(
+							this.getPropertyList()
+						),
+					}
+				},
+				signedParameters: this.store.getters['application/getSignedParameters']
+			}
+		)
+			.then((result) => this.executeRestAnswer(cmd, result))
+			.catch((result) => this.executeRestAnswer(cmd, {error: result.errors}));
+	}
 
-                                if(order.id>0)
-                                {
-                                    const url = History.pushState(
-                                        this.store.getters['application/getPathLocation'],
-                                        {
-                                            accountNumber: order.accountNumber,
-                                            access: order.hash
-                                        })
+	/**
+	 * @private
+	 */
+	getPropertyList()
+	{
+		const result = [];
+		let list = this.store.getters['property/getProperty'];
+		try
+		{
+			for (let key in list)
+			{
+				if (!list.hasOwnProperty(key))
+				{
+					continue;
+				}
 
-                                    this.store.dispatch('application/setPathLocation', url);
-                                }
-                            })
-                    }
-                )
-                .catch(() => this.appSetStatusNone())
-        }
-    }
+				result[list[key].id] = list[key];
+			}
+		}
+		catch (e) {}
 
-    handlerShipping()
-    {
-        this.store.dispatch('application/setStage', {stage: ApplicationConst.stage.view});
-        // todo
-        delete BX.UserConsent;
-    }
+		return result;
+	}
 
-    saveOrder()
-    {
-        const component = ComponentConst.bitrixSaleOrderCheckout;
-        const cmd = RestMethodConst.saleEntitySaveOrder;
-        return ajax.runComponentAction(
-            component,
-            cmd,
-            {
-                data: {
-                    fields: {
-                        siteId: this.store.getters['application/getSiteId'],
-                        personTypeId: this.store.getters['application/getPersonTypeId'],
-                        tradingPlatformId: this.store.getters['application/getTradingPlatformId'],
-                        properties: this.preparePropertyFields(
-                            this.getPropertyList()
-                        ),
-                    }
-                },
-                signedParameters: this.store.getters['application/getSignedParameters']
-            }
-        )
-            .then((result) => this.executeRestAnswer(cmd, result))
-            .catch((result) => this.executeRestAnswer(cmd, {error: result.errors}));
-    }
-
-    getPropertyList()
-    {
-        const result = [];
-        let list = this.store.getters['property/getProperty'];
-        try
-        {
-            for (let key in list)
-            {
-                if (!list.hasOwnProperty(key))
-                {
-                    continue;
-                }
-
-                result[list[key].id] = list[key];
-            }
-        }
-        catch (e) {}
-
-        return result;
-    }
-
-    preparePropertyFields(list)
-    {
-        let fields = {};
-        list.forEach((property, inx)=>
-        {
-            fields[inx] = property.value
-        })
-        return fields;
-    }
+	/**
+	 * @private
+	 */
+	preparePropertyFields(list)
+	{
+		let fields = {};
+		list.forEach((property, inx)=>
+		{
+			fields[inx] = property.value
+		})
+		return fields;
+	}
 }

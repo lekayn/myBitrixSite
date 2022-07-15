@@ -9,10 +9,27 @@ namespace Bitrix\Sender;
 
 use Bitrix\Main\Entity;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ORM\Query\Query;
 use Bitrix\Main\Type\DateTime;
 
 Loc::loadMessages(__FILE__);
 
+/**
+ * Class MailingTriggerTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_MailingTrigger_Query query()
+ * @method static EO_MailingTrigger_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_MailingTrigger_Result getById($id)
+ * @method static EO_MailingTrigger_Result getList(array $parameters = array())
+ * @method static EO_MailingTrigger_Entity getEntity()
+ * @method static \Bitrix\Sender\EO_MailingTrigger createObject($setDefaultValues = true)
+ * @method static \Bitrix\Sender\EO_MailingTrigger_Collection createCollection()
+ * @method static \Bitrix\Sender\EO_MailingTrigger wakeUpObject($row)
+ * @method static \Bitrix\Sender\EO_MailingTrigger_Collection wakeUpCollection($rows)
+ */
 class MailingTriggerTable extends Entity\DataManager
 {
 	/**
@@ -240,5 +257,30 @@ class MailingTriggerTable extends Entity\DataManager
 				'CALLED_BEFORE_CHANGE' => $calledBeforeChange
 			));
 		}
+	}
+
+
+	/**
+	 * @param array $filter
+	 * @return \Bitrix\Main\DB\Result
+	 * @throws \Bitrix\Main\ArgumentException
+	 * @throws \Bitrix\Main\DB\SqlQueryException
+	 * @throws \Bitrix\Main\SystemException
+	 */
+	public static function deleteList(array $filter)
+	{
+		$entity = static::getEntity();
+		$connection = $entity->getConnection();
+
+		\CTimeZone::disable();
+		$sql = sprintf(
+			'DELETE FROM %s WHERE %s',
+			$connection->getSqlHelper()->quote($entity->getDbTableName()),
+			Query::buildFilterSql($entity, $filter)
+		);
+		$res = $connection->query($sql);
+		\CTimeZone::enable();
+
+		return $res;
 	}
 }

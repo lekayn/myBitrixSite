@@ -6,6 +6,7 @@ function CBXSession()
 	this.dateHit = new Date();
 	this.notifier = null;
 	this.checkInterval = 60;
+	this.checkImmediately = false;
 
 	this.Expand = function(key)
 	{
@@ -23,15 +24,22 @@ function CBXSession()
 
 	this.OnUserInput = function()
 	{
-		var curr = new Date();
-		_this.dateInput.setTime(curr.valueOf());
+		var currentDate = new Date();
+		_this.dateInput.setTime(currentDate.valueOf());
+
+		if ((currentDate - _this.dateHit)/1000 > (_this.checkInterval + 5) && _this.checkImmediately === false)
+		{
+			// last hit was long time ago, need to recheck immediately
+			_this.checkImmediately = true;
+			_this.CheckSession();
+		}
 	};
 
 	this.CheckSession = function()
 	{
 		var currentDate = new Date();
 
-		if((currentDate - _this.dateCheck) < (_this.checkInterval - 1))
+		if((currentDate - _this.dateCheck)/1000 < (_this.checkInterval - 1) && _this.checkImmediately === false)
 		{
 			//storm protection, e.g. after PC wake-up
 			return;
@@ -62,6 +70,7 @@ function CBXSession()
 	{
 		var currentDate = new Date();
 		_this.dateHit.setTime(currentDate.valueOf());
+		_this.checkImmediately = false;
 
 		if(data == 'SESSION_EXPIRED')
 		{

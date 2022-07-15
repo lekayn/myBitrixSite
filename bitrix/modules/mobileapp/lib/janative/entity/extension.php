@@ -11,8 +11,10 @@ class Extension extends Base
 {
 	protected static $modificationDates = [];
 	protected static $dependencies = [];
+
 	/**
 	 * Extension constructor.
+	 *
 	 * @param $identifier
 	 * @throws \Exception
 	 */
@@ -29,26 +31,68 @@ class Extension extends Base
 		}
 	}
 
+	private function getBundleContent(): string
+	{
+		$files = $this->getBundleFiles();
+		$content = "";
+		foreach ($files as $path)
+		{
+			$file = new File($path);
+			if ($file->isExists())
+			{
+				$content .= "\n".$file->getContents()."\n";
+			}
+		}
+
+		return $content;
+	}
+
 	/**
 	 * Returns content of extension without depending extensions
+	 *
 	 * @return string
 	 * @throws \Bitrix\Main\IO\FileNotFoundException
 	 */
 	public function getContent(): string
-    {
-		$content = '';
-		$extensionFile = new File($this->path . '/extension.js');
-		if ($extensionFile->isExists() && $extensionContent = $extensionFile->getContents())
+	{
+		$content = "";
+		$extensionFile = new File($this->path . '/' . $this->baseFileName . '.js');
+		if ($extensionData = $this->getResult())
 		{
-			$localizationPhrases = $this->getLangDefinitionExpression();
-			$content .= "\n//extension '{$this->name}'\n";
-
-			$content .= $localizationPhrases;
-			$content .= $extensionContent;
-			$content .= "\n\n";
+			if ($extensionData !== '')
+			{
+				$content .= <<<JS
+this.jnExtensionData.set("{$this->name}", {$extensionData});
+JS;
+			}
 		}
 
+		if ($extensionFile->isExists() && $extensionContent = $extensionFile->getContents())
+		{
+			$content .= $this->getBundleContent();
+			$content .= $extensionContent;
+		}
+
+		$content .= "\n\n";
+
 		return $content;
+	}
+
+	private function getResult(): ?string
+	{
+		$file = new File($this->path . '/extension.php');
+		$result = null;
+		if ($file->isExists())
+		{
+			$result = include($file->getPath());
+		}
+
+		if (is_array($result) && count($result) > 0)
+		{
+			return json_encode($result);
+		}
+
+		return null;
 	}
 
 	public function getIncludeExpression($callbackName = 'onExtensionsLoaded'): string
@@ -62,9 +106,9 @@ class Extension extends Base
 		return $content;
 	}
 
-
 	/**
 	 * Returns list of dependencies by name of extensions
+	 *
 	 * @param $name
 	 * @param array $list
 	 * @param array $alreadyResolved
@@ -72,7 +116,7 @@ class Extension extends Base
 	 * @throws \Exception
 	 */
 	public static function getResolvedDependencyList($name, &$list = [], &$alreadyResolved = []): array
-    {
+	{
 		$baseExtension = new Extension($name);
 		$depsList = $baseExtension->getDependencyList();
 		$alreadyResolved[] = $name;
@@ -108,7 +152,8 @@ class Extension extends Base
 	 * @throws \Exception
 	 */
 	protected function resolveDependencies(): array
-    {
-		return self::getResolvedDependencyList($this->name);
+	{
+		$name = ($this->namespace !== "bitrix" ? $this->namespace . ":" : "") . $this->name;
+		return self::getResolvedDependencyList($name);
 	}
 }

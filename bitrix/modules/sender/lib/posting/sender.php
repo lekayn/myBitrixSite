@@ -15,6 +15,8 @@ use Bitrix\Main\DB;
 use Bitrix\Main\Event;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Type;
+use Bitrix\Sender\Consent\Consent;
+use Bitrix\Sender\ContactTable;
 use Bitrix\Sender\Entity\Campaign;
 use Bitrix\Sender\Entity\Letter;
 use Bitrix\Sender\Integration;
@@ -29,6 +31,7 @@ use Bitrix\Sender\PostingRecipientTable;
 use Bitrix\Sender\PostingTable;
 use Bitrix\Sender\Recipient;
 use Bitrix\Sender\Runtime\TimeLineJob;
+use Bitrix\Sender\Transport\iLimiter;
 
 Loc::loadMessages(__FILE__);
 
@@ -44,6 +47,9 @@ class Sender
 	const RESULT_ERROR    = 3;
 	const RESULT_WAIT     = 4;
 	const RESULT_WAITING_RECIPIENT = 5;
+
+	/** @var bool|null is consent supported by this posting*/
+	protected $isConsentSupport;
 
 	/** @var  Letter $letter Letter. */
 	protected $letter;
@@ -161,7 +167,18 @@ class Sender
 			return;
 		}
 
+		if ($this->threadStrategy->isProcessLimited())
+		{
+			$this->resultCode = static::RESULT_CONTINUE;
+			return;
+		}
+
 		$this->startTime();
+
+		$this->isConsentSupport = $this->letter
+				->getMessage()
+				->getConfiguration()
+				->get('APPROVE_CONFIRMATION') === 'Y';
 
 		$this->threadStrategy->setPostingId($this->postingId);
 		$this->threadStrategy->fillThreads();
@@ -169,7 +186,6 @@ class Sender
 		$threadId = $this->threadStrategy->getThreadId();
 
 		// lock posting for exclude double parallel sending
-
 		if (is_null($threadId))
 		{
 			$this->resultCode = static::RESULT_CONTINUE;
@@ -218,10 +234,11 @@ class Sender
 			return;
 		}
 
-		$recipients = $this->threadStrategy->getRecipients($this->limit);
-		if ($recipients->getSelectedRowsCount() > 0)
+		$threadRecipients = $this->threadStrategy->getRecipients($this->limit);
+		$recipients = static::getRecipientsToSend($threadRecipients);
+		if (($count = count($recipients))> 0)
 		{
-			$this->message->getTransport()->setSendCount($recipients->getSelectedRowsCount());
+			$this->message->getTransport()->setSendCount($count);
 			if (!$this->message->getTransport()->start())
 			{
 				$this->prevent();
@@ -234,16 +251,7 @@ class Sender
 		$this->message->getTransport()->end();
 
 		// unlock posting for exclude double parallel sending
-		static::unlock($this->postingId, $threadId);
-		if ($recipients->getSelectedRowsCount() === 0)
-		{
-			$this->threadStrategy->updateStatus(PostingThreadTable::STATUS_DONE);
-		}
-		else
-		{
-			$this->threadStrategy->updateStatus(PostingThreadTable::STATUS_NEW);
-		}
-
+		self::unlock($this->postingId, $threadId);
 		// update status of posting
 		$status = self::updateActualStatus(
 			$this->postingId,
@@ -251,9 +259,18 @@ class Sender
 			$this->threadStrategy->hasUnprocessedThreads()
 		);
 
+		$threadStatus = (
+			$threadRecipients->getSelectedRowsCount() === 0 ?
+				PostingThreadTable::STATUS_DONE :
+				PostingThreadTable::STATUS_NEW
+		);
+
+		$this->threadStrategy->updateStatus($threadStatus);
+
 		if ($threadId < $this->threadStrategy->lastThreadId())
 		{
 			$this->resultCode = static::RESULT_CONTINUE;
+
 			return;
 		}
 
@@ -419,14 +436,29 @@ class Sender
 	public static function updateActualStatus($postingId, $isPrevented = false, $awaitThread = false)
 	{
 		//set status and delivered and error emails
-		$statusList     = PostingTable::getRecipientCountByStatus($postingId);
+		$statusList = PostingTable::getRecipientCountByStatus($postingId,[
+			'LOGIC' => 'OR',
+			[
+				'@STATUS' => [
+					PostingRecipientTable::SEND_RESULT_DENY,
+					PostingRecipientTable::SEND_RESULT_NONE,
+					PostingRecipientTable::SEND_RESULT_SUCCESS,
+					PostingRecipientTable::SEND_RESULT_ERROR,
+				],
+			],
+			[
+				'=STATUS' => PostingRecipientTable::SEND_RESULT_WAIT_ACCEPT,
+				'>=DATE_SENT' => (new Type\DateTime())->add("- 1 week")
+			]
+		]);
 		$hasStatusError = array_key_exists(PostingRecipientTable::SEND_RESULT_ERROR, $statusList);
 		$hasStatusNone  = array_key_exists(PostingRecipientTable::SEND_RESULT_NONE, $statusList);
+		$hasStatusWait = array_key_exists(PostingRecipientTable::SEND_RESULT_WAIT_ACCEPT, $statusList);
 		if ($isPrevented)
 		{
 			$status = PostingTable::STATUS_ABORT;
 		}
-		elseif (!$hasStatusNone && !$awaitThread)
+		elseif (!$hasStatusNone && !$awaitThread && !$hasStatusWait)
 		{
 			$status = $hasStatusError ? PostingTable::STATUS_SENT_WITH_ERRORS : PostingTable::STATUS_SENT;
 		}
@@ -446,17 +478,11 @@ class Sender
 		{
 			if (!array_key_exists($recipientStatus, $statusList))
 			{
-				$postingCountFieldValue = 0;
+				$statusList[$recipientStatus] = 0;
 			}
-			else
-			{
-				$postingCountFieldValue = $statusList[$recipientStatus];
-			}
-
-			$postingUpdateFields['COUNT_SEND_ALL']  += $postingCountFieldValue;
-			$postingUpdateFields[$postingFieldName] = $postingCountFieldValue;
+			$postingUpdateFields[$postingFieldName] = $statusList[$recipientStatus];
 		}
-
+		$postingUpdateFields['COUNT_SEND_ALL'] = array_sum($statusList);
 		Model\PostingTable::update($postingId, $postingUpdateFields);
 
 		return $status;
@@ -527,6 +553,16 @@ class Sender
 		return $this->message->getTransport()->isLimitsExceeded($this->message);
 	}
 
+	/**
+	 * Get transport exceeded limiter.
+	 *
+	 * @return iLimiter|null
+	 */
+	public function getExceededLimiter()
+	{
+		return $this->message->getTransport()->getExceededLimiter($this->message);
+	}
+
 	protected function prevent()
 	{
 		return $this->isPrevented = true;
@@ -540,87 +576,66 @@ class Sender
 	 */
 	private function sendToRecipients($recipients)
 	{
+		$sendResult = null;
 		$dataToInsert = [];
 		try
 		{
 			foreach ($recipients as $recipient)
 			{
-
-				if ($this->isPrevented())
-				{
-					break;
-				}
-
-				if ($this->isStoppedOnRun())
+				if ($this->isPrevented() || $this->isStoppedOnRun())
 				{
 					break;
 				}
 
 				$this->setPostingDateSend();
-
-				if (
-					empty($recipient['CONTACT_CODE']) ||
-					$recipient['CONTACT_BLACKLISTED'] === 'Y' ||
-					$recipient['CONTACT_UNSUBSCRIBED'] === 'Y'
-				)
+				$eventData = [];
+				if ($this->canDenySendToRecipient($recipient))
 				{
+					$this->updateRecipientStatus($recipient['ID'],PostingRecipientTable::SEND_RESULT_ERROR);
 					$sendResult = false;
+					$eventData = $this->executeEvent($recipient, $sendResult);
 				}
-				else
+				elseif($this->canSendMessageToRecipient($recipient))
 				{
 					$sendResult = $this->sendToRecipient($recipient);
 					if ($this->isPrevented())
 					{
 						break;
 					}
+					$sendResultStatus = ($sendResult ?
+						PostingRecipientTable::SEND_RESULT_SUCCESS :
+						PostingRecipientTable::SEND_RESULT_ERROR
+					);
+					$this->updateRecipientStatus($recipient['ID'],$sendResultStatus);
+					$eventData = $this->executeEvent($recipient, $sendResult);
 				}
-
-				$sendResultStatus = $sendResult? PostingRecipientTable::SEND_RESULT_SUCCESS
-					: PostingRecipientTable::SEND_RESULT_ERROR;
-				Model\Posting\RecipientTable::update(
-					$recipient["ID"],
-					[
-						'STATUS'    => $sendResultStatus,
-						'DATE_SENT' => new Type\DateTime()
-					]
-				);
-
-				// send event
-				$eventData = [
-					'SEND_RESULT' => $sendResult,
-					'RECIPIENT'   => $recipient,
-					'POSTING'     => [
-						'ID'               => $this->postingId,
-						'STATUS'           => $this->status,
-						'MAILING_ID'       => $this->mailingId,
-						'MAILING_CHAIN_ID' => $this->letterId,
-					]
-				];
-				$event = new Event('sender', 'OnAfterPostingSendRecipient', [$eventData, $this->letter]);
-				$event->send();
-
-				if (
-					Bitrix24\Service::isCloud()
-					&& $eventData['SEND_RESULT']
-					&& $this->letter->getMessage()->getCode() === Message\iBase::CODE_MAIL)
+				elseif ($this->canSendConsentToRecipient($recipient))
 				{
-					Bitrix24\Limitation\DailyLimit::increment();
+					$sendResult = $this->executeConsentToRecipient($recipient);
+					$sendResultStatus = (
+						$sendResult ?
+						PostingRecipientTable::SEND_RESULT_WAIT_ACCEPT :
+						PostingRecipientTable::SEND_RESULT_ERROR
+					);
+					$this->updateRecipientStatus($recipient['ID'],$sendResultStatus);
 				}
 
 				$dataToInsert[] = $eventData;
 
+				if (Bitrix24\Service::isCloud() && $eventData['SEND_RESULT'] && $this->letter->getMessage()->getCode() === Message\iBase::CODE_MAIL)
+				{
+					Bitrix24\Limitation\DailyLimit::increment();
+				}
 				// limit executing script by time
 				if ($this->isTimeout() || $this->isLimitExceeded() || $this->isTransportLimitsExceeded())
 				{
 					break;
 				}
-
 				// increment sending statistic
 				$this->sentCount++;
 			}
 		} catch(\Exception $e)
-		{
-		}
+		{}
 
 		try
 		{
@@ -898,5 +913,108 @@ class Sender
 	: Adapter
 	{
 		return $this->message;
+	}
+	protected function canDenySendToRecipient($recipient) : bool
+	{
+		return (
+			empty($recipient['CONTACT_CODE']) ||
+			$recipient['CONTACT_BLACKLISTED'] === 'Y' ||
+			$recipient['CONTACT_UNSUBSCRIBED'] === 'Y' ||
+			$recipient['CONTACT_MAILING_UNSUBSCRIBED'] === 'Y' ||
+			Consent::isUnsub(
+				$recipient['CONTACT_CONSENT_STATUS'],
+				$recipient['CONTACT_CONSENT_REQUEST'],
+				$this->message->getTransport()->getCode()
+			) &&
+			$this->needConsent()
+		);
+	}
+	protected function canSendConsentToRecipient($recipient) : bool
+	{
+		return (
+			in_array($recipient['CONTACT_CONSENT_STATUS'], [
+				ContactTable::CONSENT_STATUS_NEW,
+				ContactTable::CONSENT_STATUS_WAIT]
+			) &&
+			!Consent::checkIfConsentRequestLimitExceeded(
+				$recipient['CONTACT_CONSENT_REQUEST'],
+				$this->message->getTransport()->getCode()
+			) &&
+			$this->needConsent()
+		);
+	}
+	protected function canSendMessageToRecipient($recipient) : bool
+	{
+		return (
+			$recipient['CONTACT_CONSENT_STATUS'] === ContactTable::CONSENT_STATUS_ACCEPT ||
+			!$this->needConsent()
+		);
+	}
+	protected function executeConsentToRecipient($recipient)
+	{
+		$sendResult = null;
+		$sendResult = $this->message->getTransport()->sendConsent(
+			$this->letter->getMessage(), $recipient + ['RECIPIENT_ID' => $recipient['ID'], 'SITE_ID' => SITE_ID]
+		);
+
+		if($sendResult)
+		{
+			ContactTable::updateConsentStatus(
+				$recipient['CONTACT_ID'],
+				ContactTable::CONSENT_STATUS_WAIT
+			);
+
+			if (Bitrix24\Service::isCloud())
+			{
+				Bitrix24\Limitation\DailyLimit::increment();
+			}
+		}
+		return $sendResult;
+	}
+
+	protected function executeEvent($recipient, $success)
+	{
+		$eventData = [
+			'SEND_RESULT' => $success,
+			'RECIPIENT'   => $recipient,
+			'POSTING'     => [
+				'ID'               => $this->postingId,
+				'STATUS'           => $this->status,
+				'MAILING_ID'       => $this->mailingId,
+				'MAILING_CHAIN_ID' => $this->letterId,
+			]
+		];
+
+		return $eventData;
+	}
+
+	protected function needConsent(): bool
+	{
+		static $needConsentMessage;
+		if (!isset($needConsentMessage))
+		{
+			$needConsentMessage = $this->isConsentSupport;
+		}
+		return $needConsentMessage;
+	}
+
+	protected function updateRecipientStatus($primary, $status)
+	{
+		Model\Posting\RecipientTable::update(
+			$primary,
+			[
+				'STATUS' => $status,
+				'DATE_SENT' => new Type\DateTime()
+			]
+		);
+	}
+
+	protected static function getRecipientsToSend(\Bitrix\Main\ORM\Query\Result $result)
+	{
+		return array_filter(iterator_to_array($result),
+			function ($recipient)
+			{
+				return $recipient['STATUS'] === PostingRecipientTable::SEND_RESULT_NONE;
+			});
 	}
 }

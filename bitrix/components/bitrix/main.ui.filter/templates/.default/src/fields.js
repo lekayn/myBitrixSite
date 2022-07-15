@@ -6,6 +6,7 @@ import createNumberInputDecl from './fields/create-number-input-decl';
 import createLineDecl from './fields/create-line-decl';
 import createSelectDecl from './fields/create-select-decl';
 import {Field} from './field/field';
+import {AdditionalFilter} from './additional-filter';
 
 const errorMessages = new WeakMap();
 const errorMessagesTypes = new WeakMap();
@@ -121,6 +122,7 @@ export class Fields
 			name: fieldData.NAME,
 			type: fieldData.TYPE,
 			label: this.parent.getParam('ENABLE_LABEL') ? fieldData.LABEL : '',
+			icon: (this.parent.getParam('ENABLE_LABEL') && fieldData.ICON) ? fieldData.ICON : null,
 			dragTitle: this.parent.getParam('MAIN_UI_FILTER__DRAG_FIELD_TITLE'),
 			deleteTitle: this.parent.getParam('MAIN_UI_FILTER__REMOVE_FIELD'),
 			content: [
@@ -161,6 +163,7 @@ export class Fields
 			name: fieldData.NAME,
 			type: fieldData.TYPE,
 			label: this.parent.getParam('ENABLE_LABEL') ? fieldData.LABEL : '',
+			icon: (this.parent.getParam('ENABLE_LABEL') && fieldData.ICON) ? fieldData.ICON : null,
 			dragTitle: this.parent.getParam('MAIN_UI_FILTER__DRAG_FIELD_TITLE'),
 			deleteTitle: this.parent.getParam('MAIN_UI_FILTER__REMOVE_FIELD'),
 			content: [
@@ -211,6 +214,7 @@ export class Fields
 			name: fieldData.NAME,
 			type: fieldData.TYPE,
 			label: this.parent.getParam('ENABLE_LABEL') ? fieldData.LABEL : '',
+			icon: (this.parent.getParam('ENABLE_LABEL') && fieldData.ICON) ? fieldData.ICON : null,
 			dragTitle: this.parent.getParam('MAIN_UI_FILTER__DRAG_FIELD_TITLE'),
 			deleteTitle: this.parent.getParam('MAIN_UI_FILTER__REMOVE_FIELD'),
 			content: {
@@ -356,6 +360,7 @@ export class Fields
 				filter: this.parent,
 				isMultiple: fieldData.MULTIPLE,
 				addEntityIdToResult: fieldData.ADD_ENTITY_ID_TO_RESULT,
+				showDialogOnEmptyInput: fieldData.SHOW_DIALOG_ON_EMPTY_INPUT,
 				dialogOptions: fieldData.DIALOG_OPTIONS
 			},
 		);
@@ -564,6 +569,7 @@ export class Fields
 			type: fieldData.TYPE,
 			deleteButton: true,
 			label: this.parent.getParam('ENABLE_LABEL') ? fieldData.LABEL : '',
+			icon: (this.parent.getParam('ENABLE_LABEL') && fieldData.ICON) ? fieldData.ICON : null,
 			dragTitle: this.parent.getParam('MAIN_UI_FILTER__DRAG_FIELD_TITLE'),
 			deleteTitle: this.parent.getParam('MAIN_UI_FILTER__REMOVE_FIELD'),
 			content: {
@@ -624,6 +630,7 @@ export class Fields
 			type: fieldData.TYPE,
 			deleteButton: true,
 			label: this.parent.getParam('ENABLE_LABEL') ? fieldData.LABEL : '',
+			icon: (this.parent.getParam('ENABLE_LABEL') && fieldData.ICON) ? fieldData.ICON : null,
 			dragTitle: this.parent.getParam('MAIN_UI_FILTER__DRAG_FIELD_TITLE'),
 			deleteTitle: this.parent.getParam('MAIN_UI_FILTER__REMOVE_FIELD'),
 			content: {
@@ -660,6 +667,7 @@ export class Fields
 			type: fieldData.TYPE,
 			deleteButton: true,
 			label: this.parent.getParam('ENABLE_LABEL') ? fieldData.LABEL : '',
+			icon: (this.parent.getParam('ENABLE_LABEL') && fieldData.ICON) ? fieldData.ICON : null,
 			dragTitle: this.parent.getParam('MAIN_UI_FILTER__DRAG_FIELD_TITLE'),
 			deleteTitle: this.parent.getParam('MAIN_UI_FILTER__REMOVE_FIELD'),
 			content: {
@@ -696,6 +704,7 @@ export class Fields
 			type: fieldData.TYPE,
 			mix: this.parent.getParam('ENABLE_LABEL') ? [this.parent.settings.classFieldWithLabel, 'main-ui-filter-date-group'] : ['main-ui-filter-date-group'],
 			label: this.parent.getParam('ENABLE_LABEL') ? fieldData.LABEL : '',
+			icon: (this.parent.getParam('ENABLE_LABEL') && fieldData.ICON) ? fieldData.ICON : null,
 			dragTitle: this.parent.getParam('MAIN_UI_FILTER__DRAG_FIELD_TITLE'),
 			deleteTitle: this.parent.getParam('MAIN_UI_FILTER__REMOVE_FIELD'),
 			tabindex: 'TABINDEX' in fieldData ? fieldData.TABINDEX : '',
@@ -914,6 +923,15 @@ export class Fields
 						});
 					}
 
+					if (this.parent.getParam('ENABLE_ADDITIONAL_FILTERS'))
+					{
+						const button = AdditionalFilter.getInstance().getAdditionalFilterButton({
+							fieldId: fieldData.NAME,
+							enabled: fieldData.ADDITIONAL_FILTER_ALLOWED,
+						});
+						Dom.append(button, dateGroup);
+					}
+
 					Dom.insertAfter(dateGroup, group);
 					Dom.remove(group);
 				}
@@ -931,6 +949,7 @@ export class Fields
 			TABINDEX = '',
 			VALUES = {_from: '', _to: ''},
 			LABEL = '',
+			ICON = null,
 			TYPE,
 		} = options;
 
@@ -954,6 +973,7 @@ export class Fields
 			type: TYPE,
 			mix: classes,
 			label: ENABLE_LABEL ? LABEL : '',
+			icon: ENABLE_LABEL ? ICON : null,
 			dragTitle: this.parent.getParam('MAIN_UI_FILTER__DRAG_FIELD_TITLE'),
 			deleteTitle: this.parent.getParam('MAIN_UI_FILTER__REMOVE_FIELD'),
 			tabindex: TABINDEX,
@@ -1058,6 +1078,7 @@ export class Fields
 			TABINDEX = '',
 			ENABLE_TIME = false,
 			LABEL = '',
+			ICON = null,
 			TYPE,
 			VALUE_REQUIRED = false,
 			REQUIRED = false,
@@ -1083,6 +1104,7 @@ export class Fields
 			type: TYPE,
 			mix: classes,
 			label: ENABLE_LABEL ? LABEL : '',
+			icon: ENABLE_LABEL ? ICON : null,
 			dragTitle: this.parent.getParam('MAIN_UI_FILTER__DRAG_FIELD_TITLE'),
 			deleteTitle: this.parent.getParam('MAIN_UI_FILTER__REMOVE_FIELD'),
 			tabindex: TABINDEX,
@@ -1276,11 +1298,8 @@ export class Fields
 					customDateDecl.VALUE.years = VALUES._year;
 				}
 
-				customDateDecl.mix = customDateDecl.filter((item) => {
-					return item !== 'main-ui-filter-wield-with-label';
-				});
-
 				const renderedField = this.createCustomDate(customDateDecl);
+				Dom.removeClass(renderedField, 'main-ui-filter-wield-with-label');
 
 				const buttons = [
 					...renderedField
@@ -1290,7 +1309,7 @@ export class Fields
 				buttons.forEach((button) => Dom.remove(button));
 
 				fieldGroup.content.push(renderedField);
-				fieldGroup.push('main-ui-filter-custom-date-group');
+				fieldGroup.mix.push('main-ui-filter-custom-date-group');
 			}
 		}
 

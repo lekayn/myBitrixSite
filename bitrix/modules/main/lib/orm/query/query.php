@@ -821,7 +821,7 @@ class Query
 	/**
 	 * Adds a runtime field (being created dynamically, opposite to being described statically in the entity map)
 	 *
-	 * @param string|null $name
+	 * @param string|null|Field $name
 	 * @param array|Field $fieldInfo
 	 *
 	 * @return $this
@@ -2501,7 +2501,10 @@ class Query
 		// union
 		if (!empty($this->unionHandler))
 		{
-			$query = "({$query})";
+			if ($this->order || $this->limit)
+			{
+				$query = "({$query})";
+			}
 
 			foreach ($this->unionHandler->getQueries() as $union)
 			{

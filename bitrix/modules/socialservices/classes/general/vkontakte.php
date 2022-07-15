@@ -147,6 +147,16 @@ class CSocServVKontakte extends CSocServAuth
 		$GLOBALS["APPLICATION"]->RestartBuffer();
 		$bSuccess = SOCSERV_AUTHORISATION_ERROR;
 
+		$stateUnpacked = base64_decode($_REQUEST['state'] ?? '');
+		if ($stateUnpacked)
+		{
+			parse_str($stateUnpacked, $stateParams);
+			if ($stateParams && is_array($stateParams))
+			{
+				$_REQUEST = array_merge($_REQUEST, $stateParams);
+			}
+		}
+
 		if ((isset($_REQUEST["code"]) && $_REQUEST["code"] <> '') && CSocServAuthManager::CheckUniqueKey())
 		{
 			if (IsModuleInstalled('bitrix24') && defined('BX24_HOST_NAME'))
@@ -170,7 +180,7 @@ class CSocServVKontakte extends CSocServAuth
 		$aRemove = array("logout", "auth_service_error", "auth_service_id", "code", "error_reason", "error", "error_description", "check_key", "current_fieldset");
 
 
-		if (isset($_REQUEST['backurl']) || isset($_REQUEST['redirect_url']))
+		if ($bSuccess === true && (isset($_REQUEST['backurl']) || isset($_REQUEST['redirect_url'])))
 		{
 			$parseUrl = parse_url(isset($_REQUEST['redirect_url']) ? $_REQUEST['redirect_url'] : $_REQUEST['backurl']);
 
@@ -318,6 +328,11 @@ class CVKontakteOAuthInterface extends CSocServOAuthTransport
 
 	public function GetAuthUrl($redirect_uri, $state = '')
 	{
+		if ($state)
+		{
+			$state = base64_encode($state);
+		}
+
 		return self::AUTH_URL .
 		"?client_id=" . urlencode($this->appID) .
 		"&redirect_uri=" . urlencode($redirect_uri) .

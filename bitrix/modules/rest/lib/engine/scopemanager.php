@@ -16,8 +16,8 @@ use CRestUtil;
  */
 class ScopeManager
 {
-	private const CACHE_TIME = 604800;// 86400 * 7
-	private const CACHE_DIR = '/rest/scope/';
+	public const CACHE_TIME = 604800;// 86400 * 7
+	public const CACHE_DIR = '/rest/scope/';
 	private const CACHE_KEY = 'list';
 	private const METHOD_DELIMITER = '.';
 
@@ -107,7 +107,7 @@ class ScopeManager
 
 	public static function cleanCache() : bool
 	{
-		return Cache::clearCache(false, self::CACHE_DIR);
+		return Cache::clearCache(true, self::CACHE_DIR);
 	}
 
 	public function getAlias($code) : ?string
@@ -155,7 +155,7 @@ class ScopeManager
 
 			foreach ($actionParts as $partScope)
 			{
-				$scopeFind .= ($scope !== '' ? self::METHOD_DELIMITER : '') . $partScope;
+				$scopeFind .= ($scopeFind !== '' ? self::METHOD_DELIMITER : '') . $partScope;
 				$moduleFind = $this->getAlias($scopeFind);
 				if ($moduleFind)
 				{

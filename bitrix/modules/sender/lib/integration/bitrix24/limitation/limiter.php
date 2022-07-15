@@ -12,6 +12,8 @@ use Bitrix\Main\Config\Option;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Bitrix24\MailCounter as B24MailCounter;
 
+use Bitrix\Main\Mail\Sender;
+use Bitrix\Main\Mail\SenderSendCounter;
 use Bitrix\Sender\Integration\Bitrix24\Service;
 use Bitrix\Sender\Transport;
 
@@ -98,13 +100,45 @@ class Limiter
 			)
 			->setParameter(
 				'globalHelpUri',
-				'javascript:BX.Helper.show("redirect=detail&code=6904325")'
+				'javascript:top.BX.Helper.show("redirect=detail&code=6904325")'
 			)
 			->setParameter('percentage', self::getMonthlyLimitPercentage());
 
 		if (!Service::isLicenceTop())
 		{
-			$limiter->setParameter('setupUri', 'javascript: BX.Sender.B24License.showMailLimitPopup();');
+			$limiter->setParameter('setupUri', 'javascript: top.BX.Sender.B24License.showMailLimitPopup();');
+		}
+
+		return $limiter;
+	}
+
+	/**
+	 * Return email limiter.
+	 *
+	 * @return Transport\CountLimiter
+	 */
+	public static function getEmailMonthly($email)
+	{
+		$counter = new SenderSendCounter();
+		$limiter = Transport\CountLimiter::create()
+			->withName('mail_per_email_per_day')
+			->withLimit(Sender::getEmailLimit($email))
+			->withUnit("1 " . Transport\iLimiter::DAYS)
+			->withCurrent(
+				function () use ($counter, $email)
+				{
+					return Sender::getEmailLimit($email) === null ? -1 : $counter->get($email);
+				}
+			)
+			->setHidden(true)
+			->setParameter(
+				'globalHelpUri',
+				'javascript:top.BX.Helper.show("redirect=detail&code=6904325")'
+			);
+
+		if (!Service::isLicenceTop())
+		{
+			$limiter->setParameter('setupUri', 'javascript: top.BX.Sender.B24License.showMailLimitPopup();');
 		}
 
 		return $limiter;
@@ -128,7 +162,26 @@ class Limiter
 					return $counter->getCurrent();
 				}
 			)
-			->setParameter('setupUri', 'javascript:BX.Helper.show("redirect=detail&code=6846227")')
+			->setParameter('setupUri', 'javascript:top.BX.Helper.show("redirect=detail&code=6846227")')
+			->setParameter('setupCaption', Loc::getMessage('SENDER_INTEGRATION_BITRIX24_LIMITER_DAILY_DETAILS'));
+	}
+
+
+	public static function getPortalVerification(): Transport\iLimiter
+	{
+		$verify = new PortalVerifyLimit();
+		return Transport\CountLimiter::create()
+			->withName('portal_verify')
+			->withLimit($verify->getLimit())
+			// ->withUnit("1 " . Transport\iLimiter::DAYS)
+			->setHidden(true)
+			->withCurrent(
+				function () use ($verify)
+				{
+					return $verify->getCurrent();
+				}
+			)
+			->setParameter('setupUri', 'javascript:top.BX.Helper.show("redirect=detail&code=14406430")')
 			->setParameter('setupCaption', Loc::getMessage('SENDER_INTEGRATION_BITRIX24_LIMITER_DAILY_DETAILS'));
 	}
 }

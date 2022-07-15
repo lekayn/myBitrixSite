@@ -95,10 +95,17 @@ export default class FieldConfiguratorController extends BX.UI.EntityEditorContr
 				data: fields
 			}
 		).then(response => {
+			const property = response?.data?.PROPERTY_FIELDS;
 			if (currentField instanceof BX.UI.EntityEditorDatetime || currentField instanceof BX.UI.EntityEditorMultiDatetime)
 			{
-				const data = currentField.getSchemeElement().getData();
-				data.enableTime = eventArgs.enableTime;
+				const schemeElementData = currentField.getSchemeElement().getData();
+				const propertyData = property?.data;
+				if (propertyData)
+				{
+					schemeElementData.enableTime = propertyData.enableTime;
+					schemeElementData.dateViewFormat = propertyData.dateViewFormat;
+					currentField.refreshLayout();
+				}
 			}
 			let newType = null;
 			let schemeElement = null;
@@ -141,7 +148,6 @@ export default class FieldConfiguratorController extends BX.UI.EntityEditorContr
 				}
 			}
 			schemeElement = currentField.getSchemeElement();
-			const property = response.data.PROPERTY_FIELDS;
 			if (
 				((currentField instanceof BX.UI.EntityEditorList) || (currentField instanceof BX.UI.EntityEditorMultiList))
 				&& property
@@ -172,6 +178,7 @@ export default class FieldConfiguratorController extends BX.UI.EntityEditorContr
 					enableSaving: false
 				});
 
+				currentField._schemeElement = null;
 				section.removeChild(currentField, {
 					enableSaving: false
 				});
@@ -205,7 +212,7 @@ export default class FieldConfiguratorController extends BX.UI.EntityEditorContr
 			case 'list':
 			case 'multilist':
 				formatted.PROPERTY_TYPE = 'L';
-				fields.enumeration.forEach((enumItem, key) => {
+				(fields.enumeration || []).forEach((enumItem, key) => {
 					form.append(this.getFormFieldName('VALUES][' + key + '][SORT'), enumItem.SORT);
 					form.append(this.getFormFieldName('VALUES][' + key + '][VALUE'), enumItem.VALUE);
 					form.append(this.getFormFieldName('VALUES][' + key + '][ID'), enumItem.ID);
@@ -213,7 +220,7 @@ export default class FieldConfiguratorController extends BX.UI.EntityEditorContr
 				break;
 			case 'directory':
 				formatted.USER_TYPE = 'directory';
-				fields.enumeration.forEach((enumItem, key) => {
+				(fields.enumeration || []).forEach((enumItem, key) => {
 					form.append(this.getFormFieldName('VALUES][' + key + '][SORT'), enumItem.SORT);
 					form.append(this.getFormFieldName('VALUES][' + key + '][VALUE'), enumItem.VALUE.value);
 					form.append(this.getFormFieldName('VALUES][' + key + '][XML_ID'), enumItem.XML_ID);

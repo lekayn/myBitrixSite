@@ -10,6 +10,7 @@ namespace Bitrix\Sender\Posting;
 use Bitrix\Main\Application;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Sender\Connector;
+use Bitrix\Sender\Consent\Consent;
 use Bitrix\Sender\ContactTable;
 use Bitrix\Sender\Entity;
 use Bitrix\Sender\GroupTable;
@@ -53,12 +54,16 @@ class Builder
 	 * @var bool $result
 	 */
 	private $result;
-	
+
 	/**
 	 * @var GroupQueueServiceInterface $groupQueueService
 	 */
 	private $groupQueueService;
 
+	/**
+	 * @var Message\Configuration
+	 */
+	private $messageConfiguration;
 
 	/**
 	 * Create instance.
@@ -129,17 +134,18 @@ class Builder
 			'filter' => array('ID' => $postingId),
 			'limit' => 1
 		))->fetch();
+
 		if(!$postingData)
 		{
 			return true;
 		}
-		
+
 		if ($postingData['MAILING_STATUS'] === Model\LetterTable::STATUS_END)
 		{
 			Model\LetterTable::update($postingData['MAILING_CHAIN_ID'], [
 				'WAITING_RECIPIENT' => 'N'
 			]);
-			
+
 			return true;
 		}
 
@@ -156,6 +162,7 @@ class Builder
 		$this->checkDuplicates = $checkDuplicates;
 		$this->postingId = $postingId;
 		$this->groupCount = array();
+		$this->messageConfiguration = Message\Adapter::getInstance($postingData['MESSAGE_TYPE'])->loadConfiguration($postingData['MESSAGE_ID']);
 
 
 		if(!$checkDuplicates)
@@ -200,7 +207,7 @@ class Builder
 				{
 					continue;
 				}
-		
+
 				$this->typeId = $typeId;
 				$this->runForRecipientType($personalizeFields, $groups);
 			}
@@ -208,8 +215,8 @@ class Builder
 		{
 			return false;
 		}
-		
-		
+
+
 		Model\PostingTable::update(
 			$postingId,
 			array(
@@ -223,7 +230,7 @@ class Builder
 			if ($group['GROUP_ID'] && !isset($usedGroups[$group['GROUP_ID']]))
 			{
 				RecipientBuilderJob::removeAgentFromDB($this->postingId);
-				
+
 				$this->groupQueueService->releaseGroup(
 					Model\GroupQueueTable::TYPE['POSTING'],
 					$this->postingId,
@@ -232,7 +239,7 @@ class Builder
 				$usedGroups[$group['GROUP_ID']] = $group['GROUP_ID'];
 			}
 		}
-		
+
 		$this->postingData['WAITING_RECIPIENT'] = 'N';
 		Model\LetterTable::update($this->postingData['MAILING_CHAIN_ID'], [
 			'WAITING_RECIPIENT' => $this->postingData['WAITING_RECIPIENT']
@@ -247,29 +254,17 @@ class Builder
 		$groups = [];
 		$groups = array_merge($groups, $this->getLetterConnectors($this->postingData['MAILING_CHAIN_ID']));
 		$groups = array_merge($groups, $this->getSubscriptionConnectors($this->postingData['MAILING_ID']));
-
-		// fetch all connectors for getting emails
-
-		// sort groups by include value
-		usort(
-			$groups,
-			function ($a, $b)
-			{
-				if ($a['INCLUDE'] == $b['INCLUDE'])
-				{
-					return 0;
-				}
-
-				return ($a['INCLUDE'] > $b['INCLUDE']) ? -1 : 1;
-			}
-		);
-		
 		Model\LetterTable::update($this->postingData['MAILING_CHAIN_ID'], [
 			'WAITING_RECIPIENT' => 'N'
 		]);
 
 		foreach ($groups as $group)
 		{
+			if ($group['GROUP_ID'] && !GroupTable::getById($group['GROUP_ID'])->fetch())
+			{
+				continue;
+			}
+
 			if ($group['GROUP_ID'])
 			{
 				$this->groupQueueService
@@ -288,6 +283,28 @@ class Builder
 				$this->stopRecipientListBuilding();
 			}
 		}
+
+		// fetch all connectors for getting emails
+		array_walk($groups,
+			function(&$group)
+			{
+				$group['INCLUDE'] = (bool)$group['INCLUDE'];
+			}
+		);
+
+		// sort groups by include value
+		usort(
+			$groups,
+			function ($a, $b)
+			{
+				if ($a['INCLUDE'] == $b['INCLUDE'])
+				{
+					return 0;
+				}
+
+				return ($a['INCLUDE'] > $b['INCLUDE']) ? -1 : 1;
+			}
+		);
 
 		return $groups;
 	}
@@ -320,9 +337,6 @@ class Builder
 				$usedPersonalizeFields
 			);
 		}
-
-
-
 		// update group counter of addresses
 		foreach($this->groupCount as $groupId => $count)
 		{
@@ -351,7 +365,7 @@ class Builder
 	protected static function clean($postingId)
 	{
 		$primary = array('POSTING_ID' => $postingId);
-		PostingRecipientTable::delete($primary);
+		PostingRecipientTable::deleteList($primary);
 		Model\PostingTable::update(
 			$postingId,
 			array(
@@ -449,7 +463,25 @@ class Builder
 		return $groups;
 	}
 
-	protected function setRecipientIdentificators(array &$dataList)
+	private function isExcluded(bool $include, $row): bool
+	{
+		return 	$include
+			&& (
+				$row['BLACKLISTED'] === 'Y' ||
+				$row['IS_UNSUB'] === 'Y' ||
+				$row['IS_MAILING_UNSUB'] === 'Y' ||
+				(
+					$this->messageConfiguration->get('APPROVE_CONFIRMATION', 'N') === 'Y' &&
+					Consent::isUnsub(
+						$row['CONSENT_STATUS'],
+						$row['CONSENT_REQUEST'],
+						$this->postingData['MESSAGE_TYPE']
+					)
+				)
+			);
+	}
+
+	protected function setRecipientIdentificators(array &$dataList, bool $include = true)
 	{
 		if (count($dataList) === 0)
 		{
@@ -467,7 +499,15 @@ class Builder
 		$primariesString = SqlBatch::getInString($codes);
 
 		$recipientDb = $connection->query(
-			"select c.ID, c.NAME, c.CODE, c.BLACKLISTED, s.IS_UNSUB " .
+			"select 
+			c.ID, 
+			c.NAME, 
+			c.CODE, 
+			c.BLACKLISTED, 
+			c.CONSENT_STATUS, 
+			c.CONSENT_REQUEST, 
+			c.IS_UNSUB, 
+			s.IS_UNSUB as IS_MAILING_UNSUB " .
 			"from $tableName c " .
 			"left join $subsTableName s on " .
 				"c.ID = s.CONTACT_ID " .
@@ -477,16 +517,10 @@ class Builder
 		while ($row = $recipientDb->fetch())
 		{
 			$existed[] = $row['CODE'];
-
-			if ($row['BLACKLISTED'] === 'Y' || $row['IS_UNSUB'] === 'Y')
-			{
-				unset($dataList[$row['CODE']]);
-				continue;
-			}
-
 			$dataList[$row['CODE']]['CONTACT_ID'] = $row['ID'];
+			$dataList[$row['CODE']]['EXCLUDED'] = $this->isExcluded($include, $row);
 
-			$name = isset($dataList[$row['CODE']]['NAME']) ? $dataList[$row['CODE']]['NAME'] : null;
+			$name = $dataList[$row['CODE']]['NAME'] ?? null;
 			if ($name && $name !== $row['NAME'])
 			{
 				$contactCodeFilter[] = $row['CODE'];
@@ -649,7 +683,8 @@ class Builder
 			{
 				break;
 			}
-			$this->setRecipientIdentificators($dataList);
+			$this->setRecipientIdentificators($dataList, $group['INCLUDE']);
+
 			if ($group['INCLUDE'])
 			{
 				// add address if not exists
@@ -696,7 +731,6 @@ class Builder
 						}
 						$preparedFields[$field['CRM_ENTITY_TYPE']][] = $field['CRM_ENTITY_ID'];
 					}
-
 
 					foreach ($preparedFields as $entityType => $ids)
 					{
@@ -771,6 +805,11 @@ class Builder
 		$dataList = array();
 		foreach($list as $code => $data)
 		{
+			if (!isset($data['EXCLUDED']) || $data['EXCLUDED'])
+			{
+				continue;
+			}
+
 			$recipientInsert = array(
 				'CONTACT_ID' => (int) $data['CONTACT_ID'],
 				'STATUS' => PostingRecipientTable::SEND_RESULT_NONE,

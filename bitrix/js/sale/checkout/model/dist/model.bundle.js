@@ -45,7 +45,7 @@ this.BX.Sale.Checkout = this.BX.Sale.Checkout || {};
             result.id = parseInt(fields.id);
           }
 
-          if (main_core.Type.isNumber(fields.id) || main_core.Type.isString(fields.accountNumber)) {
+          if (main_core.Type.isNumber(fields.accountNumber) || main_core.Type.isString(fields.accountNumber)) {
             result.accountNumber = fields.accountNumber.toString();
           }
 
@@ -107,6 +107,158 @@ this.BX.Sale.Checkout = this.BX.Sale.Checkout || {};
       return Order;
     }(ui_vue_vuex.VuexBuilderModel);
 
+    var Check = /*#__PURE__*/function (_VuexBuilderModel) {
+      babelHelpers.inherits(Check, _VuexBuilderModel);
+
+      function Check() {
+        babelHelpers.classCallCheck(this, Check);
+        return babelHelpers.possibleConstructorReturn(this, babelHelpers.getPrototypeOf(Check).apply(this, arguments));
+      }
+
+      babelHelpers.createClass(Check, [{
+        key: "getName",
+        value: function getName() {
+          return 'check';
+        }
+      }, {
+        key: "getState",
+        value: function getState() {
+          return {
+            check: [],
+            status: sale_checkout_const.Loader.status.none
+          };
+        }
+      }, {
+        key: "validate",
+        value: function validate(fields) {
+          var result = {};
+
+          if (main_core.Type.isObject(fields.check)) {
+            result.check = this.validateCheck(fields.check);
+          }
+
+          if (main_core.Type.isString(fields.status)) {
+            result.status = fields.status.toString();
+          }
+
+          return result;
+        }
+      }, {
+        key: "validateCheck",
+        value: function validateCheck(fields) {
+          var result = {};
+
+          if (main_core.Type.isNumber(fields.id) || main_core.Type.isString(fields.id)) {
+            result.id = parseInt(fields.id);
+          }
+
+          if (main_core.Type.isNumber(fields.paymentId) || main_core.Type.isString(fields.paymentId)) {
+            result.paymentId = parseInt(fields.paymentId);
+          }
+
+          if (main_core.Type.isString(fields.dateFormatted)) {
+            result.dateFormatted = fields.dateFormatted.toString();
+          }
+
+          if (main_core.Type.isString(fields.link)) {
+            result.link = fields.link.toString();
+          }
+
+          if (main_core.Type.isString(fields.status)) {
+            var allowed = Object.values(sale_checkout_const.Check.status);
+            var status = fields.status.toString();
+            result.status = allowed.includes(status) ? status : sale_checkout_const.Check.status.new;
+          }
+
+          return result;
+        }
+      }, {
+        key: "getActions",
+        value: function getActions() {
+          var _this = this;
+
+          return {
+            setStatus: function setStatus(_ref, payload) {
+              var commit = _ref.commit;
+              payload = _this.validate(payload);
+              var status = Object.values(sale_checkout_const.Loader.status);
+              payload.status = status.includes(payload.status) ? payload.status : sale_checkout_const.Loader.status.none;
+              commit('setStatus', payload);
+            },
+            addItem: function addItem(_ref2, payload) {
+              var commit = _ref2.commit;
+              payload.fields = _this.validateCheck(payload.fields);
+              commit('addItem', payload);
+            },
+            changeItem: function changeItem(_ref3, payload) {
+              var commit = _ref3.commit;
+              payload.fields = _this.validateCheck(payload.fields);
+              commit('updateItem', payload);
+            },
+            removeItem: function removeItem(_ref4, payload) {
+              var commit = _ref4.commit;
+              commit('deleteItem', payload);
+            }
+          };
+        }
+      }, {
+        key: "getGetters",
+        value: function getGetters() {
+          return {
+            getStatus: function getStatus(state) {
+              return state.status;
+            },
+            getCheck: function getCheck(state) {
+              return state.check;
+            }
+          };
+        }
+      }, {
+        key: "getMutations",
+        value: function getMutations() {
+          return {
+            setStatus: function setStatus(state, payload) {
+              var item = {
+                status: sale_checkout_const.Loader.status.none
+              };
+              item = Object.assign(item, payload);
+              state.status = item.status;
+            },
+            addItem: function addItem(state, payload) {
+              var item = Check.getBaseItem();
+              item = Object.assign(item, payload.fields);
+              state.check.push(item);
+            },
+            updateItem: function updateItem(state, payload) {
+              if (typeof state.check[payload.index] === 'undefined') {
+                ui_vue.Vue.set(state.check, payload.index, Check.getBaseItem());
+              }
+
+              state.check[payload.index] = Object.assign(state.check[payload.index], payload.fields);
+            },
+            deleteItem: function deleteItem(state, payload) {
+              state.check.splice(payload.index, 1);
+            },
+            clearCheck: function clearCheck(state) {
+              state.check = [];
+            }
+          };
+        }
+      }], [{
+        key: "getBaseItem",
+        value: function getBaseItem() {
+          return {
+            id: 0,
+            paymentId: 0,
+            dateFormatted: null,
+            status: sale_checkout_const.Check.status.new,
+            link: null
+          };
+        }
+      }]);
+      return Check;
+    }(ui_vue_vuex.VuexBuilderModel);
+
     var Basket = /*#__PURE__*/function (_VuexBuilderModel) {
       babelHelpers.inherits(Basket, _VuexBuilderModel);
 
@@ -154,6 +306,7 @@ this.BX.Sale.Checkout = this.BX.Sale.Checkout || {};
             // basePrice,   basket price without discounts and taxes => basketItem->getBasePrice()
             discount: Basket.getDiscountItem(),
             props: [],
+            sku: Basket.getSkuItem(),
             product: this.getProductItem(),
             deleted: "N",
             status: sale_checkout_const.Loader.status.none
@@ -275,8 +428,27 @@ this.BX.Sale.Checkout = this.BX.Sale.Checkout || {};
             });
           }
 
+          if (main_core.Type.isObject(fields.sku)) {
+            result.sku = this.validateSku(fields.sku);
+          }
+
           if (main_core.Type.isObject(fields.discount)) {
             result.discount = this.validateDiscount(fields.discount);
+          }
+
+          return result;
+        }
+      }, {
+        key: "validateSku",
+        value: function validateSku(fields) {
+          var result = {};
+
+          if (main_core.Type.isObject(fields.tree)) {
+            result.tree = fields.tree;
+          }
+
+          if (main_core.Type.isNumber(fields.parentProductId) || main_core.Type.isString(fields.parentProductId)) {
+            result.parentProductId = parseInt(fields.parentProductId);
           }
 
           return result;
@@ -482,6 +654,9 @@ this.BX.Sale.Checkout = this.BX.Sale.Checkout || {};
             },
             getTotal: function getTotal(state) {
               return state.total;
+            },
+            getErrors: function getErrors(state) {
+              return state.errors;
             }
           };
         }
@@ -539,6 +714,13 @@ this.BX.Sale.Checkout = this.BX.Sale.Checkout || {};
                 });
               }
 
+              if (main_core.Type.isObject(payload.fields.sku)) {
+                var _item = Basket.getSkuItem();
+
+                _item = Object.assign(_item, payload.fields.sku);
+                payload.fields.sku = _item;
+              }
+
               state.basket.push(item);
               state.basket.forEach(function (item, index) {
                 item.sort = index + 1;
@@ -559,6 +741,12 @@ this.BX.Sale.Checkout = this.BX.Sale.Checkout || {};
                   item = Object.assign(item, fields);
                   payload.fields.props[index] = item;
                 });
+              }
+
+              if (main_core.Type.isObject(payload.fields.sku)) {
+                var item = Basket.getSkuItem();
+                item = Object.assign(item, payload.fields.sku);
+                payload.fields.sku = item;
               }
 
               state.basket[payload.index] = Object.assign(state.basket[payload.index], payload.fields);
@@ -585,6 +773,14 @@ this.BX.Sale.Checkout = this.BX.Sale.Checkout || {};
           };
         }
       }], [{
+        key: "getSkuItem",
+        value: function getSkuItem() {
+          return {
+            parentProductId: 0,
+            tree: {}
+          };
+        }
+      }, {
         key: "getPropsItem",
         value: function getPropsItem() {
           return {
@@ -807,6 +1003,146 @@ this.BX.Sale.Checkout = this.BX.Sale.Checkout || {};
       return Property;
     }(ui_vue_vuex.VuexBuilderModel);
 
+    var Payment = /*#__PURE__*/function (_VuexBuilderModel) {
+      babelHelpers.inherits(Payment, _VuexBuilderModel);
+
+      function Payment() {
+        babelHelpers.classCallCheck(this, Payment);
+        return babelHelpers.possibleConstructorReturn(this, babelHelpers.getPrototypeOf(Payment).apply(this, arguments));
+      }
+
+      babelHelpers.createClass(Payment, [{
+        key: "getName",
+        value: function getName() {
+          return 'payment';
+        }
+      }, {
+        key: "getState",
+        value: function getState() {
+          return {
+            payment: [],
+            errors: []
+          };
+        }
+      }, {
+        key: "validate",
+        value: function validate(fields) {
+          var result = {};
+
+          if (main_core.Type.isNumber(fields.id) || main_core.Type.isString(fields.id)) {
+            result.id = parseInt(fields.id);
+          }
+
+          if (main_core.Type.isNumber(fields.sum) || main_core.Type.isString(fields.sum)) {
+            result.sum = parseFloat(fields.sum);
+          }
+
+          if (main_core.Type.isString(fields.paid)) {
+            result.paid = fields.paid.toString() === 'Y' ? 'Y' : 'N';
+          }
+
+          if (main_core.Type.isString(fields.currency)) {
+            result.currency = fields.currency.toString();
+          }
+
+          if (main_core.Type.isNumber(fields.accountNumber) || main_core.Type.isString(fields.accountNumber)) {
+            result.accountNumber = fields.accountNumber.toString();
+          }
+
+          if (main_core.Type.isString(fields.dateBillFormatted)) {
+            result.dateBillFormatted = fields.dateBillFormatted.toString();
+          }
+
+          if (main_core.Type.isNumber(fields.paySystemId) || main_core.Type.isString(fields.paySystemId)) {
+            result.paySystemId = parseInt(fields.paySystemId);
+          }
+
+          return result;
+        }
+      }, {
+        key: "getActions",
+        value: function getActions() {
+          var _this = this;
+
+          return {
+            addItem: function addItem(_ref, payload) {
+              var commit = _ref.commit;
+              payload.fields = _this.validate(payload.fields);
+              commit('addItem', payload);
+            },
+            changeItem: function changeItem(_ref2, payload) {
+              var commit = _ref2.commit;
+              payload.fields = _this.validate(payload.fields);
+              commit('updateItem', payload);
+            },
+            removeItem: function removeItem(_ref3, payload) {
+              var commit = _ref3.commit;
+              commit('deleteItem', payload);
+            }
+          };
+        }
+      }, {
+        key: "getGetters",
+        value: function getGetters() {
+          return {
+            get: function get(state) {
+              return function (id) {
+                if (!state.payment[id] || state.payment[id].length <= 0) {
+                  return [];
+                }
+
+                return state.payment[id];
+              };
+            },
+            getPayment: function getPayment(state) {
+              return state.payment;
+            },
+            getErrors: function getErrors(state) {
+              return state.errors;
+            }
+          };
+        }
+      }, {
+        key: "getMutations",
+        value: function getMutations() {
+          return {
+            addItem: function addItem(state, payload) {
+              var item = Payment.getBaseItem();
+              item = Object.assign(item, payload.fields);
+              state.payment.push(item);
+            },
+            updateItem: function updateItem(state, payload) {
+              if (typeof state.payment[payload.index] === 'undefined') {
+                ui_vue.Vue.set(state.payment, payload.index, Payment.getBaseItem());
+              }
+
+              state.payment[payload.index] = Object.assign(state.payment[payload.index], payload.fields);
+            },
+            deleteItem: function deleteItem(state, payload) {
+              state.payment.splice(payload.index, 1);
+            },
+            clearPayment: function clearPayment(state) {
+              state.payment = [];
+            }
+          };
+        }
+      }], [{
+        key: "getBaseItem",
+        value: function getBaseItem() {
+          return {
+            id: 0,
+            sum: 0.0,
+            paid: 'N',
+            currency: null,
+            accountNumber: null,
+            dateBillFormatted: null,
+            paySystemId: 0
+          };
+        }
+      }]);
+      return Payment;
+    }(ui_vue_vuex.VuexBuilderModel);
+
     var PaySystem = /*#__PURE__*/function (_VuexBuilderModel) {
       babelHelpers.inherits(PaySystem, _VuexBuilderModel);
 
@@ -825,7 +1161,7 @@ this.BX.Sale.Checkout = this.BX.Sale.Checkout || {};
         value: function getState() {
           return {
             paySystem: [],
-            status: sale_checkout_const.Loader.status.wait
+            status: sale_checkout_const.Loader.status.none
           };
         }
       }, {
@@ -854,6 +1190,10 @@ this.BX.Sale.Checkout = this.BX.Sale.Checkout || {};
 
           if (main_core.Type.isString(fields.name)) {
             result.name = fields.name.toString();
+          }
+
+          if (main_core.Type.isString(fields.logotypeSrc) && fields.logotypeSrc.length > 0) {
+            result.picture = fields.logotypeSrc.toString();
           }
 
           if (main_core.Type.isString(fields.type)) {
@@ -942,7 +1282,8 @@ this.BX.Sale.Checkout = this.BX.Sale.Checkout || {};
           return {
             id: 0,
             name: null,
-            type: sale_checkout_const.PaySystem.type.undefined
+            type: sale_checkout_const.PaySystem.type.undefined,
+            picture: null
           };
         }
       }]);
@@ -1332,8 +1673,10 @@ this.BX.Sale.Checkout = this.BX.Sale.Checkout || {};
     }(ui_vue_vuex.VuexBuilderModel);
 
     exports.Order = Order;
+    exports.Check = Check;
     exports.Basket = Basket;
     exports.Property = Property;
+    exports.Payment = Payment;
     exports.PaySystem = PaySystem;
     exports.Application = Application;
     exports.Consent = Consent;

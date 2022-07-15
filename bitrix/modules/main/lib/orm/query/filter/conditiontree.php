@@ -272,7 +272,10 @@ class ConditionTree
 	 */
 	public function whereIn($column, $values)
 	{
-		$this->conditions[] = new Condition($column, 'in', $values);
+		if (!empty($values))
+		{
+			$this->conditions[] = new Condition($column, 'in', $values);
+		}
 
 		return $this;
 	}
@@ -619,7 +622,7 @@ class ConditionTree
 	{
 		foreach ($this->conditions as $k => $_condition)
 		{
-			if ($condition === $_condition)
+			if ($condition == $_condition)
 			{
 				unset($this->conditions[$k]);
 				return true;

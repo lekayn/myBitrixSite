@@ -401,6 +401,10 @@
 					this.useCompare = false;
 				}
 			}
+
+			this.isFacebookConversionCustomizeProductEventEnabled
+				= arParams.IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED
+			;
 		}
 
 		if (this.errorCode === 0)
@@ -1486,6 +1490,22 @@
 							}
 						}
 					}
+
+					if (
+						this.isFacebookConversionCustomizeProductEventEnabled
+						&& BX.Type.isArrayFilled(this.offers)
+						&& BX.Type.isObject(this.offers[this.offerNum])
+					)
+					{
+						BX.ajax.runAction(
+							'sale.facebookconversion.customizeProduct',
+							{
+								data: {
+									offerId: this.offers[this.offerNum]['ID']
+								}
+							}
+						);
+					}
 				}
 			}
 		},
@@ -2080,7 +2100,7 @@
 
 				if (this.showPercent)
 				{
-					if (price && parseInt(price.DISCOUNT) > 0)
+					if (price && parseInt(price.PERCENT) > 0)
 					{
 						obData = {style: {display: ''}, html: -price.PERCENT + '%'};
 					}

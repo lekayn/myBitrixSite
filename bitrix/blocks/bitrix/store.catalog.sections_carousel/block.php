@@ -29,7 +29,7 @@ if ($detailUrl)
 <section class="landing-block g-pt-20 g-pb-20">
 	<?php if ($classBlock->get('EDIT_MODE') || $showElementSection): ?>
 		<div class="landing-component">
-			<? $APPLICATION->IncludeComponent(
+			<?php $APPLICATION->IncludeComponent(
 				'bitrix:catalog.section',
 				'store_v3',
 				[
@@ -87,7 +87,7 @@ if ($detailUrl)
 					'SET_META_DESCRIPTION' => 'Y',
 					'META_DESCRIPTION' => '',
 					'BROWSER_TITLE' => '-',
-					'ADD_SECTIONS_CHAIN' => 'Y',
+					'ADD_SECTIONS_CHAIN' => 'N',
 					'SET_TITLE' => $classBlock->get('SET_TITLE'),
 					'ALLOW_SEO_DATA' => $classBlock->get('ALLOW_SEO_DATA'),
 					'SET_STATUS_404' => 'N',
@@ -127,10 +127,7 @@ if ($detailUrl)
 					'BACKGROUND_IMAGE' => 'UF_BACKGROUND_IMAGE',
 					'DISABLE_INIT_JS_IN_COMPONENT' => 'N',
 					'CUSTOM_FILTER' => '',
-					'PRODUCT_BLOCKS_ORDER' => 'props,sku,price,quantity,buttons,quantityLimit,compare',
-					//"PRODUCT_ROW_VARIANTS" => "[{'VARIANT':'3','BIG_DATA':false},{'VARIANT':'3','BIG_DATA':false},{'VARIANT':'3','BIG_DATA':false}]",
 					'SHOW_SLIDER' => 'Y',
-					'ENLARGE_PRODUCT' => 'STRICT',
 					'LABEL_PROP_MOBILE' => [
 						0 => 'NEWPRODUCT',
 						1 => 'SALELEADER',
@@ -148,6 +145,9 @@ if ($detailUrl)
 					'CYCLIC_LOADING_COUNTER_NAME' => 'sectionCycleCount',
 					'SECTIONS_OFFSET_MODE' => 'F',
 					'SECTIONS_SECTION_ID' => $classBlock->get('LANDING_SECTION_ID'),
+					'SECTIONS_FILTER_NAME' => $classBlock->get('SECTIONS_FILTER_NAME'),
+					'SECTIONS_ADDITIONAL_COUNT_ELEMENTS_FILTER' => $classBlock->get('FILTER_NAME'),
+					'SECTIONS_HIDE_SECTIONS_WITH_ZERO_COUNT_ELEMENTS' => 'Y',
 					'PROPERTY_CODE_MOBILE' => [
 						0 => 'ARTNUMBER',
 						1 => 'MANUFACTURER',
@@ -196,7 +196,7 @@ if ($detailUrl)
 	<?php endif; ?>
 	<?php if (!$classBlock->get('EDIT_MODE')): ?>
 		<div class="landing-component">
-			<? $APPLICATION->IncludeComponent(
+			<?php $APPLICATION->IncludeComponent(
 				'bitrix:catalog.section',
 				'store_v3',
 				[
@@ -209,7 +209,7 @@ if ($detailUrl)
 					'ELEMENT_SORT_ORDER' => 'desc',
 					'ELEMENT_SORT_FIELD2' => '',
 					'ELEMENT_SORT_ORDER2' => '',
-					'FILTER_NAME' => $classBlock->get('FILTER_NAME'),
+					'FILTER_NAME' => $classBlock->get('CATALOG_FILTER_NAME'),
 					'INCLUDE_SUBSECTIONS' => 'Y',
 					'SHOW_ALL_WO_SECTION' => 'Y',
 					'PAGE_ELEMENT_COUNT' => '6',
@@ -314,11 +314,13 @@ if ($detailUrl)
 					'USE_OFFER_NAME' => 'Y',
 					'LAZY_LOAD' => 'Y',
 					'LOAD_ON_SCROLL' => 'Y',
-					'DEFERRED_LOAD' => 'Y',
+					'DEFERRED_LOAD' => $showElementSection ? 'Y' : 'N',
 					'CYCLIC_LOADING' => 'Y',
 					'CYCLIC_LOADING_COUNTER_NAME' => 'catalogCycleCount',
 					'SECTIONS_OFFSET_MODE' => 'F',
 					'SECTIONS_SECTION_ID' => $classBlock->get('LANDING_SECTION_ID'),
+					'SECTIONS_ADDITIONAL_COUNT_ELEMENTS_FILTER' => $classBlock->get('FILTER_NAME'),
+					'SECTIONS_HIDE_SECTIONS_WITH_ZERO_COUNT_ELEMENTS' => 'Y',
 					'PROPERTY_CODE_MOBILE' => [
 						0 => 'ARTNUMBER',
 						1 => 'MANUFACTURER',

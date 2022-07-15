@@ -136,7 +136,7 @@ class RestConfigurationComponent extends CBitrixComponent
 					$manifestList,
 					function($manifest) use ($code)
 					{
-						return in_array($code, $manifest['PLACEMENT']);
+						return in_array($code, $manifest['PLACEMENT']) && $manifest['ACTIVE'] === 'Y';
 					}
 				);
 				if(!$manifestList)
@@ -157,6 +157,18 @@ class RestConfigurationComponent extends CBitrixComponent
 				$analyticFrom .= '_' . mb_strtolower($code);
 			}
 		}
+		elseif ($componentPage == 'section')
+		{
+			if (!empty($variableList['MANIFEST_CODE']))
+			{
+				$manifest = Manifest::get($variableList['MANIFEST_CODE']);
+				if (!empty($manifest['CODE']))
+				{
+					$appTag[] = $manifest['CODE'];
+				}
+			}
+		}
+		$variableList['ADDITIONAL_PARAMS'] = $this->request->get('additional') ?? [];
 
 		if (!empty($this->request->get('from')))
 		{

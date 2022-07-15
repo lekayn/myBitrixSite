@@ -2,6 +2,7 @@
 
 use Bitrix\Main;
 use Bitrix\Main\Loader;
+use Bitrix\Iblock;
 
 class CIBlockElement extends CAllIBlockElement
 {
@@ -371,7 +372,7 @@ class CIBlockElement extends CAllIBlockElement
 						" FP".$i.".CODE='".$DB->ForSQL($propID, 200)."'\n"
 					);
 
-			if($db_prop["IBLOCK_ID"])
+			if(isset($db_prop["IBLOCK_ID"]) && $db_prop["IBLOCK_ID"])
 				$this->arFilterIBlocks[$db_prop["IBLOCK_ID"]] = $db_prop["IBLOCK_ID"];
 		}
 
@@ -684,13 +685,18 @@ class CIBlockElement extends CAllIBlockElement
 
 			if($nTopCount > 0)
 			{
+				$offset = (int)($arNavStartParams['nOffset'] ?? 0);
 				$strSql = "
 					SELECT ".$el->sSelect."
 					FROM ".$el->sFrom."
 					WHERE 1=1 ".$el->sWhere."
 					".$el->sGroupBy."
 					".$el->sOrderBy."
-					LIMIT ".$nTopCount."
+					LIMIT ".$nTopCount.
+					($offset > 0
+						? ' OFFSET ' . $offset
+						: ''
+					)."
 				";
 				$res = $DB->Query($strSql);
 			}
@@ -1655,7 +1661,7 @@ class CIBlockElement extends CAllIBlockElement
 			if(is_set($arFields, "IBLOCK_SECTION"))
 				CIBlockElement::SetElementSection($ID, $arFields["IBLOCK_SECTION"], false, $arIBlock["RIGHTS_MODE"] === "E"? $arIBlock["ID"]: 0, $IBLOCK_SECTION_ID);
 
-			if($arIBlock["RIGHTS_MODE"] === "E")
+			if ($arIBlock["RIGHTS_MODE"] === Iblock\IblockTable::RIGHTS_EXTENDED)
 			{
 				$obElementRights = new CIBlockElementRights($arIBlock["ID"], $ID);
 				if(array_key_exists("RIGHTS", $arFields) && is_array($arFields["RIGHTS"]))
@@ -1734,6 +1740,9 @@ class CIBlockElement extends CAllIBlockElement
 					);
 				}
 			}
+
+			Iblock\ElementTable::getEntity()->cleanCache();
+
 			$Result = true;
 
 			/************* QUOTA *************/

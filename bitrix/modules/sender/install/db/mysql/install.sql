@@ -20,6 +20,8 @@ CREATE TABLE b_sender_contact
   IS_CLICK CHAR(1) DEFAULT 'N' NOT NULL,
   IS_UNSUB CHAR(1) DEFAULT 'N' NOT NULL,
   IS_SEND_SUCCESS CHAR(1) DEFAULT 'N' NOT NULL,
+  CONSENT_STATUS CHAR(1) DEFAULT 'N' NOT NULL,
+  CONSENT_REQUEST INT DEFAULT 0 NOT NULL,
   IP VARCHAR(15) NULL,
   AGENT INT(11) DEFAULT 0 NOT NULL,
   PRIMARY KEY (ID),
@@ -54,6 +56,8 @@ CREATE TABLE b_sender_group
   UNIQUE UK_SENDER_GROUP_CODE (CODE),
   PRIMARY KEY (ID)
 );
+create index IX_SENDER_GROUP_STATUS on b_sender_group (STATUS);
+
 CREATE TABLE b_sender_group_connector
 (
   GROUP_ID int(11) NOT NULL,
@@ -167,6 +171,7 @@ CREATE TABLE b_sender_posting
   COUNT_READ int(11) DEFAULT 0 NOT NULL,
   COUNT_CLICK int(11) DEFAULT 0 NOT NULL,
   COUNT_UNSUB int(11) DEFAULT 0 NOT NULL,
+  CONSENT_SUPPORT CHAR(1) DEFAULT 'N' NOT NULL,
   PRIMARY KEY (ID)
 );
 CREATE INDEX IX_SENDER_POSTING_MAILING_CHAIN on b_sender_posting(MAILING_ID, STATUS);
@@ -394,7 +399,7 @@ CREATE TABLE `b_sender_message_utm`
 		CONSTRAINT `IX_SENDER_MESSAGE_UTM_MESSAGE_ID_CODE` UNIQUE
 			(`MESSAGE_ID`, `CODE`)
 	);
-
+create index `IX_SENDER_MESSAGE_UTM_CODE` on `b_sender_message_utm` (`CODE`);
 
 create table b_sender_timeline_queue
 (
@@ -427,7 +432,8 @@ create table b_sender_group_data
 	PHONE varchar(128),
 	HAS_EMAIL varchar(1),
 	HAS_IMOL varchar(1),
-	HAS_PHONE varchar(1)
+	HAS_PHONE varchar(1),
+	SENDER_TYPE_ID int null
 );
 create index IX_SENDER_GROUP_DATA_GROUP_ID_FILTER_ID
 	on b_sender_group_data (GROUP_ID, FILTER_ID);
@@ -444,6 +450,7 @@ create table b_sender_group_state
 );
 
 create index IX_SENDER_GROUP_STATE_GROUP_ID_FILTER_ID on b_sender_group_state (GROUP_ID, FILTER_ID);
+create index IX_SENDER_GROUP_STATE_STATE on b_sender_group_state (STATE);
 
 create table b_sender_group_queue
 (
@@ -456,3 +463,27 @@ create table b_sender_group_queue
 
 create index IX_SENDER_GROUP_QUEUE_TYPE_ENTITY_ID_GROUP_ID
     on b_sender_group_queue (TYPE, ENTITY_ID, GROUP_ID);
+
+CREATE TABLE b_sender_group_thread
+(
+  `THREAD_ID`   INT UNSIGNED NOT NULL,
+  `GROUP_STATE_ID`  INT UNSIGNED NOT NULL,
+  `STATUS`      VARCHAR(1)   NOT NULL DEFAULT 'N',
+  `STEP`      INT UNSIGNED NOT NULL DEFAULT 0,
+  `THREAD_TYPE` TEXT         NOT NULL,
+  `EXPIRE_AT`   DATETIME     NOT NULL,
+CONSTRAINT `IX_SENDER_GROUP_THREAD_INFO_THREAD_ID_GROUP_STATE` UNIQUE
+(`THREAD_ID`, `GROUP_STATE_ID`)
+);
+
+CREATE TABLE b_sender_file
+(
+	`ID`  INT UNSIGNED  auto_increment primary key,
+	`FILE_ID`  INT UNSIGNED NOT NULL,
+	`ENTITY_TYPE`  INT UNSIGNED NOT NULL,
+	`ENTITY_ID`     INT UNSIGNED NOT NULL,
+	`DATE_INSERT` datetime NOT NULL
+);
+
+create index IX_SENDER_FILE_ENTITY_TYPE_ENTITY_ID
+    on b_sender_file (`ENTITY_TYPE`, `ENTITY_ID`);

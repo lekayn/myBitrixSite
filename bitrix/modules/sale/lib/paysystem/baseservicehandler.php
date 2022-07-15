@@ -267,6 +267,32 @@ abstract class BaseServiceHandler
 	public abstract function getCurrencyList();
 
 	/**
+	 * The type of client that the handler can work with
+	 * 
+	 * If, depending on PS_MODE, the handler can work with different types of clients,
+	 * then you can implement validation in a similar way:
+	 * 
+	 * ```php
+	 * 	public function getClientType($psMode)
+	 * 	{
+	 * 		if ($psMode === self::MODE_ALFABANK)
+	 *		{
+	 *			return ClientType::B2B;
+	 *		}
+	 *
+	 *		return ClientType::B2C;
+	 *	}
+	 * ```
+	 *
+	 * @param string $psMode pay system type
+	 * @return string
+	 */
+	public function getClientType($psMode)
+	{
+		return ClientType::DEFAULT;
+	}
+
+	/**
 	 * @param Payment $payment
 	 * @return ServiceResult
 	 */
@@ -398,10 +424,15 @@ abstract class BaseServiceHandler
 	 */
 	public function OnEndBufferContent(&$content)
 	{
-		global $APPLICATION;
-		header("Content-Type: text/html; charset=".BX_SALE_ENCODING);
-		$content = $APPLICATION->ConvertCharset($content, SITE_CHARSET, BX_SALE_ENCODING);
-		$content = str_replace("charset=".SITE_CHARSET, "charset=".BX_SALE_ENCODING, $content);
+		if (
+			strpos($content, 'charset=') !== false
+			&& strpos($content, "charset=".SITE_CHARSET) !== false
+		)
+		{
+			header("Content-Type: text/html; charset=".BX_SALE_ENCODING);
+			$content = Text\Encoding::convertEncoding($content, SITE_CHARSET, BX_SALE_ENCODING);
+			$content = str_replace("charset=".SITE_CHARSET, "charset=".BX_SALE_ENCODING, $content);
+		}
 	}
 
 	/**

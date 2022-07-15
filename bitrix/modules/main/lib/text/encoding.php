@@ -19,16 +19,22 @@ class Encoding
 		$charsetFrom = static::resolveAlias($charsetFrom);
 		$charsetTo = static::resolveAlias($charsetTo);
 
-		if(strcasecmp($charsetFrom, $charsetTo) == 0)
+		if ((string)$charsetFrom == '' || (string)$charsetTo == '')
 		{
-			//no need to convert
+			// incorrect encoding
+			return $data;
+		}
+
+		if (strcasecmp($charsetFrom, $charsetTo) == 0)
+		{
+			// no need to convert
 			return $data;
 		}
 
 		// mb_encoding_aliases emits an E_WARNING level error if encoding is unknown
 		if (@mb_encoding_aliases($charsetFrom) === false || @mb_encoding_aliases($charsetTo) === false)
 		{
-			//unknown encoding
+			// unknown encoding
 			return $data;
 		}
 
@@ -43,6 +49,7 @@ class Encoding
 			'ks_c_5601-1989' => 'euc-kr',
 			'ksc5601' => 'euc-kr',
 			'ksc_5601' => 'euc-kr',
+			'windows-1257' => 'ISO-8859-13',
 		);
 
 		if(is_string($alias))

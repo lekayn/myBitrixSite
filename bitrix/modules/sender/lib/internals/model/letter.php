@@ -10,11 +10,28 @@ namespace Bitrix\Sender\Internals\Model;
 use Bitrix\Main\Entity;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Type;
+use Bitrix\Sender\FileTable;
 use Bitrix\Sender\MailingChainTable;
 use Bitrix\Sender\Message\iBase;
 
 Loc::loadMessages(__FILE__);
 
+/**
+ * Class LetterTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Letter_Query query()
+ * @method static EO_Letter_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Letter_Result getById($id)
+ * @method static EO_Letter_Result getList(array $parameters = array())
+ * @method static EO_Letter_Entity getEntity()
+ * @method static \Bitrix\Sender\Internals\Model\EO_Letter createObject($setDefaultValues = true)
+ * @method static \Bitrix\Sender\Internals\Model\EO_Letter_Collection createCollection()
+ * @method static \Bitrix\Sender\Internals\Model\EO_Letter wakeUpObject($row)
+ * @method static \Bitrix\Sender\Internals\Model\EO_Letter_Collection wakeUpCollection($rows)
+ */
 class LetterTable extends Entity\DataManager
 {
 	const STATUS_NEW = 'N';
@@ -240,6 +257,16 @@ class LetterTable extends Entity\DataManager
 						\CFile::Delete((int)$file);
 					}
 				}
+			}
+
+			$messageQuery = MessageFieldTable::getById([
+				'MESSAGE_ID' => $fields['MESSAGE_ID'],
+				'CODE' => 'MESSAGE',
+			]);
+
+			if($row = $messageQuery->fetch())
+			{
+				FileTable::syncFiles($data['primary']['ID'], 0, $row['VALUE']);
 			}
 
 			MessageTable::delete($fields['MESSAGE_ID']);

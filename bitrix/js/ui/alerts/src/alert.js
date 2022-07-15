@@ -13,6 +13,8 @@ type AlertOptions = {
 	customClass: string;
 	closeBtn: boolean;
 	animated: boolean;
+	beforeMessageHtml: HTMLElement;
+	afterMessageHtml: HTMLElement;
 };
 
 export default class Alert {
@@ -28,6 +30,8 @@ export default class Alert {
 	closeBtn: boolean;
 	animated: boolean;
 	customClass: string;
+	beforeMessageHtml: HTMLElement;
+	afterMessageHtml: HTMLElement;
 
 	constructor(options: AlertOptions)
 	{
@@ -38,6 +42,8 @@ export default class Alert {
 		this.closeBtn = !!options.closeBtn ? true : options.closeBtn;
 		this.animated = !!options.animated ? true : options.animated;
 		this.customClass = options.customClass;
+		this.beforeMessageHtml = Type.isElementNode(options.beforeMessageHtml) ? options.beforeMessageHtml : false ;
+		this.afterMessageHtml = Type.isElementNode(options.afterMessageHtml) ? options.afterMessageHtml : false ;
 
 		this.setText(this.text);
 		this.setSize(this.size);
@@ -92,9 +98,9 @@ export default class Alert {
 	//region TEXT
 	setText(text: string): this
 	{
-		this.text = text;
 		if (Type.isStringFilled(text))
 		{
+			this.text = text;
 			this.getTextContainer().innerHTML = text;
 		}
 	}
@@ -108,11 +114,11 @@ export default class Alert {
 	{
 		if (!this.textContainer)
 		{
-			this.textContainer =  BX.create('span', {
+			this.textContainer =  Dom.create('span', {
 				props: {
 					className: 'ui-alert-message'
 				},
-				html: this.getText()
+				html: this.text
 			});
 		}
 
@@ -136,7 +142,7 @@ export default class Alert {
 
 		if ((!this.closeNode) && (this.closeBtn === true))
 		{
-			this.closeNode = BX.create("span", {
+			this.closeNode = Dom.create("span", {
 				props: {className: "ui-alert-close-btn"},
 				events: {
 					click: this.handleCloseBtnClick.bind(this)
@@ -155,8 +161,37 @@ export default class Alert {
 		}
 		else
 		{
-			BX.remove(this.container);
+			Dom.remove(this.container);
 		}
+	}
+
+	// endregion
+
+	// region Custom HTML
+	setBeforeMessageHtml(element: HTMLElement)
+	{
+		if (Type.isElementNode(element) && element !== false)
+		{
+			this.beforeMessageHtml = element;
+		}
+	}
+
+	getBeforeMessageHtml(): HTMLElement
+	{
+		return this.beforeMessageHtml;
+	}
+
+	setAfterMessageHtml(element: HTMLElement)
+	{
+		if (Type.isElementNode(element) && element !== false)
+		{
+			this.afterMessageHtml = element;
+		}
+	}
+
+	getAfterMessageHtml(): HTMLElement
+	{
+		return this.afterMessageHtml;
 	}
 
 	//endregion
@@ -254,7 +289,7 @@ export default class Alert {
 	{
 		this.container.style.overflow = "hidden";
 
-		var alertWrapPos = BX.pos(this.container);
+		var alertWrapPos = Dom.getPosition(this.container);
 		this.container.style.height = alertWrapPos.height + "px";
 
 		setTimeout(
@@ -270,13 +305,23 @@ export default class Alert {
 
 		setTimeout(
 			function () {
-				BX.remove(this.container);
+				Dom.remove(this.container);
 			}.bind(this),
 			260
 		);
 	}
 	
 	//endregion
+
+	show()
+	{
+		this.animateOpening()
+	}
+
+	hide()
+	{
+		this.animateClosing()
+	}
 
 	getContainer()
 	{
@@ -289,7 +334,17 @@ export default class Alert {
 
 		if (this.closeBtn === true)
 		{
-			BX.append(this.getCloseBtn(), this.container);
+			Dom.append(this.getCloseBtn(), this.container);
+		}
+
+		if (Type.isElementNode(this.beforeMessageHtml))
+		{
+			Dom.prepend(this.getBeforeMessageHtml(), this.getTextContainer());
+		}
+
+		if (Type.isElementNode(this.afterMessageHtml))
+		{
+			Dom.append(this.getAfterMessageHtml(), this.getTextContainer());
 		}
 
 		return this.container;
@@ -298,5 +353,36 @@ export default class Alert {
 	render(): HTMLElement
 	{
 		return this.getContainer();
+	}
+
+	renderTo(node: HTMLElement): HTMLElement | null
+	{
+		if (Type.isDomNode(node))
+		{
+			return node.appendChild(this.getContainer());
+		}
+
+		return null;
+	}
+
+	destroy(): void
+	{
+		Dom.remove(this.container);
+		this.container = null;
+		this.finished = false;
+		this.textAfterContainer = null;
+		this.textBeforeContainer = null;
+		this.bar = null;
+
+
+		for (const property in this)
+		{
+			if (this.hasOwnProperty(property))
+			{
+				delete this[property];
+			}
+		}
+
+		Object.setPrototypeOf(this, null);
 	}
 }

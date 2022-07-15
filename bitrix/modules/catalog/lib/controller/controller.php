@@ -20,6 +20,10 @@ class Controller extends Base
 	const IBLOCK_SECTION_SECTION_BIND = 'section_section_bind';
 	const IBLOCK_ELEMENT_SECTION_BIND = 'section_element_bind';
 	const IBLOCK_EDIT = 'iblock_edit';
+	const CATALOG_STORE = 'catalog_store';
+	const CATALOG_READ = 'catalog_read';
+
+	public const ERROR_ACCESS_DENIED = 'Access denied';
 
 	protected function createViewManager(Action $action)
 	{

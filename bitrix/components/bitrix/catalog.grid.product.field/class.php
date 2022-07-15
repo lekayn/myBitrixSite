@@ -10,6 +10,7 @@ use Bitrix\Main\Errorable;
 use Bitrix\Main\ErrorableImplementation;
 use Bitrix\Main\ErrorCollection;
 use Bitrix\Main\Loader;
+use Bitrix\Main\Web\Json;
 
 if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 {
@@ -170,7 +171,8 @@ class CatalogGridProductFieldComponent
 			$this->arResult['PRODUCT_CONFIG'] = $this->getConfig();
 			$this->arResult['SKU_ID'] = 0;
 			$this->arResult['PRODUCT_FIELDS'] = [
-				'ID' => $this->getProductId(),
+				'PRODUCT_ID' => $this->getProductId(),
+				'SKU_ID' => $this->getSkuId(),
 				'NAME' => $this->getProductName(),
 			];
 
@@ -185,10 +187,20 @@ class CatalogGridProductFieldComponent
 					}
 					else
 					{
-						$this->sku = $this->product->getSkuCollection()->findById($this->getSkuId());
-						if ($this->sku)
+						$skuRepository = ServiceContainer::getSkuRepository($this->product->getIblockId());
+						if ($skuRepository)
 						{
-							$this->arResult['SKU_ID'] = $this->sku->getId();
+							try
+							{
+								$this->sku = $skuRepository->getEntityById($this->getSkuId());
+							}
+							catch (\Bitrix\Main\SystemException $e)
+							{}
+
+							if ($this->sku)
+							{
+								$this->arResult['SKU_ID'] = $this->sku->getId();
+							}
 						}
 					}
 
@@ -249,9 +261,24 @@ class CatalogGridProductFieldComponent
 
 	private function loadSkuTree(): array
 	{
-		if (isset($this->arParams['SKU_TREE']) && is_array($this->arParams['SKU_TREE']))
+		if (!empty($this->arParams['~SKU_TREE']) || !empty($this->arParams['SKU_TREE']))
 		{
-			return $this->arParams['SKU_TREE'];
+			$paramSkuValue =
+				!empty($this->arParams['~SKU_TREE'])
+					? $this->arParams['~SKU_TREE']
+					: $this->arParams['SKU_TREE']
+			;
+
+			if (is_array($paramSkuValue))
+			{
+				return $paramSkuValue;
+			}
+
+			$decodedValue = Json::decode($paramSkuValue);
+			if (is_array($decodedValue))
+			{
+				return $decodedValue;
+			}
 		}
 
 		if (!$this->arParams['USE_SKU_TREE'])
@@ -276,7 +303,7 @@ class CatalogGridProductFieldComponent
 		$productId = $this->product->getId();
 		$skuId = $this->sku->getId();
 
-		$offers = $skuTree->loadWithSelectedOffers([
+		$offers = $skuTree->loadJsonOffers([
 			$productId => $skuId,
 		]);
 
@@ -305,6 +332,9 @@ class CatalogGridProductFieldComponent
 			'ENABLE_SEARCH' => $this->arParams['ENABLE_SEARCH'] ?? false,
 			'ENABLE_IMAGE_CHANGE_SAVING' => $this->arParams['ENABLE_IMAGE_CHANGE_SAVING'] ?? false,
 			'ENABLE_INPUT_DETAIL_LINK' => $this->arParams['ENABLE_INPUT_DETAIL_LINK'] ?? false,
+			'ENABLE_EMPTY_PRODUCT_ERROR' => $this->arParams['ENABLE_EMPTY_PRODUCT_ERROR'] ?? false,
+			'ENABLE_SKU_SELECTION' => $this->arParams['ENABLE_SKU_SELECTION'] ?? true,
+			'HIDE_UNSELECTED_ITEMS' => $this->arParams['HIDE_UNSELECTED_ITEMS'] ?? false,
 			'URL_BUILDER_CONTEXT' => $this->getBuilderContext(),
 			'GRID_ID' => $this->arParams['GRID_ID'] ?? '',
 			'ENABLE_IMAGE_INPUT' => $this->arParams['ENABLE_IMAGE_INPUT'] ?? true,

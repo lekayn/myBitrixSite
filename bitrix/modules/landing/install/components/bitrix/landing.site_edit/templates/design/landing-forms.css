@@ -8,7 +8,7 @@
 #landing-design-form .ui-ctl-w100,
 #landing-site-design-form .ui-ctl-w100
 {
-	max-width: 600px !important;
+	max-width: 300px !important;
 }
 
 #landing-design-form .ui-form-row-group,
@@ -19,6 +19,7 @@
 
 .ui-colorpicker {
 	position: relative;
+	display: block;
 }
 
 .ui-field-background_color,
@@ -114,4 +115,8 @@
 
 .ui-form-row-hidden-show {
 	padding-bottom: 30px;
+}
+
+.ui-ctl-textbox {
+	width: 300px;
 }

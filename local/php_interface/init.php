@@ -10,7 +10,7 @@ class Ilog
    public static function addLog(&$arFields): bool
    {
       //если ид инфоблока != ид инфоблока Лог
-      if ($arFields["IBLOCK_ID"] != self::$iblockLogId) {
+      if ($arFields["IBLOCK_ID"] !== self::$iblockLogId) {
          // Debug::dumpToFile($arFields, 'Logging', 'LogArticle');
          //проверка на наличие папки для логируемого элемента
          if (self::hasntSubdir4Log($arFields['IBLOCK_ID'], $arFields['IBLOCK_SECTION'][0])) {

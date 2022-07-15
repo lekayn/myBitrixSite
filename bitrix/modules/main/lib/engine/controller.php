@@ -2,7 +2,6 @@
 
 namespace Bitrix\Main\Engine;
 
-
 use Bitrix\Main\Application;
 use Bitrix\Main\Component\ParameterSigner;
 use Bitrix\Main\Config\Configuration;
@@ -21,14 +20,11 @@ use Bitrix\Main\Event;
 use Bitrix\Main\EventManager;
 use Bitrix\Main\EventResult;
 use Bitrix\Main\HttpResponse;
-use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Request;
 use Bitrix\Main\Response;
 use Bitrix\Main\Security\Sign\BadSignatureException;
 use Bitrix\Main\SystemException;
 use Bitrix\Main\Web\PostDecodeFilter;
-
-Loc::loadMessages(__FILE__);
 
 class Controller implements Errorable, Controllerable
 {
@@ -75,7 +71,7 @@ class Controller implements Errorable, Controllerable
 
 	/**
 	 * Constructor Controller.
-	 * @param Request $request
+	 * @param Request|null $request
 	 */
 	public function __construct(Request $request = null)
 	{
@@ -91,7 +87,7 @@ class Controller implements Errorable, Controllerable
 	/**
 	 * @param Controller $controller
 	 * @param string     $actionName
-	 * @param array      $parameters
+	 * @param array|null      $parameters
 	 *
 	 * @return HttpResponse|mixed
 	 * @throws SystemException
@@ -146,6 +142,14 @@ class Controller implements Errorable, Controllerable
 	final public function getModuleId()
 	{
 		return getModuleId($this->getFilePath());
+	}
+
+	final public function isLocatedUnderPsr4(): bool
+	{
+		// do not lower if probably psr4
+		$firstLetter = mb_substr(basename($this->getFilePath()), 0, 1);
+
+		return $firstLetter !== mb_strtolower($firstLetter);
 	}
 
 	final protected function getFilePath()
@@ -373,7 +377,6 @@ class Controller implements Errorable, Controllerable
 	{
 		$this->collectDebugInfo();
 
-		$e = null;
 		$result = null;
 
 		try
@@ -414,8 +417,8 @@ class Controller implements Errorable, Controllerable
 		}
 		catch (\Throwable $e)
 		{
-			$this->processExceptionInDebug($e);
 			$this->runProcessingThrowable($e);
+			$this->processExceptionInDebug($e);
 		}
 
 		$this->logDebugInfo();
@@ -850,7 +853,11 @@ class Controller implements Errorable, Controllerable
 
 	protected function runProcessingThrowable(\Throwable $throwable)
 	{
-		if ($throwable instanceof \Exception)
+		if ($throwable instanceof BinderArgumentException)
+		{
+			$this->runProcessingBinderThrowable($throwable);
+		}
+		elseif ($throwable instanceof \Exception)
 		{
 			$this->runProcessingException($throwable);
 		}
@@ -875,6 +882,28 @@ class Controller implements Errorable, Controllerable
 	{
 		//		throw $error;
 		$this->errorCollection[] = $this->buildErrorFromPhpError($error);
+	}
+
+	protected function runProcessingBinderThrowable(BinderArgumentException $e): void
+	{
+		$currentControllerErrors = $this->getErrors();
+		$errors = $e->getErrors();
+		if ($errors)
+		{
+			foreach ($errors as $error)
+			{
+				if (in_array($error, $currentControllerErrors, true))
+				{
+					continue;
+				}
+
+				$this->addError($error);
+			}
+		}
+		else
+		{
+			$this->runProcessingException($e);
+		}
 	}
 
 	protected function buildErrorFromException(\Exception $e)

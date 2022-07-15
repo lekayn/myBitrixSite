@@ -14,7 +14,7 @@ if(typeof BX.UI.EntityEditorValidatorFactory === "undefined")
 			{
 				return BX.UI.EntityTrackingSourceValidator.create(settings);
 			}
-			
+
 			return null;
 		}
 	}
@@ -129,6 +129,10 @@ if(typeof BX.UI.EntityEditorControlFactory === "undefined")
 			{
 				return BX.UI.EntityEditorImage.create(controlId, settings);
 			}
+			else if(type === "file")
+			{
+				return BX.UI.EntityEditorFile.create(controlId, settings);
+			}
 			else if(type === "custom")
 			{
 				return BX.UI.EntityEditorCustom.create(controlId, settings);
@@ -136,6 +140,10 @@ if(typeof BX.UI.EntityEditorControlFactory === "undefined")
 			else if(type === "money")
 			{
 				return BX.UI.EntityEditorMoney.create(controlId, settings);
+			}
+			else if(type === "multimoney")
+			{
+				return BX.UI.EntityEditorMultiMoney.create(controlId, settings);
 			}
 			else if(type === "user")
 			{
@@ -224,7 +232,7 @@ if (typeof BX.UI.EntityEditorControllerFactory === 'undefined')
 						return controller;
 					}
 				}
-				
+
 				return null;
 			}
 		};

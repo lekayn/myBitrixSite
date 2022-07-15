@@ -10,10 +10,12 @@ return [
 	'rel' => [
 		'ui.entity-editor',
 		'ui.notification',
-		'main.core.events',
+		'ui.hint',
 		'translit',
-		'main.core',
+		'main.core.events',
 		'main.popup',
+		'main.core',
+		'catalog.store-use',
 	],
 	'skip_core' => false,
 ];

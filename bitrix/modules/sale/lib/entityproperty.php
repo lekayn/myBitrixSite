@@ -212,8 +212,6 @@ abstract class EntityProperty
 				}
 				catch (\Exception $exception)
 				{
-					trigger_error($exception->getMessage() . ' Data: "'.$value.'"', E_USER_WARNING);
-
 					$result = (new Address(LANGUAGE_ID))
 						->setFieldValue(Address\FieldType::ADDRESS_LINE_2, $value)
 						->toArray();
@@ -298,9 +296,17 @@ abstract class EntityProperty
 
 		$dbRes = static::getList([
 			'select' => [
-				'ID', 'IS_LOCATION', 'IS_EMAIL', 'IS_PROFILE_NAME',
-				'IS_PAYER', 'IS_LOCATION4TAX', 'IS_ZIP', 'IS_PHONE',
+				'ID',
+				'IS_LOCATION',
+				'IS_EMAIL',
+				'IS_PROFILE_NAME',
+				'IS_PAYER',
+				'IS_LOCATION4TAX',
+				'IS_ZIP',
+				'IS_PHONE',
 				'IS_ADDRESS',
+				'IS_ADDRESS_FROM',
+				'IS_ADDRESS_TO',
 			],
 			'filter' => [
 				'=ACTIVE' => 'Y',
@@ -486,18 +492,19 @@ abstract class EntityProperty
 		}
 		elseif ($this->getType() === 'ADDRESS'  && Main\Loader::includeModule('location'))
 		{
-			if (is_array($value))
+			if (!is_array($value))
 			{
-				$address = Address::fromArray($value);
-
-				$result = $address->save();
-				if (!$result->isSuccess())
-				{
-					return null;
-				}
-
-				return (int)$result->getId();
+				return null;
 			}
+
+			$address = Address::fromArray($value);
+			$result = $address->save();
+			if (!$result->isSuccess())
+			{
+				return null;
+			}
+
+			return (int)$result->getId();
 		}
 
 		return $value;

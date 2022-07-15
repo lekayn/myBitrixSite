@@ -16,6 +16,7 @@ use Bitrix\Landing\Manager;
 use Bitrix\Landing\Restriction;
 use Bitrix\Landing\Site;
 use Bitrix\Main\Application;
+use Bitrix\Main\Loader;
 use Bitrix\Main\Page\Asset;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\UI\Extension;
@@ -52,6 +53,7 @@ if ($arResult['FATAL'])
 
 // vars
 $isIndex = false;
+$isFolderIndex = false;
 $domainId = 0;
 $domainName = Domain::getHostUrl();
 $domainProtocol = '';
@@ -67,6 +69,18 @@ $siteCurrent = isset($sites[$row['SITE_ID']['CURRENT']])
 				? $sites[$row['SITE_ID']['CURRENT']]
 				: null;
 $isSMN = $siteCurrent['TYPE'] === 'SMN';
+
+// check if this page is folder's index
+if (
+	$row['FOLDER_ID']['CURRENT'] &&
+	(
+		$row['CODE']['CURRENT'] === ($arResult['LAST_FOLDER']['CODE'] ?? null)
+		|| $row['ID']['CURRENT'] === ($arResult['LAST_FOLDER']['INDEX_ID'] ?? null)
+	)
+)
+{
+	$isFolderIndex = true;
+}
 
 // correct some vars
 if (!$row['SITE_ID']['CURRENT'])
@@ -222,19 +236,26 @@ if ($arParams['SUCCESS_SAVE'])
 										$request->get('site')
 									));
 								}
-								if ($arResult['FOLDER'])
+								if ($arResult['FOLDER_PATH'])
 								{
-									echo htmlspecialcharsbx($arResult['FOLDER']['CODE']) . '/';
+									echo htmlspecialcharsbx(ltrim($arResult['FOLDER_PATH'], '/'));
 								}
 								?>
 							</span>
-							<input type="<?= $isIndex ? 'hidden' : 'text' ?>" name="fields[CODE]" value="<?= $row['CODE']['CURRENT'] ?>" class="ui-input" />
-							<?= $isIndex ? '' : '<span class="landing-form-site-name-label">/</span>' ?>
+							<input type="<?= ($isIndex || $isFolderIndex) ? 'hidden' : 'text' ?>" name="fields[CODE]" value="<?= $row['CODE']['CURRENT'] ?>" class="ui-input" />
+							<?= ($isIndex || $isFolderIndex) ? '' : '<span class="landing-form-site-name-label">/</span>' ?>
 							<?php if ($isIndex):?>
 								<div class="ui-form-field-description">
 									<?= $component->getMessageType('LANDING_TPL_CODE_SETTINGS', [
 										'#LINK1#' => $arParams['PAGE_URL_SITE_EDIT'] ? '<a href="' . $arParams['PAGE_URL_SITE_EDIT'] . '">' : '',
 										'#LINK2#' => $arParams['PAGE_URL_SITE_EDIT'] ? '</a>' : ''
+									]) ?>
+								</div>
+							<?php elseif ($isFolderIndex):?>
+								<div class="ui-form-field-description">
+									<?= $component->getMessageType('LANDING_TPL_CODE_FOLDER_SETTINGS', [
+										'#LINK1#' => $arParams['PAGE_URL_FOLDER_EDIT'] ? '<a href="' . str_replace('#folder_edit#', $row['FOLDER_ID']['CURRENT'], $arParams['PAGE_URL_FOLDER_EDIT']) . '">' : '',
+										'#LINK2#' => $arParams['PAGE_URL_FOLDER_EDIT'] ? '</a>' : ''
 									]) ?>
 								</div>
 							<?php endif;?>
@@ -638,8 +659,21 @@ if ($arParams['SUCCESS_SAVE'])
 					<tr class="landing-form-hidden-row" data-landing-additional-detail="pixel">
 						<td class="ui-form-label ui-form-label-align-top"><?= Loc::getMessage('LANDING_TPL_HOOK_PIXEL') ?></td>
 						<td class="ui-form-right-cell ui-form-right-cell-pixel">
-							<?php $template->showSimple('PIXELFB');?>
 							<?php
+							$zone = '';
+							if (Loader::includeModule('bitrix24'))
+							{
+								$zone = \CBitrix24::getPortalZone();
+							}
+							elseif (file_exists($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/lang/ru")
+								&& !file_exists($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/lang/ua"))
+							{
+								$zone = 'ru';
+							}
+							if ($zone !== 'ru')
+							{
+								$template->showSimple('PIXELFB');
+							}
 							if (Manager::availableOnlyForZone('ru'))
 							{
 								$template->showSimple('PIXELVK');

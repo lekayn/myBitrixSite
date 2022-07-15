@@ -68,7 +68,7 @@ class PublicAction
 			$action = self::getNamespacePublicClasses() . '\\' . $action;
 			if (is_callable(explode('::', $action)))
 			{
-				list($class, $method) = explode('::', $action);
+				[$class, $method] = explode('::', $action);
 				$info = array(
 					'action' => $actionOriginal,
 					'class' => $class,
@@ -121,6 +121,27 @@ class PublicAction
 	}
 
 	/**
+	 * Returns true if current user out of the extranet.
+	 * @return bool
+	 */
+	protected static function checkForExtranet(): bool
+	{
+		if (\Bitrix\Landing\Manager::isAdmin())
+		{
+			return true;
+		}
+		if (\Bitrix\Main\Loader::includeModule('extranet'))
+		{
+			return \CExtranet::isIntranetUser(
+				\CExtranet::getExtranetSiteID(),
+				\Bitrix\Landing\Manager::getUserId()
+			);
+		}
+
+		return true;
+	}
+
+	/**
 	 * Processing the AJAX/REST action.
 	 * @param string $action Action name.
 	 * @param mixed $data Data.
@@ -150,7 +171,7 @@ class PublicAction
 		$error = new Error;
 
 		// not for guest
-		if (!Manager::getUserId())
+		if (!Manager::getUserId() || !self::checkForExtranet())
 		{
 			$error->addError(
 				'ACCESS_DENIED',
@@ -571,7 +592,7 @@ class PublicAction
 	 * @param array $additionalFilter Additional filter array.
 	 * @return array
 	 */
-	public static function getRestStat($humanFormat = false, $onlyActive = true, array $additionalFilter = [])
+	public static function getRestStat(bool $humanFormat = false, bool $onlyActive = true, array $additionalFilter = []): array
 	{
 		$blockCnt = [];
 		$fullStat = [
@@ -635,52 +656,63 @@ class PublicAction
 		}
 		unset($blockCnt);
 
-		// gets all demo catalog
-		$demosCodes = [];
-		$res = Demos::getList([
+		// gets additional partners active block with not empty INITIATOR_APP_CODE, placed on pages
+		$filter['!CODE'] = $filter['CODE'];
+		unset($filter['CODE']);
+		$filter['!=INITIATOR_APP_CODE'] = null;
+		$res = Internals\BlockTable::getList([
 			'select' => [
-				'APP_CODE'
+				'INITIATOR_APP_CODE', 'CNT'
 			],
+			'filter' => $filter,
 			'group' => [
-				'APP_CODE'
+				'INITIATOR_APP_CODE'
+			],
+			'runtime' => [
+				new \Bitrix\Main\Entity\ExpressionField('CNT', 'COUNT(*)')
 			]
 		]);
 		while ($row = $res->fetch())
 		{
-			$demosCodes[] = $row['APP_CODE'];
+			$appCode = $row['INITIATOR_APP_CODE'];
+			if (!isset($fullStat[self::REST_USAGE_TYPE_BLOCK][$appCode]))
+			{
+				$fullStat[self::REST_USAGE_TYPE_BLOCK][$appCode] = 0;
+			}
+			$fullStat[self::REST_USAGE_TYPE_BLOCK][$appCode] += $row['CNT'];
 		}
 
-		// gets all partners active pages by demo catalog
-		if ($demosCodes)
+		// gets all partners active pages
+		$filter = [
+			'=DELETED' => 'N',
+			'=ACTIVE' => $activeValues,
+			'=SITE.ACTIVE' => $activeValues,
+			'!=INITIATOR_APP_CODE' => null
+		];
+		if (isset($additionalFilter['SITE_ID']))
 		{
-			$filter = [
-				'=DELETED' => 'N',
-				'=ACTIVE' => $activeValues,
-				'=SITE.ACTIVE' => $activeValues,
-				'=INITIATOR_APP_CODE' => $demosCodes
-			];
-			if (isset($additionalFilter['SITE_ID']))
+			$filter['SITE_ID'] = $additionalFilter['SITE_ID'];
+		}
+		$res = Landing::getList([
+			'select' => [
+				'INITIATOR_APP_CODE', 'CNT'
+			],
+			'filter' => $filter,
+			'group' => [
+				'INITIATOR_APP_CODE'
+			],
+			'runtime' => [
+				new \Bitrix\Main\Entity\ExpressionField('CNT', 'COUNT(*)')
+			]
+		]);
+		while ($row = $res->fetch())
+		{
+			$appCode = $row['INITIATOR_APP_CODE'];
+			if (!isset($fullStat[self::REST_USAGE_TYPE_PAGE][$appCode]))
 			{
-				$filter['SITE_ID'] = $additionalFilter['SITE_ID'];
+				$fullStat[self::REST_USAGE_TYPE_PAGE][$appCode] = 0;
 			}
-			$res = Landing::getList([
-				'select' => [
-					'INITIATOR_APP_CODE', 'CNT'
-				],
-				'filter' => $filter,
-				'runtime' => [
-					new \Bitrix\Main\Entity\ExpressionField('CNT', 'COUNT(*)')
-				]
-			]);
-			while ($row = $res->fetch())
-			{
-				$appCode = $row['INITIATOR_APP_CODE'];
-				if (!isset($fullStat[self::REST_USAGE_TYPE_PAGE][$appCode]))
-				{
-					$fullStat[self::REST_USAGE_TYPE_PAGE][$appCode] = 0;
-				}
-				$fullStat[self::REST_USAGE_TYPE_PAGE][$appCode] += $row['CNT'];
-			}
+			$fullStat[self::REST_USAGE_TYPE_PAGE][$appCode] += $row['CNT'];
 		}
 
 		// get client id for apps
@@ -690,6 +722,10 @@ class PublicAction
 				array_keys($fullStat[self::REST_USAGE_TYPE_BLOCK]),
 				array_keys($fullStat[self::REST_USAGE_TYPE_PAGE])
 			);
+			$fullStatNew = [
+				self::REST_USAGE_TYPE_BLOCK => [],
+				self::REST_USAGE_TYPE_PAGE => []
+			];
 			if ($appsCode)
 			{
 				$appsCode = array_unique($appsCode);
@@ -703,20 +739,17 @@ class PublicAction
 				]);
 				while ($row = $res->fetch())
 				{
-					foreach ($fullStat as $code => &$stat)
+					foreach ($fullStat as $code => $stat)
 					{
 						if (isset($stat[$row['CODE']]))
 						{
-							$stat[$row['CLIENT_ID']] = $stat[$row['CODE']];
-							if ($row['CLIENT_ID'] !== $row['CODE'])
-							{
-								unset($stat[$row['CODE']]);
-							}
+							$fullStatNew[$code][$row['CLIENT_ID']] = $stat[$row['CODE']];
 						}
 					}
-					unset($stat);
 				}
 			}
+
+			return $fullStatNew;
 		}
 
 		Rights::setOn();

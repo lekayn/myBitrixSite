@@ -2,11 +2,9 @@
 namespace Bitrix\Catalog\Config;
 
 use Bitrix\Bitrix24;
+use Bitrix\Main;
 use Bitrix\Main\Config\Option;
 use Bitrix\Main\Loader;
-use Bitrix\Main\Localization\Loc;
-
-Loc::loadMessages(__FILE__);
 
 /**
  * Class Feature
@@ -27,9 +25,6 @@ final class Feature
 
 	/** @var null|bool sign of the presence of Bitrix24 */
 	private static $bitrix24Included = null;
-
-	/** @var array features hit cache */
-	private static $featureList = [];
 
 	/** @var array map of compliance with tariff and edition restrictions */
 	private static $tranferList = [
@@ -63,7 +58,7 @@ final class Feature
 		self::MULTI_PRICE_TYPES => 'limit_shop_variable_prices',
 		self::EXTENDED_PRICES => 'limit_shop_variable_prices',
 		self::MULTI_WARENHOUSES => 'limit_shop_stocks',
-		self::INVENTORY_MANAGEMENT => 'limit_shop_inventory_management',
+		self::INVENTORY_MANAGEMENT => 'limit_store_inventory_management',
 		self::PRODUCT_LIMIT => 'limit_shop_products'
 	];
 
@@ -139,10 +134,35 @@ final class Feature
 	{
 		if (!self::isBitrix24())
 		{
-			return Option::get('catalog', 'catalog_common_product_processing', 'N') === 'Y';
+			return Option::get('catalog', 'catalog_common_product_processing') === 'Y';
 		}
 
 		return self::isFeatureEnabled(self::COMMON_PRODUCT_PROCESSING);
+	}
+
+	/**
+	 * Returns true if can exporting to Yandex.Market.
+	 *
+	 * @return bool
+	 */
+	public static function isCanUseYandexExport(): bool
+	{
+		$lang = LANGUAGE_ID;
+
+		if (Loader::includeModule('bitrix24'))
+		{
+			$lang = \CBitrix24::getLicensePrefix();
+		}
+		elseif (Loader::includeModule('intranet'))
+		{
+			$lang = \CIntranetUtils::getPortalZone();
+		}
+		elseif (Option::get('main', 'vendor') === '1c_bitrix')
+		{
+			$lang = 'ru';
+		}
+
+		return in_array($lang, ['ru', 'by', 'kz'], true);
 	}
 
 	/**
@@ -212,7 +232,6 @@ final class Feature
 	 */
 	public static function initUiHelpScope(): void
 	{
-		global $APPLICATION;
 		if (!self::isBitrix24())
 		{
 			return;
@@ -221,12 +240,11 @@ final class Feature
 		{
 			return;
 		}
-		self::$initUi = true;
-		$APPLICATION->IncludeComponent(
-			'bitrix:ui.info.helper',
-			'',
-			[]
-		);
+		if (Loader::includeModule('ui'))
+		{
+			self::$initUi = true;
+			Main\UI\Extension::load('ui.info-helper');
+		}
 	}
 
 	/**
@@ -238,25 +256,27 @@ final class Feature
 	private static function isFeatureEnabled(string $featureId): bool
 	{
 		if ($featureId === '')
-			return false;
-		if (!isset(self::$featureList[$featureId]))
 		{
-			if (self::isBitrix24())
+			return false;
+		}
+
+		$result = true;
+		if (self::isBitrix24())
+		{
+			if (isset(self::$bitrix24exist[$featureId]))
 			{
-				if (isset(self::$bitrix24exist[$featureId]))
-					self::$featureList[$featureId] = Bitrix24\Feature::isFeatureEnabled($featureId);
-				else
-					self::$featureList[$featureId] = true;
-			}
-			else
-			{
-				if (isset(self::$retailExist[$featureId]))
-					self::$featureList[$featureId] = \CBXFeatures::IsFeatureEnabled(self::$tranferList[$featureId]);
-				else
-					self::$featureList[$featureId] = true;
+				$result = Bitrix24\Feature::isFeatureEnabled($featureId);
 			}
 		}
-		return self::$featureList[$featureId];
+		else
+		{
+			if (isset(self::$retailExist[$featureId]))
+			{
+				$result = \CBXFeatures::IsFeatureEnabled(self::$tranferList[$featureId]);
+			}
+		}
+
+		return $result;
 	}
 
 	/**
@@ -278,7 +298,8 @@ final class Feature
 		self::$helpCodesCounter++;
 		return [
 			'TYPE' => 'ONCLICK',
-			'LINK' => 'BX.UI.InfoHelper.show(\''.self::$bitrix24helpCodes[$featureId].'\');'
+			'LINK' => 'BX.UI.InfoHelper.show(\''.self::$bitrix24helpCodes[$featureId].'\');',
+			'FEATURE_CODE' => self::$bitrix24helpCodes[$featureId],
 		];
 	}
 

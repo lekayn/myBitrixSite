@@ -62,20 +62,27 @@ class CatalogImageInput extends \CBitrixComponent implements Errorable
 		elseif ($entity instanceof \Bitrix\Catalog\v2\Sku\BaseSku)
 		{
 			$product = $entity->getParent();
-			$this->arResult['JS_PARAMS'] = [
-				'saveable' => $this->arParams['ENABLE_AUTO_SAVING'],
-				'iblockId' => $product->getIblockId(),
-				'productId' => $product->getId(),
-				'skuId' => $entity->getId(),
-			];
+			if ($product instanceof \Bitrix\Catalog\v2\BaseIblockElementEntity)
+			{
+				$this->arResult['JS_PARAMS'] = [
+					'saveable' => $this->arParams['ENABLE_AUTO_SAVING'],
+					'iblockId' => $product->getIblockId(),
+					'productId' => $product->getId(),
+					'skuId' => $entity->getId(),
+				];
+			}
 		}
 
 		$this->arResult['JS_PARAMS']['inputId'] = $this->arParams['INPUT_ID'] ?? '';
 		$this->arResult['JS_PARAMS']['values'] = $this->arParams['FILE_SIGNED_VALUES'] ?? [];
+		if (isset($this->arParams['FILE_SETTINGS']['maxCount']) && $this->arParams['FILE_SETTINGS']['maxCount'] <= 1)
+		{
+			$this->arResult['JS_PARAMS']['hideAddButton'] = true;
+		}
 
 		$uiKeys = ['FILE_VALUES', 'FILE_SETTINGS', 'LOADER_PREVIEW', 'DISABLED'];
 		$this->arResult['UI_PARAMS'] = array_intersect_key($this->arParams, array_flip($uiKeys));
-		$this->arResult['BLOCK_ID'] = 'catalog_image_editor_' . uniqid();
+		$this->arResult['BLOCK_ID'] = uniqid('catalog_image_editor_', false);
 
 		$this->includeComponentTemplate();
 	}

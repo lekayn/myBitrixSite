@@ -24,15 +24,15 @@
 					<address class="landing-block-card-address-container g-mb-40">
 						<div class="landing-block-card-address g-mb-20" data-card-preset="contact-link">
 							<div class="landing-block-card-address-title d-inline-block text-uppercase g-font-size-14 g-color-white-opacity-0_7 g-pr-5">Email:</div>
-							<a class="landing-block-card-address-link d-inline-block g-color-white text-uppercase g-font-size-14 g-font-weight-700" href="mailto:#EMAIL1#">
-								#EMAIL1#
+							<a class="landing-block-card-address-link d-inline-block g-color-white text-uppercase g-font-size-14 g-font-weight-700" href="mailto:#crmEmail1">
+								#crmEmailTitle1
 							</a>
 						</div>
 
 						<div class="landing-block-card-address g-mb-20" data-card-preset="contact-link">
 							<div class="landing-block-card-address-title d-inline-block text-uppercase g-font-size-14 g-color-white-opacity-0_7 g-pr-5">Phone number:</div>
-							<a class="landing-block-card-address-link d-inline-block g-color-white text-uppercase g-font-size-14 g-font-weight-700" href="tel:#PHONE1#">
-								#PHONE1#
+							<a class="landing-block-card-address-link d-inline-block g-color-white text-uppercase g-font-size-14 g-font-weight-700" href="tel:#crmPhone1">
+								#crmPhoneTitle1
 							</a>
 						</div>
 
@@ -72,7 +72,7 @@
 					<div class="bitrix24forms g-brd-white-opacity-0_6 u-form-alert-v3"
 						data-b24form-embed
 						data-b24form-use-style="Y"
-						data-b24form-design='{"dark":true,"style":"classic","shadow":false,"compact":false,"color":{"primary":"#fff","primaryText":"#333","text":"#fff","background":"#ffffff00","fieldBorder":"#ffffff00","fieldBackground":"--primary","fieldFocusBackground":"#00000011"},"border":{"top":false,"bottom":false,"left":false,"right":false}}'
+						data-b24form-design='{"dark":true,"style":"classic","shadow":false,"compact":false,"color":{"primary":"#fff","primaryText":"#333","text":"#fff","background":"--primary00","fieldBorder":"#ffffff00","fieldBackground":"--primary","fieldFocusBackground":"#00000011"},"border":{"top":false,"bottom":false,"left":false,"right":false}}'
 					>
 					</div>
 				</div>

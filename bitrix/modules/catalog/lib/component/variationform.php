@@ -128,6 +128,22 @@ class VariationForm extends BaseForm
 		);
 	}
 
+	protected function buildIblockPropertiesDescriptions(): array
+	{
+		$propertyDescriptions = [];
+
+		foreach ($this->entity->getPropertyCollection() as $property)
+		{
+			if ($property->getUserType() === \CIBlockPropertySKU::USER_TYPE)
+			{
+				continue;
+			}
+			$propertyDescriptions[] = $this->getPropertyDescription($property);
+		}
+
+		return $propertyDescriptions;
+	}
+
 	protected function getPriceDescriptions(): array
 	{
 		$descriptions = [];
@@ -137,7 +153,7 @@ class VariationForm extends BaseForm
 		{
 			foreach ($priceTypeList as $priceType)
 			{
-				$title = htmlspecialcharsbx(!empty($priceType['NAME_LANG']) ? $priceType['NAME_LANG'] : $priceType['NAME']);
+				$title = !empty($priceType['NAME_LANG']) ? $priceType['NAME_LANG'] : $priceType['NAME'];
 				$priceFieldName = static::formatFieldName(BaseForm::PRICE_FIELD_PREFIX.$priceType['ID']);
 
 				$descriptions[] = $this->preparePriceDescription([
@@ -276,10 +292,10 @@ class VariationForm extends BaseForm
 		return $measureRatio ? $measureRatio->getRatio() : null;
 	}
 
-	protected function getAdditionalValues(array $values): array
+	protected function getAdditionalValues(array $values, array $descriptions = []): array
 	{
-		$additionalValues = parent::getAdditionalValues($values);
-		foreach ($this->getDescriptions() as $description)
+		$additionalValues = parent::getAdditionalValues($values, $descriptions);
+		foreach ($descriptions as $description)
 		{
 			if ($description['entity'] === 'money' && \Bitrix\Main\Loader::includeModule('currency'))
 			{

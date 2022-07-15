@@ -2576,7 +2576,8 @@ BX.adminUiList.prototype.onReloadGrid = function()
 	{
 		gridObject = top.BX.Main.gridManager.getById(this.gridId);
 	}
-	else if (BX.Reflection.getClass('BX.Main.gridManager.getById'))
+
+	if (gridObject === null && BX.Reflection.getClass('BX.Main.gridManager.getById'))
 	{
 		gridObject = BX.Main.gridManager.getById(this.gridId);
 	}
@@ -2879,7 +2880,7 @@ BX.adminSidePanel.setDefaultQueryParams = BX.adminSidePanel.prototype.setDefault
 	}
 
 	var adminSidePanel = top.window["adminSidePanel"];
-	if (adminSidePanel.publicMode)
+	if (adminSidePanel && adminSidePanel.publicMode)
 	{
 		url = BX.util.add_url_param(url, {"publicSidePanel": "Y"});
 	}
@@ -3201,7 +3202,7 @@ BX.adminTabControl.prototype.submitAjax = function(buttonType, button)
 					if (button && button.dataset.url)
 						params['addUrl'] = button.dataset.url;
 
-					var listApplyTypes = ["apply", "save_document"];
+					var listApplyTypes = ["apply", "save_document", "save_and_conduct"];
 					if (BX.util.in_array(buttonType, listApplyTypes))
 					{
 						if (result.hasOwnProperty('formParams'))

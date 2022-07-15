@@ -1,7 +1,7 @@
 this.BX = this.BX || {};
 this.BX.Landing = this.BX.Landing || {};
 this.BX.Landing.Ui = this.BX.Landing.Ui || {};
-(function (exports,landing_ui_field_basefield,catalog_productForm,catalog_productCalculator,landing_pageobject,main_core,main_core_events) {
+(function (exports,landing_ui_field_basefield,catalog_productForm,catalog_productCalculator,landing_pageobject,main_core,main_core_events,landing_ui_component_internal) {
 	'use strict';
 
 	var ProductField = /*#__PURE__*/function (_BaseField) {
@@ -14,6 +14,8 @@ this.BX.Landing.Ui = this.BX.Landing.Ui || {};
 	    _this = babelHelpers.possibleConstructorReturn(this, babelHelpers.getPrototypeOf(ProductField).call(this, options));
 
 	    _this.setEventNamespace('BX.Landing.UI.Field.ProductField');
+
+	    _this.subscribeFromOptions(landing_ui_component_internal.fetchEventsFromOptions(options));
 
 	    _this.setLayoutClass('landing-ui-field-product');
 
@@ -50,16 +52,38 @@ this.BX.Landing.Ui = this.BX.Landing.Ui || {};
 	    key: "getValue",
 	    value: function getValue() {
 	      return this.getProducts().reduce(function (acc, item) {
-	        if (!main_core.Type.isNil(item.fields.productId)) {
+	        if (!main_core.Type.isNil(item.offerId) || !main_core.Type.isNil(item.fields.productId)) {
+	          var pics = [];
+
+	          if (item.image && item.image.path) {
+	            pics.push(item.image.path);
+	          } else if (item.image && item.image.preview) {
+	            var ic = document.createElement('div');
+	            ic.innerHTML = item.image.preview;
+	            ic = ic.querySelector('img');
+
+	            if (ic && ic.src) {
+	              pics.push(ic.src);
+	            }
+	          }
+
+	          var value = item.offerId || item.fields.productId;
+
+	          if (acc.some(function (item) {
+	            return item.value === value;
+	          })) {
+	            return acc;
+	          }
+
 	          acc.push({
 	            label: item.fields.name,
 	            changeablePrice: false,
 	            discount: item.fields.discount,
-	            pics: [],
+	            pics: pics,
 	            price: item.fields.price,
 	            quantity: [],
 	            selected: false,
-	            value: item.fields.productId
+	            value: value
 	          });
 	        }
 
@@ -89,5 +113,5 @@ this.BX.Landing.Ui = this.BX.Landing.Ui || {};
 
 	exports.ProductField = ProductField;
 
-}((this.BX.Landing.Ui.Field = this.BX.Landing.Ui.Field || {}),BX.Landing.UI.Field,BX.Catalog,BX.Catalog,BX.Landing,BX,BX.Event));
+}((this.BX.Landing.Ui.Field = this.BX.Landing.Ui.Field || {}),BX.Landing.UI.Field,BX.Catalog,BX.Catalog,BX.Landing,BX,BX.Event,BX.Landing.UI.Component));
 //# sourceMappingURL=productfield.bundle.js.map

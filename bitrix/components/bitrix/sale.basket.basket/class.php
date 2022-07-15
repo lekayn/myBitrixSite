@@ -268,7 +268,7 @@ class CBitrixBasketComponent extends CBitrixComponent
 
 				if (!empty($list))
 				{
-					$params['OFFERS_PROPS'] += $list;
+					$params['OFFERS_PROPS'] = array_merge($params['OFFERS_PROPS'], $list);
 				}
 			}
 		}
@@ -1132,7 +1132,7 @@ class CBitrixBasketComponent extends CBitrixComponent
 	{
 		if (!$basket->getOrder())
 		{
-			$userId = $this->getUserId() ?: CSaleUser::GetAnonymousUserID();
+			$userId = $this->getUserId() ?? 0;
 
 			$registry = Sale\Registry::getInstance(Sale\Registry::REGISTRY_TYPE_ORDER);
 			/** @var Sale\Order $orderClass */
@@ -3133,14 +3133,18 @@ class CBitrixBasketComponent extends CBitrixComponent
 					: $absentOffers[$parentId][$id]['PROPERTIES']
 				);
 
-				foreach ($currentItemProperties as $code => $data)
+				if (is_array($currentItemProperties))
 				{
-					$data['VALUE'] = (string)$data['VALUE'];
-					if ($data['VALUE'] == '')
-						$data['VALUE'] = '-';
-					$arUsedValues[$code] = [$data['VALUE']];
+					foreach ($currentItemProperties as $code => $data)
+					{
+						$data['VALUE'] = (string)$data['VALUE'];
+						if ($data['VALUE'] == '')
+						{
+							$data['VALUE'] = '-';
+						}
+						$arUsedValues[$code] = [$data['VALUE']];
+					}
 				}
-				unset($code, $data);
 
 				if (!empty($offerList[$parentId]))
 				{
@@ -3171,6 +3175,12 @@ class CBitrixBasketComponent extends CBitrixComponent
 							$value = (string)$offerList[$parentId][$offerId]['PROPERTIES'][$propertyCode]['VALUE'];
 							if ($value == '')
 								$value = '-';
+
+							if (!isset($arUsedValues[$propertyCode]))
+							{
+								$arUsedValues[$propertyCode] = [];
+							}
+
 							if (!in_array($value, $arUsedValues[$propertyCode]))
 								$arUsedValues[$propertyCode][] = $value;
 							unset($value);
@@ -4150,6 +4160,14 @@ class CBitrixBasketComponent extends CBitrixComponent
 			$result = key($offerList);
 			if ($result === $currentOfferId)
 				return null;
+		}
+
+		if (
+			$result
+			&&\Bitrix\Main\Loader::includeModule('sale')
+		)
+		{
+			\Bitrix\Sale\Internals\FacebookConversion::onCustomizeProductHandler((int)$result);
 		}
 
 		return ($result === null ? null : $offerList[$result]);

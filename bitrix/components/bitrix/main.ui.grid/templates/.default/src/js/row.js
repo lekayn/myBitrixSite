@@ -101,7 +101,10 @@ import {Type} from "main.core";
 		_onRightClick: function(event)
 		{
 			event.preventDefault();
-			this.showActionsMenu(event);
+			if (!this.isHeadChild())
+			{
+				this.showActionsMenu(event);
+			}
 		},
 
 		getDefaultAction: function()
@@ -1024,14 +1027,6 @@ import {Type} from "main.core";
 				this.getActionsMenu().popupWindow.popupContainer.style.top = ((event.pageY - 25) + BX.PopupWindow.getOption("offsetTop")) + "px";
 				this.getActionsMenu().popupWindow.popupContainer.style.left = ((event.pageX + 20) + BX.PopupWindow.getOption("offsetLeft")) + "px";
 			}
-			else
-			{
-				var popupWindow = this.actionsMenu.getPopupWindow();
-				var pos = BX.pos(this.getActionsButton());
-
-				BX.style(popupWindow.getPopupContainer(), 'top', pos.top - 20 + 'px');
-				BX.style(popupWindow.getPopupContainer(), 'left', pos.left + 25 + 'px');
-			}
 		},
 
 		closeActionsMenu: function()
@@ -1105,12 +1100,17 @@ import {Type} from "main.core";
 			return result;
 		},
 
+		isSelectable: function()
+		{
+			return !this.isEdit() || this.parent.getParam('ALLOW_EDIT_SELECTION');
+		},
+
 		select: function()
 		{
 			var checkbox;
 
 			if (
-				!this.isEdit()
+				this.isSelectable()
 				&& (this.parent.getParam('ADVANCED_EDIT_MODE') || !this.parent.getRows().hasEditable())
 			)
 			{
@@ -1132,7 +1132,7 @@ import {Type} from "main.core";
 
 		unselect: function()
 		{
-			if (!this.isEdit())
+			if (this.isSelectable())
 			{
 				BX.removeClass(this.getNode(), this.settings.get('classCheckedRow'));
 				this.bindNodes.forEach(function(row) {
@@ -1334,6 +1334,7 @@ import {Type} from "main.core";
 							<div class="main-grid-labels">${labels}</div>
 						`;
 
+						BX.Dom.clean(container);
 						const oldLabelsContainer = container.querySelector('.main-grid-labels');
 						if (BX.Type.isDomNode(oldLabelsContainer))
 						{

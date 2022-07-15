@@ -96,10 +96,17 @@ this.BX = this.BX || {};
 	          BX.Landing.UI.Panel.StatusPanel.getInstance().update();
 	        }
 
+	        BX.onCustomEvent(BX.Landing.PageObject.getRootWindow(), 'BX.Landing.Backend:action', [_action, data]);
+	        /*if (!response.result) {
+	        	BX.Landing.ErrorManager.getInstance().add({
+	        		type: 'error'
+	        	});
+	        }*/
+
 	        return response.result;
 	      }).catch(function (err) {
 	        if (requestBody.action !== 'Landing::downBlock' && requestBody.action !== 'Landing::upBlock') {
-	          if (requestBody.action !== 'Block::getById' && requestBody.action !== 'Landing::move' && requestBody.action !== 'Landing::copy' && requestBody.action !== 'Site::moveFolder') {
+	          if (requestBody.action !== 'Block::getById' && requestBody.action !== 'Block::publication' && requestBody.action !== 'Landing::move' && requestBody.action !== 'Landing::copy' && requestBody.action !== 'Landing::publication' && requestBody.action !== 'Site::publication' && requestBody.action !== 'Site::moveFolder' && requestBody.action !== 'Site::markDelete') {
 	            var error = main_core.Type.isString(err) ? {
 	              type: 'error'
 	            } : err;
@@ -136,6 +143,13 @@ this.BX = this.BX || {};
 	      }).then(function (response) {
 	        // eslint-disable-next-line
 	        BX.Landing.UI.Panel.StatusPanel.getInstance().update();
+	        BX.onCustomEvent(BX.Landing.PageObject.getRootWindow(), 'BX.Landing.Backend:batch', [action, data]);
+	        /*if (!response.result) {
+	        	BX.Landing.ErrorManager.getInstance().add({
+	        		type: 'error'
+	        	});
+	        }*/
+
 	        return response;
 	      }).catch(function (err) {
 	        if (requestBody.action !== 'Landing::downBlock' && requestBody.action !== 'Landing::upBlock') {
@@ -175,6 +189,10 @@ this.BX = this.BX || {};
 	        formData.append('data[id]', uploadParams.id);
 	      }
 
+	      if ('temp' in uploadParams) {
+	        formData.append('data[temp]', true);
+	      }
+
 	      var uri = new main_core.Uri(this.getControllerUrl());
 	      uri.setQueryParams({
 	        action: formData.get('action'),
@@ -212,6 +230,7 @@ this.BX = this.BX || {};
 	      return this.cache.remember("sites+".concat(JSON.stringify(filter)), function () {
 	        return _this2.action('Site::getList', {
 	          params: {
+	            filter: filter,
 	            order: {
 	              ID: 'DESC'
 	            }
@@ -230,16 +249,33 @@ this.BX = this.BX || {};
 	          _ref2$siteId = _ref2.siteId,
 	          siteId = _ref2$siteId === void 0 ? [] : _ref2$siteId;
 
+	      var filter = arguments.length > 1 ? arguments[1] : undefined;
+	      var skipFilter = false;
+
+	      if (!BX.Type.isPlainObject(filter)) {
+	        filter = {};
+	        skipFilter = true;
+	      }
+
 	      var ids = main_core.Type.isArray(siteId) ? siteId : [siteId];
+	      filter.SITE_ID = ids;
 
 	      var getBathItem = function getBathItem(id) {
 	        return {
 	          action: 'Landing::getList',
 	          data: {
 	            params: {
-	              filter: {
-	                SITE_ID: id
-	              },
+	              filter: function () {
+	                if (skipFilter) {
+	                  return {
+	                    SITE_ID: id,
+	                    DELETED: 'N',
+	                    FOLDER: 'N'
+	                  };
+	                }
+
+	                return filter;
+	              }(),
 	              order: {
 	                ID: 'DESC'
 	              },
@@ -493,7 +529,7 @@ this.BX = this.BX || {};
 	          onsuccess: function onsuccess(sourceResponse) {
 	            var response = Backend.makeResponse(xhr, sourceResponse);
 
-	            if (main_core.Type.isStringFilled(response.sessid) && additionalRequestCompleted) {
+	            if (main_core.Type.isStringFilled(response.sessid) && main_core.Loc.getMessage('bitrix_sessid') !== response.sessid && additionalRequestCompleted) {
 	              main_core.Loc.setMessage('bitrix_sessid', response.sessid);
 	              additionalRequestCompleted = false;
 	              var newData = babelHelpers.objectSpread({}, data, {
@@ -538,6 +574,7 @@ this.BX = this.BX || {};
 	  }]);
 	  return Backend;
 	}();
+	babelHelpers.defineProperty(Backend, "instance", null);
 
 	exports.Backend = Backend;
 

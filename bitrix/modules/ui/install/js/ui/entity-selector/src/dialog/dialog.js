@@ -24,6 +24,7 @@ import type { EntityOptions } from '../entity/entity-options';
 import type { ItemId } from '../item/item-id';
 import type { PopupOptions } from 'main.popup';
 import type { FooterOptions, FooterContent } from './footer/footer-content';
+import type { ItemNodeOptions } from '../item/item-node-options';
 
 class LoadState
 {
@@ -67,6 +68,7 @@ export default class Dialog extends EventEmitter
 
 	hideByEsc: boolean = true;
 	autoHide: boolean = true;
+	autoHideHandler: Function = null;
 	offsetTop: number = 5;
 	offsetLeft: number = 0;
 	cacheable: boolean = true;
@@ -170,6 +172,7 @@ export default class Dialog extends EventEmitter
 		this.setWidth(options.width);
 		void this.setHeight(options.height);
 		this.setAutoHide(options.autoHide);
+		this.setAutoHideHandler(options.autoHideHandler);
 		this.setHideByEsc(options.hideByEsc);
 		this.setOffsetLeft(options.offsetLeft);
 		this.setOffsetTop(options.offsetTop);
@@ -276,6 +279,14 @@ export default class Dialog extends EventEmitter
 	search(queryString: string): void
 	{
 		const query = Type.isStringFilled(queryString) ? queryString.trim() : '';
+
+		const event = new BaseEvent({ data: { query } });
+		this.emit('onBeforeSearch', event);
+		if (event.isDefaultPrevented())
+		{
+			return;
+		}
+
 		if (!Type.isStringFilled(query))
 		{
 			this.selectFirstTab();
@@ -1054,6 +1065,14 @@ export default class Dialog extends EventEmitter
 		return this.autoHide;
 	}
 
+	setAutoHideHandler(handler?: (event: MouseEvent, dialog: Dialog) => boolean): void
+	{
+		if (Type.isFunction(handler) || handler === null)
+		{
+			this.autoHideHandler = handler;
+		}
+	}
+
 	setHideByEsc(enable: boolean): void
 	{
 		if (Type.isBoolean(enable))
@@ -1413,6 +1432,7 @@ export default class Dialog extends EventEmitter
 				forceBindPosition: true
 			},
 			autoHide: this.isAutoHide(),
+			autoHideHandler: this.handleAutoHide.bind(this),
 			closeByEsc: this.shouldHideByEsc(),
 			cacheable: this.isCacheable(),
 			events: {
@@ -1548,6 +1568,30 @@ export default class Dialog extends EventEmitter
 		return this.frozen;
 	}
 
+	hasRecentItems(): Promise
+	{
+		return new Promise((resolve, reject) => {
+			Ajax
+				.runAction('ui.entityselector.load', {
+					json: {
+						dialog: this.getAjaxJson()
+					},
+					getParameters: {
+						context: this.getContext()
+					}
+				})
+				.then((response) => {
+					resolve(
+						response.data && response.data.dialog && Type.isArrayFilled(response.data.dialog.recentItems)
+					);
+				})
+				.catch((error) => {
+					reject(error);
+				})
+			;
+		});
+	}
+
 	load(): void
 	{
 		if (this.loadState !== LoadState.UNSENT || !this.hasDynamicLoad())
@@ -1610,8 +1654,26 @@ export default class Dialog extends EventEmitter
 					const recentItems = response.data.dialog.recentItems;
 					if (Type.isArray(recentItems))
 					{
+						const nodeOptionsMap: Map<Item, ItemNodeOptions> = new Map();
+						const itemsOptions: ItemOptions[] = response.data.dialog.items;
+						if (Type.isArray(itemsOptions))
+						{
+							itemsOptions.forEach((itemOptions: ItemOptions) => {
+								if (itemOptions.nodeOptions)
+								{
+									const item = this.getItem(itemOptions);
+									if (item)
+									{
+										nodeOptionsMap.set(item, itemOptions.nodeOptions);
+									}
+								}
+							});
+						}
+
 						const items = recentItems.map((recentItem: ItemId) => {
-							return this.getItem(recentItem);
+							const item = this.getItem(recentItem);
+
+							return [item, nodeOptionsMap.get(item)];
 						});
 
 						this.getRecentTab().getRootNode().addItems(items);
@@ -1897,6 +1959,39 @@ export default class Dialog extends EventEmitter
 		});
 
 		this.observeTabOverlapping();
+	}
+
+	/**
+	 * @private
+	 */
+	handleAutoHide(event: MouseEvent): void
+	{
+		const target = event.target;
+		const el = this.getPopup().getPopupContainer();
+		if (target === el || el.contains(target))
+		{
+			return false;
+		}
+
+		if (
+			this.isTagSelectorOutside()
+			&& target === this.getTagSelector().getTextBox()
+			&& Type.isStringFilled(this.getTagSelector().getTextBoxValue())
+		)
+		{
+			return false;
+		}
+
+		if (this.autoHideHandler !== null)
+		{
+			const result = this.autoHideHandler(event, this);
+			if (Type.isBoolean(result))
+			{
+				return result;
+			}
+		}
+
+		return true;
 	}
 
 	/**

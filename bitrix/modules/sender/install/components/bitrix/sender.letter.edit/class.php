@@ -15,6 +15,7 @@ use Bitrix\Sender\Access\Map\MailingAction;
 use Bitrix\Sender\Entity;
 use Bitrix\Sender\Integration;
 use Bitrix\Sender\Internals\PostFiles;
+use Bitrix\Sender\Internals\SqlBatch;
 use Bitrix\Sender\Message;
 use Bitrix\Sender\Security;
 use Bitrix\Sender\Templates;
@@ -40,6 +41,8 @@ class SenderLetterEditComponent extends Bitrix\Sender\Internals\CommonSenderComp
 
 	/** @var Entity\Letter $letter Letter. */
 	protected $letter;
+
+	protected $contentValue = null;
 
 	protected function checkRequiredParams()
 	{
@@ -87,6 +90,7 @@ class SenderLetterEditComponent extends Bitrix\Sender\Internals\CommonSenderComp
 
 		$this->arParams['SET_TITLE'] = isset($this->arParams['SET_TITLE']) ? $this->arParams['SET_TITLE'] == 'Y' : true;
 		$this->arParams['SHOW_SEGMENT_COUNTERS'] = isset($this->arParams['SHOW_SEGMENT_COUNTERS']) ? $this->arParams['SHOW_SEGMENT_COUNTERS'] : true;
+		$this->arParams['CHECK_ON_STATIC'] = $this->arParams['CHECK_ON_STATIC'] ?? false;
 
 		$map = MailingAction::getMap();
 		$map = isset($map[$this->arParams['MESSAGE_CODE']]) ? $map : AdsAction::getMap();
@@ -149,6 +153,7 @@ class SenderLetterEditComponent extends Bitrix\Sender\Internals\CommonSenderComp
 				case Message\ConfigurationOption::TYPE_MAIL_EDITOR:
 					$value = Security\Sanitizer::fixReplacedStyles($value);
 					$value = Security\Sanitizer::sanitizeHtml($value, $option->getValue());
+					$this->contentValue = $value;
 					break;
 				case Message\ConfigurationOption::TYPE_USER_LIST:
 					$value = array_filter(
@@ -367,6 +372,11 @@ class SenderLetterEditComponent extends Bitrix\Sender\Internals\CommonSenderComp
 				$uri->addParams($this->request->get('DISPATCH'));
 			}
 
+			if ($this->contentValue)
+			{
+				\Bitrix\Sender\FileTable::syncFiles($this->letter->getId(), 0, $this->contentValue);
+			}
+
 			LocalRedirect($uri->getLocator());
 		}
 	}
@@ -390,6 +400,21 @@ class SenderLetterEditComponent extends Bitrix\Sender\Internals\CommonSenderComp
 		{
 			Security\AccessChecker::addError($this->errors, Security\AccessChecker::ERR_CODE_NOT_FOUND);
 			return false;
+		}
+		$appliedConsents = json_decode(\COption::GetOptionString("sender", "sender_approve_consent_created"), true);
+		if (!$appliedConsents[Context::getCurrent()->getLanguage()])
+		{
+			\CAgent::AddAgent(
+				'\\Bitrix\\Sender\\Preset\\Consent\\ConsentInstaller::run(\''.Context::getCurrent()->getLanguage().'\');',
+				"sender",
+				"N",
+				60,
+				"",
+				"Y",
+				\ConvertTimeStamp(time()+\CTimeZone::GetOffset()+450, "FULL"));
+
+			$appliedConsents[Context::getCurrent()->getLanguage()] = Context::getCurrent()->getLanguage();
+			\COption::SetOptionString("sender", "sender_approve_consent_created", json_encode($appliedConsents));
 		}
 
 		try
@@ -572,6 +597,7 @@ class SenderLetterEditComponent extends Bitrix\Sender\Internals\CommonSenderComp
 			]
 		);
 		$this->arResult['IS_SAVED'] = $this->request->get('IS_SAVED') == 'Y';
+		$this->arResult['IS_AVAILABLE']  = $this->letter->getMessage()->isAvailable();
 
 		return true;
 	}
@@ -634,7 +660,13 @@ class SenderLetterEditComponent extends Bitrix\Sender\Internals\CommonSenderComp
 	{
 		foreach ($this->errors as $error)
 		{
+			/** @var Error $error */
 			ShowError($error);
+			$code = explode('feature:', $error->getCode());
+			if (!empty($code[1]))
+			{
+				?><script>BX.UI.InfoHelper.show('<?=CUtil::JSescape($code[1])?>');</script><?php
+			}
 		}
 	}
 

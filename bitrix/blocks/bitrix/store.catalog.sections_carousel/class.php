@@ -8,10 +8,12 @@ use Bitrix\Landing\Hook\Page\Settings;
 use Bitrix\Main\ModuleManager;
 use Bitrix\Main\Loader;
 use Bitrix\Iblock;
+use Bitrix\Catalog;
 
 class StoreCatalogSectionsCarousel extends \Bitrix\Landing\LandingBlock
 {
-	private $iblockIncluded;
+	protected $iblockIncluded;
+	protected $catalogIncluded;
 
 	/**
 	 * Set cart position (top, left, ...).
@@ -93,6 +95,7 @@ class StoreCatalogSectionsCarousel extends \Bitrix\Landing\LandingBlock
 	public function init(array $params = [])
 	{
 		$this->iblockIncluded = Loader::includeModule('iblock');
+		$this->catalogIncluded = Loader::includeModule('catalog');
 		$this->params = Settings::getDataForSite(
 			$params['site_id']
 		);
@@ -111,9 +114,9 @@ class StoreCatalogSectionsCarousel extends \Bitrix\Landing\LandingBlock
 		if (isset($variables['sef'][0]))
 		{
 			$sectionCode = $variables['sef'][0];
-			if (\Bitrix\Main\Loader::includeModule('iblock'))
+			if ($this->iblockIncluded)
 			{
-				$sectionId = \CIBlockFindTools::GetSectionIDByCodePath(
+				$sectionId = (int)\CIBlockFindTools::GetSectionIDByCodePath(
 					$this->params['IBLOCK_ID'],
 					$sectionCode
 				);
@@ -123,7 +126,7 @@ class StoreCatalogSectionsCarousel extends \Bitrix\Landing\LandingBlock
 		// check section id restricted
 		if ($this->params['SECTION_ID'])
 		{
-			if ($sectionId)
+			if ($this->iblockIncluded && $sectionId > 0)
 			{
 				$allowed = false;
 				$res = \CIBlockSection::getNavChain(
@@ -238,15 +241,16 @@ class StoreCatalogSectionsCarousel extends \Bitrix\Landing\LandingBlock
 		$this->params['ACTION_VARIABLE'] = 'action_' . $block->getId();
 
 		$this->params['FILTER_NAME'] = 'carouselFilter';
+		$this->params['CATALOG_FILTER_NAME'] = 'catalogCarouselFilter';
 		$this->params['SECTIONS_FILTER_NAME'] = 'sectionCarouselFilter';
 
 		$this->correctParams();
-		$this->setCarouselFilter();
+		$this->setElementCarouselFilter();
 		$this->setSectionCarouselFilter();
 	}
 
 	/**
-	 * Method for clear carousel filter. Page has contain some detail blocks.
+	 * Method for clear carousel filter. Page has contain some section blocks.
 	 *
 	 * @internal
 	 *
@@ -255,19 +259,77 @@ class StoreCatalogSectionsCarousel extends \Bitrix\Landing\LandingBlock
 	 */
 	private function clearCarouselFilter(string $name): void
 	{
-		$GLOBALS[$name] = [];
+		if (isset($GLOBALS[$name]))
+		{
+			$GLOBALS[$name] = [];
+		}
 	}
 
-	private function setCarouselFilter(): void
+	private function setCarouselFilter(string $name, array $filter): void
+	{
+		if ($name === '')
+		{
+			return;
+		}
+		$currentFilter = $GLOBALS[$name] ?? [];
+		if (!is_array($currentFilter))
+		{
+			$currentFilter = [];
+		}
+
+		$GLOBALS[$name] = array_merge(
+			$currentFilter,
+			$filter
+		);
+	}
+
+	private function setElementCarouselFilter(): void
 	{
 		$filterName = $this->get('FILTER_NAME');
-		$this->clearCarouselFilter($filterName);
+		$catalogFilterName = $this->get('CATALOG_FILTER_NAME');
+
+		$listFilter = [];
+		$catalogFilter = [];
+
 		$currentElementId = $this->getCurrentElement();
+
 		if (!empty($currentElementId))
 		{
-			$GLOBALS[$filterName] = [
-				'!=ID' => $currentElementId
-			];
+			$listFilter['!=ID'] = $currentElementId;
+			$catalogFilter['!=ID'] = $currentElementId;
+		}
+
+		$currentSectionId = (int)$this->get('SECTION_ID');
+		if (
+			$currentSectionId > 0
+			&& $currentSectionId !== (int)$this->get('LANDING_SECTION_ID')
+		)
+		{
+			$catalogFilter['!=IBLOCK_SECTION_ID'] = $currentSectionId;
+		}
+
+		if ($this->catalogIncluded)
+		{
+			if (class_exists('\Bitrix\Catalog\Product\SystemField\ProductMapping'))
+			{
+				$listFilter = Catalog\Product\SystemField\ProductMapping::getExtendedFilterByArea(
+					$listFilter,
+					Catalog\Product\SystemField\ProductMapping::MAP_LANDING
+				);
+				$catalogFilter = Catalog\Product\SystemField\ProductMapping::getExtendedFilterByArea(
+					$catalogFilter,
+					Catalog\Product\SystemField\ProductMapping::MAP_LANDING
+				);
+			}
+		}
+
+		if (!empty($listFilter) && $filterName !== null)
+		{
+			$this->setCarouselFilter($filterName, $listFilter);
+		}
+		if (!empty($catalogFilter) && $catalogFilterName !== null)
+		{
+			$this->setCarouselFilter($catalogFilterName, $catalogFilter);
 		}
 	}
 
@@ -278,9 +340,7 @@ class StoreCatalogSectionsCarousel extends \Bitrix\Landing\LandingBlock
 		$currentSectionId = (int)$this->get('SECTION_ID');
 		if ($currentSectionId > 0)
 		{
-			$GLOBALS[$filterName] = [
-				'!=ID' => $currentSectionId
-			];
+			$this->setCarouselFilter($filterName, ['!=ID' => $currentSectionId]);
 		}
 	}
 

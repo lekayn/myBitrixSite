@@ -73,10 +73,13 @@ foreach ($requiredModules as $requiredModule)
 	}
 }
 
-if (!isset($arParams['REPORT_HELPER_CLASS'])
-	|| mb_strlen($arParams['REPORT_HELPER_CLASS']) < 1
-	|| !class_exists($arParams['REPORT_HELPER_CLASS'])
-	|| !is_subclass_of($arParams['REPORT_HELPER_CLASS'], 'CReportHelper'))
+$helperClassName = $arResult['HELPER_CLASS'] = ($arParams['REPORT_HELPER_CLASS'] ?? '');
+if (
+	!is_string($helperClassName)
+	|| mb_strlen($helperClassName) < 1
+	|| !class_exists($helperClassName)
+	|| !is_subclass_of($helperClassName, 'CReportHelper')
+)
 {
 	$errorMessage = GetMessage("REPORT_HELPER_NOT_DEFINED");
 	if ($isStExport)
@@ -88,6 +91,17 @@ if (!isset($arParams['REPORT_HELPER_CLASS'])
 		ShowError($errorMessage);
 		return 0;
 	}
+}
+
+$arResult['IS_RESTRICTED'] = false;
+if (
+	\Bitrix\Main\Loader::includeModule('bitrix24')
+	&& !\Bitrix\Bitrix24\Feature::isFeatureEnabled('report')
+)
+{
+	$arResult['IS_RESTRICTED'] = true;
+	$this->IncludeComponentTemplate('restrict');
+	return 1;
 }
 
 // Suppress the timezone, while report works in server time

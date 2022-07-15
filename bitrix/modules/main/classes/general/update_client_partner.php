@@ -1876,6 +1876,18 @@ class CUpdateClientPartner
 				$strError_tmp = "[RV01] ".GetMessage("SUPZ_NO_QSTRING").". ";
 		}
 
+		if (CModule::IncludeModule("rest") && !\Bitrix\Rest\OAuthService::getEngine()->isRegistered())
+		{
+			try
+			{
+				\Bitrix\Rest\OAuthService::register();
+				\Bitrix\Rest\OAuthService::getEngine()->getClient()->getApplicationList();
+			}
+			catch(\Bitrix\Main\SystemException $e)
+			{
+			}
+		}
+
 		if ($strError_tmp == '')
 		{
 			$strQuery .= "&coupon=".UrlEncode($coupon)."&query_type=coupon";
@@ -1953,7 +1965,7 @@ class CUpdateClientPartner
 		CUpdateClientPartner::AddMessage2Log("Run updater '".$updaterName."'", "CSURUS1");
 
 		$updater = new CUpdater();
-		$updater->Init($updaterPath, $DBType, $updaterName, $updateDirFrom, $moduleID, US_CALL_TYPE);
+		$updater->Init($updaterPath, 'mysql', $updaterName, $updateDirFrom, $moduleID, US_CALL_TYPE);
 
 		$errorMessage = "";
 

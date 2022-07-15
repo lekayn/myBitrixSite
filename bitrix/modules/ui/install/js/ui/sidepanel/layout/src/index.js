@@ -1,7 +1,9 @@
 import './style.css';
 import 'sidepanel';
-import {Tag, Type, BaseError} from 'main.core';
+import {Dom, Tag, Type, BaseError} from 'main.core';
 import {CloseButton, CancelButton, BaseButton} from 'ui.buttons';
+import {Menu, type MenuOptions, Item as MenuItem} from 'ui.sidepanel.menu';
+import {BaseEvent} from "main.core.events";
 
 const UI = BX.UI;
 const SidePanel = BX.SidePanel;
@@ -12,6 +14,11 @@ type DesignOptions = {
 	alignButtonsLeft: ?boolean;
 };
 
+type SidePanelMenuOptions = {
+	...MenuOptions;
+	contentAttribute: ?string;
+};
+
 type Options = {
 	extensions: ?Array<string>;
 	title: ?string;
@@ -19,6 +26,7 @@ type Options = {
 	content: string|Element|Promise|BX.Promise;
 	buttons: ?Function;
 	design: ?DesignOptions;
+	menu: ?SidePanelMenuOptions;
 };
 
 function prepareOptions(options: Options = {})
@@ -43,6 +51,10 @@ function prepareOptions(options: Options = {})
 	{
 		options.extensions.push('ui.sidepanel-content');
 	}
+	if (options.menu)
+	{
+		options.extensions.push('ui.sidepanel.menu');
+	}
 
 	return options;
 }
@@ -59,11 +71,28 @@ export class Layout
 	}
 
 	#container;
+	#containerFooter;
 	#options;
+	#menu: Menu;
 
 	constructor(options: Options = {})
 	{
 		this.#options = prepareOptions(options);
+		const menuOptions = this.#options.menu;
+		if (menuOptions)
+		{
+			this.#menu = new Menu(Object.assign(menuOptions));
+			if (Type.isUndefined(menuOptions.contentAttribute))
+			{
+				menuOptions.contentAttribute = 'data-menu-item-id';
+			}
+			if (menuOptions.contentAttribute)
+			{
+				this.#menu.subscribe('click', (event: BaseEvent) => {
+					this.#onMenuItemClick((event.getData() || {}).item);
+				});
+			}
+		}
 	}
 
 	getContainer()
@@ -73,6 +102,16 @@ export class Layout
 			this.#container = Tag.render`<div class="ui-sidepanel-layout"></div>`;
 		}
 		return this.#container;
+	}
+
+	getFooterContainer()
+	{
+		if (!this.#containerFooter)
+		{
+			this.#containerFooter = Tag.render`<div class="ui-sidepanel-layout-footer"></div>`;
+		}
+
+		return this.#containerFooter;
 	}
 
 	render(content: string = '', promised: boolean = false)
@@ -143,6 +182,14 @@ export class Layout
 			}
 			let contentElement = Tag.render`<div class="${classes.join(' ')}" style="${styles.join('; ')}"></div>`;
 			container.appendChild(contentElement);
+
+			if (this.#menu)
+			{
+				this.#menu.renderTo(contentElement);
+			}
+			contentElement.appendChild(Tag.render`<div class="ui-sidepanel-layout-content-inner"></div>`);
+			contentElement = contentElement.lastElementChild;
+
 			if (design.section)
 			{
 				contentElement.appendChild(Tag.render`<div class="ui-slider-section ui-sidepanel-layout-content-fill-height"></div>`);
@@ -155,6 +202,11 @@ export class Layout
 			else if (content instanceof Element)
 			{
 				contentElement.appendChild(content);
+			}
+
+			if (this.#menu)
+			{
+				this.#onMenuItemClick(this.#menu.getActiveItem(), contentElement);
 			}
 		}
 
@@ -177,14 +229,15 @@ export class Layout
 			const buttonList = this.#options.buttons(defaults);
 			if (buttonList && buttonList.length > 0)
 			{
-				const footer = Tag.render`<div class="ui-sidepanel-layout-footer"></div>`;
+				container.appendChild(Tag.render`<div class="ui-sidepanel-layout-footer-anchor"></div>`);
+
 				const classes = ['ui-sidepanel-layout-buttons'];
 				if (this.#options.design.alignButtonsLeft)
 				{
 					classes.push('ui-sidepanel-layout-buttons-align-left');
 				}
 				const buttons = Tag.render`<div class="${classes.join(' ')}"></div>`;
-				footer.appendChild(buttons);
+				this.getFooterContainer().appendChild(buttons);
 				buttonList.forEach(button => {
 					if (button instanceof BaseButton)
 					{
@@ -199,10 +252,54 @@ export class Layout
 						throw BaseError('Wrong button type ' + button);
 					}
 				});
-				container.appendChild(footer);
+				container.appendChild(this.getFooterContainer());
 			}
 		}
 
+		setTimeout(()=> {
+			this.afterRender();
+		});
 		return container;
+	}
+
+	afterRender()
+	{
+		const parentSet = this.getContainer().parentNode;
+
+		if (parentSet.scrollWidth > parentSet.offsetWidth) 
+		{
+			this.getFooterContainer().style.setProperty('bottom', this.#getScrollWidth() + 'px');
+		}
+	}
+
+	#getScrollWidth()
+	{
+		const div = Tag.render`<div style="overflow-y: scroll; width: 50px; height: 50px; opacity: 0; pointer-events: none; position: absolute;"></div>`
+		document.body.appendChild(div);
+		const scrollWidth = div.offsetWidth - div.clientWidth
+		Dom.remove(div);
+		return scrollWidth;
+	}
+
+	#onMenuItemClick(item: MenuItem, container: HTMLElement = null)
+	{
+		if (!item)
+		{
+			return;
+		}
+
+		const id = item.getId();
+		let attr = this.#options.menu.contentAttribute;
+		if (!attr)
+		{
+			return;
+		}
+
+		container = container || this.#container;
+		let nodes = container.querySelectorAll(`[${attr}]`);
+		nodes = Array.prototype.slice.call(nodes);
+		nodes.forEach(node => {
+			node.hidden = node.getAttribute(attr) !== id;
+		});
 	}
 }

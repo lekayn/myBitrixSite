@@ -46,7 +46,21 @@ if($bBadBlock)
 
 $useTree = (isset($_GET['tree']) && $_GET['tree'] === 'Y');
 
-$urlBuilder = Iblock\Url\AdminPage\BuilderManager::getInstance()->getBuilder();
+$request = Main\Context::getCurrent()->getRequest();
+// TODO: hack for psevdo-excel export in crm (\CAdminUiList::GetSystemContextMenu)
+$urlBuilderManager = Iblock\Url\AdminPage\BuilderManager::getInstance();
+$urlBuilder = null;
+$urlBuilderId = (string)$request->get('urlBuilderId') ;
+if ($urlBuilderId !== '')
+{
+	$urlBuilder = $urlBuilderManager->getBuilder($urlBuilderId);
+}
+// TODO end
+if ($urlBuilder === null)
+{
+	$urlBuilder = $urlBuilderManager->getBuilder();
+}
+unset($urlBuilderManager);
 if ($urlBuilder === null)
 {
 	$APPLICATION->SetTitle($arIBTYPE["NAME"]);
@@ -55,6 +69,7 @@ if ($urlBuilder === null)
 	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
 	die();
 }
+$urlBuilderId = $urlBuilder->getId();
 $urlBuilder->setIblockId($IBLOCK_ID);
 $urlBuilder->setUrlParams(array());
 
@@ -71,10 +86,11 @@ $pageConfig = array(
 
 	'ALLOW_USER_EDIT' => true
 );
-switch ($urlBuilder->getId())
+switch ($urlBuilderId)
 {
 	case 'CRM':
 	case 'SHOP':
+	case 'INVENTORY':
 		$pageConfig['LIST_ID_PREFIX'] = 'tbl_catalog_section_';
 		$pageConfig['CHECK_NEW_CARD'] = true;
 		$pageConfig['SHOW_NAVCHAIN'] = false;
@@ -651,7 +667,7 @@ $arVisibleColumnsMap = array();
 foreach($arVisibleColumns as $value)
 	$arVisibleColumnsMap[$value] = true;
 
-if (isset($_REQUEST["mode"]) && $_REQUEST["mode"] == "excel")
+if ($lAdmin->isExportMode())
 {
 	$arNavParams = false;
 }
@@ -724,6 +740,9 @@ while ($arRes = $rsData->Fetch())
 	));
 
 	$arRows[$arRes["ID"]] = $row = $lAdmin->AddRow($arRes["ID"], $arRes, $sec_list_url, GetMessage("IBSEC_A_LIST"));
+	$row->setConfig([
+		CAdminUiListRow::DEFAULT_ACTION_TYPE_FIELD => CAdminUiListRow::LINK_TYPE_URL,
+	]);
 	$USER_FIELD_MANAGER->AddUserFields($entity_id, $arRes, $row);
 
 	$row->AddViewField("ID", '<a href="'.$edit_url.'" title="'.GetMessage("IBSEC_A_EDIT").'">'.$arRes["ID"].'</a>');
@@ -1027,7 +1046,7 @@ $aContext[] = array(
 	"LINK" => $urlBuilder->getElementListUrl($parent_section_id),
 	"TITLE" => GetMessage("IBSEC_A_LISTEL_TITLE")
 );
-if ($urlBuilder->getId() == 'IBLOCK')
+if ($urlBuilderId === Iblock\Url\AdminPage\IblockBuilder::TYPE_ID)
 {
 	if ($useTree)
 		$aContext[] = array(
@@ -1049,6 +1068,9 @@ if ($urlBuilder->getId() == 'IBLOCK')
 		);
 }
 
+// TODO: hack for psevdo-excel export in crm (\CAdminUiList::GetSystemContextMenu)
+$_GET['urlBuilderId'] = $urlBuilderId;
+// TODO end
 $lAdmin->setContextSettings(array("pagePath" => $pageConfig['CONTEXT_PATH']));
 $contextConfig = array();
 $excelExport = (Main\Config\Option::get("iblock", "excel_export_rights") == "Y"
@@ -1129,7 +1151,7 @@ require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_aft
 
 
 $lAdmin->DisplayFilter($filterFields);
-$lAdmin->DisplayList(array("default_action" => true));
+$lAdmin->DisplayList();
 if($pageConfig['IBLOCK_EDIT'] && CIBlockRights::UserHasRightTo($IBLOCK_ID, $IBLOCK_ID, 'iblock_edit'))
 {
 	echo

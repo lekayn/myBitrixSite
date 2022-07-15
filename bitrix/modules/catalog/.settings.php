@@ -14,10 +14,24 @@ return [
 		'value' => [
 			'entities' => [
 				[
+					'entityId' => 'barcode',
+					'provider' => [
+						'moduleId' => 'catalog',
+						'className' => '\\Bitrix\\Catalog\\v2\\Integration\\UI\\EntitySelector\\BarcodeProvider',
+					],
+				],
+				[
 					'entityId' => 'product',
 					'provider' => [
 						'moduleId' => 'catalog',
 						'className' => '\\Bitrix\\Catalog\\v2\\Integration\\UI\\EntitySelector\\ProductProvider',
+					],
+				],
+				[
+					'entityId' => 'product_variation',
+					'provider' => [
+						'moduleId' => 'catalog',
+						'className' => '\\Bitrix\\Catalog\\v2\\Integration\\UI\\EntitySelector\\ProductVariationProvider',
 					],
 				],
 				[
@@ -34,9 +48,31 @@ return [
 						'className' => '\\Bitrix\\Catalog\\v2\\Integration\\UI\\EntitySelector\\BrandProvider',
 					],
 				],
+				[
+					'entityId' => 'contractor',
+					'provider' => [
+						'moduleId' => 'catalog',
+						'className' => '\\Bitrix\\Catalog\\v2\\Integration\\UI\\EntitySelector\\ContractorProvider',
+					],
+				],
+				[
+					'entityId' => 'store',
+					'provider' => [
+						'moduleId' => 'catalog',
+						'className' => '\\Bitrix\\Catalog\\v2\\Integration\\UI\\EntitySelector\\StoreProvider',
+					],
+				],
 			],
 			'extensions' => ['catalog.entity-selector'],
 		],
 		'readonly' => true,
 	],
+	'services' => [
+		'value' => [
+			'catalog.integration.pullmanager' => [
+				'className' => '\\Bitrix\\Catalog\\Integration\\PullManager',
+			],
+		],
+		'readonly' => true,
+	]
 ];

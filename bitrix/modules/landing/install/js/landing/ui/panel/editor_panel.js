@@ -162,6 +162,11 @@
 				var pos = BX.pos(jsDD.current_node);
 				offsetLeft = Math.max(Math.abs(x - pos.left), 0);
 				offsetTop = Math.max(Math.abs(y - pos.top), 0);
+				if (editor.currentElement.closest('.landing-ui-panel'))
+				{
+					offsetTop += BX.Landing.PageObject.getEditorWindow().scrollY;
+				}
+
 				offsetCalculates = true;
 			}
 
@@ -288,6 +293,18 @@
 		editor.addButton(new BX.Landing.UI.Button.TextBackgroundAction("hiliteColor", {
 			html: "<span class=\"landing-ui-icon-editor-text-background\"></span>",
 			attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_EDITOR_ACTION_TEXT_BACKGROUND")},
+			onClick: proxy(editor.adjustButtonsState, editor)
+		}));
+		
+		editor.addButton(new BX.Landing.UI.Button.CreateTable("createTable", {
+			html: "<span class=\"landing-ui-icon-editor-table\"></span>",
+			attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_EDITOR_ACTION_CREATE_TABLE")},
+			onClick: proxy(editor.adjustButtonsState, editor)
+		}));
+
+		editor.addButton(new BX.Landing.UI.Button.PasteTable("pasteTable", {
+			html: "<span class=\"landing-ui-icon-editor-copy\"></span>",
+			attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_EDITOR_ACTION_PASTE_TABLE")},
 			onClick: proxy(editor.adjustButtonsState, editor)
 		}));
 	}
@@ -421,9 +438,41 @@
 		 * @param {HTMLElement} element - Editable element
 		 * @param {?string} [position = "absolute"]
 		 * @param {BX.Landing.UI.Button.BaseButton[]} [additionalButtons]
+		 * @param {boolean} isTable
+		 * @param {array} hideButtons - List base buttons
 		 */
-		show: function(element, position, additionalButtons)
+		show: function(
+			element,
+			position,
+			additionalButtons,
+			isTable,
+			hideButtons
+		)
 		{
+			if (!isTable)
+			{
+				this.showBaseButtons();
+			}
+			else
+			{
+				if (hideButtons)
+				{
+					if (hideButtons.length > 0)
+					{
+						this.showBaseButtons();
+						this.hideBaseButtons(hideButtons);
+					}
+					else
+					{
+						this.hideAllBaseButtons();
+					}
+				}
+				else
+				{
+					this.hideAllBaseButtons();
+				}
+			}
+
 			this.currentElement = element;
 
 			if (this.additionalButtons)
@@ -587,6 +636,47 @@
 		isFixed: function()
 		{
 			return this.position === "fixed-top" || this.position === "fixed-right";
-		}
+		},
+
+		hideAllBaseButtons: function()
+		{
+			this.layout.childNodes.forEach(function(button){
+				if (button.dataset.id !== 'drag')
+				{
+					button.hidden = true;
+				}
+			});
+		},
+
+		hideBaseButtons: function(hideButtons)
+		{
+			this.layout.childNodes.forEach(function(button){
+				if (hideButtons.indexOf(button.dataset.id) !== -1)
+				{
+					button.hidden = true;
+				}
+			});
+		},
+
+		showBaseButtons: function()
+		{
+			this.layout.childNodes.forEach(function(button){
+				if (button.dataset.id === 'pasteTable')
+				{
+					if (window.copiedTable)
+					{
+						button.hidden = false;
+					}
+					else
+					{
+						button.hidden = true;
+					}
+				}
+				else
+				{
+					button.hidden = false;
+				}
+			});
+		},
 	};
 })();

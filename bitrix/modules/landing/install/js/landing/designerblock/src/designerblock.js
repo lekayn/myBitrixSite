@@ -1,5 +1,6 @@
 import {Dom, Event, Tag, Text} from 'main.core';
 import {Backend} from 'landing.backend';
+import {Env} from 'landing.env';
 import {Metrika} from 'landing.metrika';
 import {Highlight} from 'landing.ui.highlight';
 
@@ -24,6 +25,7 @@ export type DesignerBlockOptions = {
 	lid: number,
 	code: string,
 	designed: boolean,
+	autoPublicationEnabled: boolean,
 	access: string,
 	active: boolean,
 	anchor: string,
@@ -53,6 +55,7 @@ export class DesignerBlock
 	changed: boolean = false;
 	saving: boolean = false;
 	designed: boolean;
+	autoPublicationEnabled: boolean;
 	blockCode: string;
 	blockId: number;
 	landingId: number;
@@ -75,10 +78,12 @@ export class DesignerBlock
 		this.blockCode = options.code;
 		this.blockId = options.id;
 		this.designed = options.designed;
+		this.autoPublicationEnabled = options.autoPublicationEnabled;
 		this.landingId = options.lid;
 		this.nodes = options.manifest.nodes;
 		this.highlight = new Highlight();
 		this.cardSelectors = options.manifest.cards ? Object.keys(options.manifest.cards) : [];
+		this.designAllowed = !!Env.getInstance().getOptions().design_block_allowed;
 		this.cardSelectors.push('');// for without cards elements
 		this.nodeMap = new WeakMap();
 		this.metrika = new Metrika(true);
@@ -86,6 +91,10 @@ export class DesignerBlock
 			repository: options.repository,
 			onElementSelect: this.addElement.bind(this)
 		});
+
+		this.saveButton = parent.document.getElementById('landing-design-block-save')
+			|| top.document.getElementById('landing-design-block-save')
+			|| document.getElementById('landing-design-block-save');
 
 		this.preventEvents();
 		this.initHistoryEvents();
@@ -100,6 +109,8 @@ export class DesignerBlock
 	{
 		return content
 			.replace(/<div class="[^"]*landing-designer-block-pseudo-last[^"]*"[^>]*>[\s]*<\/div>/g, '')
+			.replace(/<div class="[^"]*landing-highlight-border[^"]*"[^>]*>[\s]*<\/div>/g, '')
+			.replace(/url\(&quot;(.*?)&quot;\)/g, 'url($1)')
 			.replace(/\s*data-(landingwrapper)="[^"]+"\s*/g, ' ')
 			.replace(/\s*[\w-_]+--type-wrapper\s*/g, ' ')
 			.replace(/<div[\s]*>[\s]*<\/div>/g, '')
@@ -178,41 +189,62 @@ export class DesignerBlock
 
 	initTopPanel()
 	{
-		// save block button on the top panel
-		top.BX.addCustomEvent('Landing:onDesignerBlockSave',
-			(finishCallback) => {
-				this.highlight.hide();
-				if (!this.changed)
+		Event.bind(this.saveButton, 'click', () => {
+			this.highlight.hide();
+
+			const finishCallback = () => {
+				if (BX.SidePanel && BX.SidePanel.Instance)
 				{
-					return;
+					BX.SidePanel.Instance.close();
 				}
-				this.saving = true;
-				setTimeout(() => {
-					Backend.getInstance()
-						.action(
-							'Block::updateContent',
-							{
-								lid: this.landingId,
-								block: this.blockId,
-								content: this.clearHtml(this.originalNode.innerHTML).replaceAll(' style="', ' bxstyle="'),
-								designed: 1
-							}
-						).then(() => {
-							if (finishCallback)
-							{
-								this.saving = false;
-								finishCallback();
-							}
-						});
-					this.sendLabel(
-						'designerBlock',
-						'save' +
-						'&designed=' + (this.designed ? 'Y' : 'N') +
-						'&code=' + this.blockCode
-					);
-				}, 300);
+			};
+			if (!this.changed)
+			{
+				finishCallback();
+				return;
 			}
-		);
+			if (!this.designAllowed)
+			{
+				top.BX.UI.InfoHelper.show('limit_crm_free_superblock1');
+				return;
+			}
+
+			this.saving = true;
+
+			const batch = {};
+			batch['Block::updateContent'] = {
+				action: 'Block::updateContent',
+				data: {
+					lid: this.landingId,
+					block: this.blockId,
+					content: this.clearHtml(this.originalNode.innerHTML).replaceAll(' style="', ' bxstyle="'),
+					designed: 1
+				}
+			};
+			if (this.autoPublicationEnabled)
+			{
+				batch['Landing::publication'] = {
+					action: 'Landing::publication',
+					data: {
+						lid: this.landingId
+					}
+				};
+			}
+
+			Backend.getInstance()
+				.batch('Block::updateContent', batch)
+				.then(() => {
+					this.saving = false;
+					finishCallback();
+				});
+
+			this.sendLabel(
+				'designerBlock',
+				'save' +
+				'&designed=' + (this.designed ? 'Y' : 'N') +
+				'&code=' + this.blockCode
+			);
+		});
 	}
 
 	initNodes()

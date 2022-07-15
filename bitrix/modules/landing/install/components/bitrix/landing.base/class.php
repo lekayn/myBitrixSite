@@ -7,6 +7,7 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 use \Bitrix\Crm\Integration\Landing\FormLanding;
 use \Bitrix\Landing\Landing;
 use \Bitrix\Landing\Manager;
+use \Bitrix\Landing\Site;
 use \Bitrix\Main\Loader;
 use \Bitrix\Main\Application;
 use \Bitrix\Main\Localization\Loc;
@@ -14,6 +15,7 @@ use \Bitrix\Main\Error;
 use \Bitrix\Main\Entity;
 use \Bitrix\Main\Page\Asset;
 use \Bitrix\Main\Service\GeoIp;
+use \Bitrix\Main\UI\PageNavigation;
 
 class LandingBaseComponent extends \CBitrixComponent
 {
@@ -111,6 +113,35 @@ class LandingBaseComponent extends \CBitrixComponent
 	}
 
 	/**
+	 * Updates site's and main page's titles.
+	 * @param int $siteId Site id.
+	 * @param array $update Data array.
+	 * @return void
+	 */
+	protected function updateMainTitles(int $siteId, array $update): void
+	{
+		$res = Site::update($siteId, $update);
+		if ($res->isSuccess())
+		{
+			$res = Site::getList([
+				'select' => [
+					'LANDING_ID_INDEX'
+				],
+				'filter' => [
+					'ID' => $siteId
+				]
+			]);
+			$row = $res->fetch();
+			if (!empty($row['LANDING_ID_INDEX']))
+			{
+				Landing::update($row['LANDING_ID_INDEX'], [
+					'TITLE' => $update['TITLE']
+				]);
+			}
+		}
+	}
+
+	/**
 	 * Returns current user GEO data.
 	 * @return array
 	 */
@@ -146,11 +177,16 @@ class LandingBaseComponent extends \CBitrixComponent
 	/**
 	 * Returns feedback parameters.
 	 * @param string $id Feedback code.
+	 * @param array $presets Additional params.
 	 * @return array|null
 	 */
-	public function getFeedbackParameters(string $id): ?array
+	public function getFeedbackParameters(string $id, array $presets = []): ?array
 	{
 		$id = 'landing-feedback-' . $id;
+		$tariffTtl = \Bitrix\Main\Config\Option::get('main', '~controller_group_till');
+		$tariffDate = $tariffTtl ? (string)\Bitrix\Main\Type\Date::createFromTimestamp((int)$tariffTtl) : null;
+		$partnerId = \Bitrix\Main\Config\Option::get('bitrix24', 'partner_id', 0);
+		$b24 = Loader::includeModule('bitrix24');
 
 		$data = [
 			'landing-feedback-designblock' => [
@@ -210,15 +246,46 @@ class LandingBaseComponent extends \CBitrixComponent
 				],
 				'PRESETS' => [
 					'url' => defined('BX24_HOST_NAME') ? BX24_HOST_NAME : $_SERVER['SERVER_NAME'],
-					'tarif' => ($b24 = Loader::includeModule('bitrix24')) ? \CBitrix24::getLicenseType() : '',
+					'tarif' => $b24 ? \CBitrix24::getLicenseType() : '',
 					'city' => $b24 ? implode(' / ', $this->getUserGeoData()) : '',
-					'partner_id' => \Bitrix\Main\Config\Option::get('bitrix24', 'partner_id', 0)
+					'partner_id' => $partnerId,
+					'date_to' => $tariffDate ?: null
+				],
+				'PORTAL_URI' => 'https://cp.bitrix.ru'
+			],
+			'landing-feedback-knowledge' => [
+				'ID' => 'landing-feedback-knowledge',
+				'VIEW_TARGET' => null,
+				'FORMS' => [
+					['zones' => ['en'], 'id' => '1399','lang' => 'en', 'sec' => 'fkonbt'],
+					['zones' => ['de'], 'id' => '1398','lang' => 'de', 'sec' => 'zvchw9'],
+					['zones' => ['es'], 'id' => '1396','lang' => 'la', 'sec' => 'vb62o3'],
+					['zones' => ['fr'], 'id' => '1401','lang' => 'fr', 'sec' => 'ungyc0'],
+					['zones' => ['pl'], 'id' => '1392','lang' => 'pl', 'sec' => 'ib6p6u'],
+					['zones' => ['pt'], 'id' => '1394','lang' => 'pt', 'sec' => 'sfzq02'],
+					['zones' => ['ua'], 'id' => '1373','lang' => 'ua', 'sec' => 'p4xpwb'],
+					['zones' => ['ru'], 'id' => '1368','lang' => 'ru', 'sec' => '0rb92n'],
+					['zones' => ['kz'], 'id' => '1372','lang' => 'ru', 'sec' => 'o32l7z'],
+					['zones' => ['by'], 'id' => '1378','lang' => 'ru', 'sec' => 'naegic']
+				],
+				'PRESETS' => [
+					'url' => defined('BX24_HOST_NAME') ? BX24_HOST_NAME : $_SERVER['SERVER_NAME'],
+					'tarif' => $b24 ? \CBitrix24::getLicenseType() : '',
+					'city' => $b24 ? implode(' / ', $this->getUserGeoData()) : '',
+					'partner_id' => $partnerId,
+					'date_to' => $tariffDate ?: null
 				],
 				'PORTAL_URI' => 'https://cp.bitrix.ru'
 			]
 		];
 
-		return array_key_exists($id, $data) ? $data[$id] : null;
+		$data = array_key_exists($id, $data) ? $data[$id] : null;
+		if ($presets)
+		{
+			$data['PRESETS'] += $presets;
+		}
+
+		return $data;
 	}
 
 	/**
@@ -499,8 +566,15 @@ class LandingBaseComponent extends \CBitrixComponent
 	 * Gets last navigation object.
 	 * @return \Bitrix\Main\UI\PageNavigation
 	 */
-	public function getLastNavigation()
+	public function getLastNavigation(): PageNavigation
 	{
+		if (!$this->lastNavigation)
+		{
+			$this->lastNavigation = new PageNavigation('nav');
+			$this->lastNavigation
+				->allowAllRecords(false)
+				->initFromUri();
+		}
 		return $this->lastNavigation;
 	}
 
@@ -722,7 +796,7 @@ class LandingBaseComponent extends \CBitrixComponent
 	protected function getTimestampUrl($url)
 	{
 		// temporary disable this function
-		if (false && Manager::isB24())
+		if (Manager::isB24())
 		{
 			return rtrim($url, '/') . '/?ts=' . time();
 		}
@@ -1041,6 +1115,7 @@ class LandingBaseComponent extends \CBitrixComponent
 	/**
 	 * Detects site special type and returns it.
 	 * @param int $siteId Site id.
+	 * @deprecated since 21.700.0
 	 * @return string|null
 	 */
 	protected function getSpecialTypeSite(int $siteId): ?string
@@ -1053,6 +1128,27 @@ class LandingBaseComponent extends \CBitrixComponent
 				'crm', FormLanding::OPT_CODE_LANDINGS_SITE_ID
 			);
 			if ($storedSiteId == $siteId)
+			{
+				$specialType = \Bitrix\Landing\Site\Type::PSEUDO_SCOPE_CODE_FORMS;
+			}
+		}
+
+		return $specialType;
+	}
+
+	/**
+	 * Detects site special type and returns it.
+	 * @param Landing $landing Landing instance.
+	 * @return string|null
+	 */
+	protected function getSpecialTypeSiteByLanding(Landing $landing): ?string
+	{
+		$specialType = null;
+		$meta = $landing->getMeta();
+
+		if ($meta['SITE_SPECIAL'] === 'Y')
+		{
+			if (preg_match('#^/' . Site\Type::PSEUDO_SCOPE_CODE_FORMS . '[\d]*/$#', $meta['SITE_CODE']))
 			{
 				$specialType = \Bitrix\Landing\Site\Type::PSEUDO_SCOPE_CODE_FORMS;
 			}
@@ -1134,6 +1230,75 @@ class LandingBaseComponent extends \CBitrixComponent
 		}
 
 		return $users;
+	}
+
+	/**
+	 * Until updater to new folders is running, this method helps to force update specific site.
+	 * @param int $siteId Site id.
+	 * @return void
+	 */
+	protected function forceUpdateNewFolders(int $siteId): void
+	{
+		// hotfix #147619 + #147868
+		/*if (Manager::getOption('landing_new') === 'Y')
+		{
+			return;
+		}*/
+		\Bitrix\Landing\Site\Type::setScope(
+			$this->arParams['TYPE']
+		);
+
+		$result = [];
+		$updater = new \Bitrix\Landing\Update\Landing\FolderNew();
+		$updater->execute($result, $siteId);
+	}
+
+	/**
+	 * Checks if form's block exists within landing.
+	 * @param Landing $landing Landing instance.
+	 * @return void
+	 */
+	protected function checkFormInLanding(Landing $landing): void
+	{
+		$formExists = false;
+
+		foreach ($landing->getBlocks() as $block)
+		{
+			$manifest = $block->getManifest();
+			if (($manifest['block']['subtype'] ?? null) === 'form')
+			{
+				$formExists = true;
+				break;
+			}
+		}
+
+		if (!$formExists && \Bitrix\Main\Loader::includeModule('crm'))
+		{
+			\Bitrix\Landing\Rights::setGlobalOff();
+			$res = \Bitrix\Crm\WebForm\Internals\LandingTable::getList([
+				'select' => [
+					'FORM_ID'
+				],
+				'filter' => [
+					'LANDING_ID' => $landing->getId()
+				]
+			]);
+			if ($row = $res->fetch())
+			{
+				$blockId = $landing->addBlock('66.90.form_new_default', [
+					'ACCESS' => 'W'
+				]);
+				if($blockId)
+				{
+					\Bitrix\Landing\Subtype\Form::setFormIdToBlock($blockId, $row['FORM_ID']);
+					if ($landing->isActive())
+					{
+						$landing->publication();
+					}
+				}
+			}
+			\Bitrix\Landing\Rights::setGlobalOn();
+		}
 	}
 
 	/**

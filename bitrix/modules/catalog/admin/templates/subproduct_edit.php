@@ -1,12 +1,12 @@
 <?
 /** @global CUser $USER */
 /** @global CMain $APPLICATION */
-use Bitrix\Main,
-	Bitrix\Currency,
-	Bitrix\Catalog;
+use Bitrix\Main;
+use Bitrix\Currency;
+use Bitrix\Catalog;
 
 $selfFolderUrl = (defined("SELF_FOLDER_URL") ? SELF_FOLDER_URL : "/bitrix/admin/");
-$publicMode = (defined("SELF_FOLDER_URL") ? true : false);
+$publicMode = defined("SELF_FOLDER_URL");
 
 if ($USER->CanDoOperation('catalog_read') || $USER->CanDoOperation('catalog_price') || $USER->CanDoOperation('catalog_view'))
 {
@@ -2058,14 +2058,66 @@ function HideNotice()
 				<?
 			}
 
-			$arUserFields = $USER_FIELD_MANAGER->GetUserFields(Catalog\ProductTable::getUfId(), $PRODUCT_ID, LANGUAGE_ID);
+			$userFieldManager = Main\UserField\Internal\UserFieldHelper::getInstance()->getManager();
+			$arUserFields = $userFieldManager->GetUserFields(
+				Catalog\ProductTable::getUfId(),
+				$PRODUCT_ID,
+				LANGUAGE_ID
+			);
 			if (!empty($arUserFields))
 			{
-				if ($arCatalog['SUBSCRIPTION'] == 'Y')
+				foreach (array_keys($arUserFields) as $fieldName)
 				{
-					if (isset($arUserFields['UF_PRODUCT_GROUP']))
-						unset($arUserFields['UF_PRODUCT_GROUP']);
+					$arUserFields[$fieldName]['VALUE_ID'] = $PRODUCT_ID;
+					$arUserFields[$fieldName]['EDIT_FORM_LABEL'] = $arUserFields[$fieldName]['EDIT_FORM_LABEL']
+						??
+						$arUserFields[$fieldName]['FIELD_NAME']
+					;
 				}
+				unset($fieldName);
+
+				$restrictions = [
+					'TYPE' => (int)$arBaseProduct['TYPE'],
+					'IBLOCK_ID' => $IBLOCK_ID,
+				];
+
+				$permissionFields = Catalog\Product\SystemField::getPermissionFieldsByRestrictions($restrictions);
+				foreach ($permissionFields as $field => $permission)
+				{
+					if (
+						!$permission
+						&& isset($arUserFields[$field])
+					)
+					{
+						unset($arUserFields[$field]);
+					}
+				}
+				$systemFields = Catalog\Product\SystemField::getFieldNamesByRestrictions($restrictions);
+
+				if (!empty($systemFields))
+				{
+					?><tr class="heading">
+					<td colspan="2"><?=GetMessage("C2IT_UF_SYSTEM_FIELDS"); ?></td>
+					</tr><?
+
+					foreach ($systemFields as $fieldName)
+					{
+						$html = $userFieldManager->GetEditFormHTML(
+							$bVarsFromForm,
+							$GLOBALS[$fieldName] ?? '',
+							$arUserFields[$fieldName]
+						);
+						//TODO: remove this code after refactoring UF fields
+						if ($fieldName == 'UF_PRODUCT_GROUP')
+						{
+							$html = str_replace('<select', '<select style="max-width: 300px;"', $html);
+						}
+						echo $html;
+
+						unset($arUserFields[$fieldName]);
+					}
+				}
+				unset($systemFields);
 			}
 			if (!empty($arUserFields))
 			{
@@ -2075,21 +2127,17 @@ function HideNotice()
 
 				foreach ($arUserFields as $FIELD_NAME => $arUserField)
 				{
-					$arUserField["VALUE_ID"] = $PRODUCT_ID;
-					$strLabel = $arUserField["EDIT_FORM_LABEL"] ? $arUserField["EDIT_FORM_LABEL"] : $arUserField["FIELD_NAME"];
-					$arUserField["EDIT_FORM_LABEL"] = $strLabel;
 
-					$html = $USER_FIELD_MANAGER->GetEditFormHTML($bVarsFromForm, $GLOBALS[$FIELD_NAME], $arUserField);
-					//TODO: remove this code after refactoring UF fields
-					if ($FIELD_NAME == 'UF_PRODUCT_GROUP')
-					{
-						$html = str_replace('<select', '<select style="max-width: 300px;"', $html);
-					}
-					echo $html;
+					echo $userFieldManager->GetEditFormHTML(
+						$bVarsFromForm,
+						$GLOBALS[$fieldName] ?? '',
+						$arUserField
+					);
 				}
 				unset($FIELD_NAME, $arUserField);
 			}
 			unset($arUserFields);
+			unset($userFieldManager);
 			?>
 		</table>
 <script type="text/javascript">
@@ -2306,6 +2354,8 @@ SetSubFieldsStyle('subcatalog_properties_table');
 		<br>
 		<?echo GetMessage("C2IT_DISCOUNT_HINT");
 	$subtabControl1->BeginNextTab();
+
+		$showStoreReserve = Catalog\Config\State::isShowedStoreReserve();
 		$stores = array();
 		$storeLink = array();
 		$storeCount = 0;
@@ -2319,6 +2369,7 @@ SetSubFieldsStyle('subcatalog_properties_table');
 			$row['ID'] = (int)$row['ID'];
 			$row['ADDRESS'] = trim($row['ADDRESS']);
 			$row['PRODUCT_AMOUNT'] = '';
+			$row['QUANTITY_RESERVED'] = '';
 			$stores[$storeCount] = $row;
 			$storeLink[$row['ID']] = &$stores[$storeCount];
 			$storeCount++;
@@ -2329,25 +2380,49 @@ SetSubFieldsStyle('subcatalog_properties_table');
 			$storeIds = array_keys($storeLink);
 			if (!$bCopy)
 			{
-				$iterator = Catalog\StoreProductTable::getList(array(
-					'select' => array('STORE_ID', 'AMOUNT'),
-					'filter' => array('=PRODUCT_ID' => $PRODUCT_ID, '@STORE_ID' => $storeIds)
-				));
+				$select = [
+					'STORE_ID',
+					'AMOUNT'
+				];
+				if ($showStoreReserve)
+				{
+					$select[] = 'QUANTITY_RESERVED';
+				}
+				$iterator = Catalog\StoreProductTable::getList([
+					'select' => $select,
+					'filter' => [
+						'=PRODUCT_ID' => $PRODUCT_ID,
+						'@STORE_ID' => $storeIds
+					],
+				]);
 				while ($row = $iterator->fetch())
 				{
 					$storeId = (int)$row['STORE_ID'];
 					$storeLink[$storeId]['PRODUCT_AMOUNT'] = $row['AMOUNT'];
+					if ($showStoreReserve)
+					{
+						$row['QUANTITY_RESERVED'] = (string)$row['QUANTITY_RESERVED'];
+						if ($row['QUANTITY_RESERVED'] !== '0')
+						{
+							$storeLink[$storeId]['QUANTITY_RESERVED'] = $row['QUANTITY_RESERVED'];
+						}
+					}
 				}
 				unset($row, $iterator);
 			}
 			if ($bVarsFromForm)
 			{
-				foreach ($storeIds as $store)
+				if ($bStore && !$bUseStoreControl)
 				{
-					if (isset($_POST['SUBAR_AMOUNT'][$store]) && is_string($_POST['SUBAR_AMOUNT'][$store]))
-						$storeLink[$store]['PRODUCT_AMOUNT'] = $_POST['SUBAR_AMOUNT'][$store];
+					foreach ($storeIds as $store)
+					{
+						if (isset($_POST['SUBAR_AMOUNT'][$store]) && is_string($_POST['SUBAR_AMOUNT'][$store]))
+						{
+							$storeLink[$store]['PRODUCT_AMOUNT'] = $_POST['SUBAR_AMOUNT'][$store];
+						}
+					}
+					unset($store);
 				}
-				unset($store);
 			}
 			unset($storeIds);
 		}
@@ -2360,7 +2435,12 @@ SetSubFieldsStyle('subcatalog_properties_table');
 				<td><? echo GetMessage('C2IT_STORE_ID'); ?></td>
 				<td><?echo GetMessage("C2IT_NAME"); ?></td>
 				<td><?echo GetMessage("C2IT_STORE_ADDR"); ?></td>
-				<td><?echo GetMessage("C2IT_PROD_AMOUNT"); ?></td>
+				<td><?echo GetMessage("C2IT_PROD_AMOUNT"); ?></td><?php
+				if ($showStoreReserve)
+				{
+					?><td><?php echo GetMessage("C2IT_PROD_QUANTITY_RESERVED"); ?></td><?php
+				}
+				?>
 			</tr>
 			<?
 			foreach ($stores as $storeIndex => $row)
@@ -2386,7 +2466,12 @@ SetSubFieldsStyle('subcatalog_properties_table');
 				{
 					?><input type="hidden" name="SUBAR_STORE_ID[<?=$row['ID']?>]" value="<?=$row['ID']?>"><?
 				}
-				?></td></tr><?
+				?></td><?php
+				if ($showStoreReserve)
+				{
+					?><td><input type="text" size="12" disable readonly value="<?=htmlspecialcharsbx($row['QUANTITY_RESERVED']); ?>"></td><?php
+				}
+				?></tr><?
 				unset($storeUrl, $address, $storeId);
 			}
 			unset($storeIndex, $row);

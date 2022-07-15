@@ -49,6 +49,16 @@ class BrandProvider extends BaseProvider
 
 	public function fillDialog(Dialog $dialog): void
 	{
+		$dialog->loadPreselectedItems();
+
+		if ($dialog->getItemCollection()->count() > 0)
+		{
+			foreach ($dialog->getItemCollection() as $item)
+			{
+				$dialog->addRecentItem($item);
+			}
+		}
+
 		$recentItemsCount = count($dialog->getRecentItems()->getEntityItems(self::BRAND_ENTITY_ID));
 
 		if ($recentItemsCount < self::BRAND_LIMIT)
@@ -118,7 +128,7 @@ class BrandProvider extends BaseProvider
 		$propertySettings['USER_TYPE_SETTINGS'] = (
 		$userTypeSettings = CheckSerializedData($propertySettings['USER_TYPE_SETTINGS'])
 			? unserialize($propertySettings['USER_TYPE_SETTINGS'], ['allowed_classes' => false])
-			: array()
+			: []
 		);
 
 		if (empty($userTypeSettings['TABLE_NAME']))
@@ -126,18 +136,18 @@ class BrandProvider extends BaseProvider
 			return [];
 		}
 
-		$table = HL\HighloadBlockTable::getList(
-			array(
-				'select' => array('TABLE_NAME', 'NAME', 'ID'),
-				'filter' => array('=TABLE_NAME' => $userTypeSettings['TABLE_NAME'])
-			)
-		)->fetch();
+		$table = HL\HighloadBlockTable::getList([
+			'select' => ['TABLE_NAME', 'NAME', 'ID'],
+			'filter' => ['=TABLE_NAME' => $userTypeSettings['TABLE_NAME']],
+		])
+			->fetch()
+		;
 
 		$brandEntity = HL\HighloadBlockTable::compileEntity($table);
 		$brandEntityClass = $brandEntity->getDataClass();
 
 		$parameters = [
-			'select' => ['UF_XML_ID', 'UF_FILE', 'UF_NAME']
+			'select' => ['UF_XML_ID', 'UF_FILE', 'UF_NAME'],
 		];
 
 		if (!empty($filter))

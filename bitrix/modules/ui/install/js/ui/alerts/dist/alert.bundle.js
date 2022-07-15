@@ -14,6 +14,7 @@ this.BX = this.BX || {};
 	babelHelpers.defineProperty(AlertColor, "SUCCESS", 'ui-alert-success');
 	babelHelpers.defineProperty(AlertColor, "WARNING", 'ui-alert-warning');
 	babelHelpers.defineProperty(AlertColor, "PRIMARY", 'ui-alert-primary');
+	babelHelpers.defineProperty(AlertColor, "INFO", 'ui-alert-info');
 
 	/**
 	 * @namespace {BX.UI}
@@ -36,15 +37,7 @@ this.BX = this.BX || {};
 	babelHelpers.defineProperty(AlertIcon, "WARNING", 'ui-alert-icon-warning');
 	babelHelpers.defineProperty(AlertIcon, "DANGER", 'ui-alert-icon-danger');
 
-	function _templateObject() {
-	  var data = babelHelpers.taggedTemplateLiteral(["<div class=\"", "\">", "</div>"]);
-
-	  _templateObject = function _templateObject() {
-	    return data;
-	  };
-
-	  return data;
-	}
+	var _templateObject;
 
 	var Alert = /*#__PURE__*/function () {
 	  function Alert(options) {
@@ -56,6 +49,8 @@ this.BX = this.BX || {};
 	    this.closeBtn = !!options.closeBtn ? true : options.closeBtn;
 	    this.animated = !!options.animated ? true : options.animated;
 	    this.customClass = options.customClass;
+	    this.beforeMessageHtml = main_core.Type.isElementNode(options.beforeMessageHtml) ? options.beforeMessageHtml : false;
+	    this.afterMessageHtml = main_core.Type.isElementNode(options.afterMessageHtml) ? options.afterMessageHtml : false;
 	    this.setText(this.text);
 	    this.setSize(this.size);
 	    this.setIcon(this.icon);
@@ -107,9 +102,8 @@ this.BX = this.BX || {};
 	  }, {
 	    key: "setText",
 	    value: function setText(text) {
-	      this.text = text;
-
 	      if (main_core.Type.isStringFilled(text)) {
+	        this.text = text;
 	        this.getTextContainer().innerHTML = text;
 	      }
 	    }
@@ -122,11 +116,11 @@ this.BX = this.BX || {};
 	    key: "getTextContainer",
 	    value: function getTextContainer() {
 	      if (!this.textContainer) {
-	        this.textContainer = BX.create('span', {
+	        this.textContainer = main_core.Dom.create('span', {
 	          props: {
 	            className: 'ui-alert-message'
 	          },
-	          html: this.getText()
+	          html: this.text
 	        });
 	      }
 
@@ -147,7 +141,7 @@ this.BX = this.BX || {};
 	      }
 
 	      if (!this.closeNode && this.closeBtn === true) {
-	        this.closeNode = BX.create("span", {
+	        this.closeNode = main_core.Dom.create("span", {
 	          props: {
 	            className: "ui-alert-close-btn"
 	          },
@@ -165,8 +159,34 @@ this.BX = this.BX || {};
 	      if (this.animated === true) {
 	        this.animateClosing();
 	      } else {
-	        BX.remove(this.container);
+	        main_core.Dom.remove(this.container);
 	      }
+	    } // endregion
+	    // region Custom HTML
+
+	  }, {
+	    key: "setBeforeMessageHtml",
+	    value: function setBeforeMessageHtml(element) {
+	      if (main_core.Type.isElementNode(element) && element !== false) {
+	        this.beforeMessageHtml = element;
+	      }
+	    }
+	  }, {
+	    key: "getBeforeMessageHtml",
+	    value: function getBeforeMessageHtml() {
+	      return this.beforeMessageHtml;
+	    }
+	  }, {
+	    key: "setAfterMessageHtml",
+	    value: function setAfterMessageHtml(element) {
+	      if (main_core.Type.isElementNode(element) && element !== false) {
+	        this.afterMessageHtml = element;
+	      }
+	    }
+	  }, {
+	    key: "getAfterMessageHtml",
+	    value: function getAfterMessageHtml() {
+	      return this.afterMessageHtml;
 	    } //endregion
 	    //region CUSTOM CLASS
 
@@ -247,7 +267,7 @@ this.BX = this.BX || {};
 	    key: "animateClosing",
 	    value: function animateClosing() {
 	      this.container.style.overflow = "hidden";
-	      var alertWrapPos = BX.pos(this.container);
+	      var alertWrapPos = main_core.Dom.getPosition(this.container);
 	      this.container.style.height = alertWrapPos.height + "px";
 	      setTimeout(function () {
 	        this.container.style.height = 0;
@@ -257,21 +277,39 @@ this.BX = this.BX || {};
 	        this.container.style.opacity = 0;
 	      }.bind(this), 10);
 	      setTimeout(function () {
-	        BX.remove(this.container);
+	        main_core.Dom.remove(this.container);
 	      }.bind(this), 260);
 	    } //endregion
 
 	  }, {
+	    key: "show",
+	    value: function show() {
+	      this.animateOpening();
+	    }
+	  }, {
+	    key: "hide",
+	    value: function hide() {
+	      this.animateClosing();
+	    }
+	  }, {
 	    key: "getContainer",
 	    value: function getContainer() {
-	      this.container = main_core.Tag.render(_templateObject(), this.getClassList(), this.getTextContainer());
+	      this.container = main_core.Tag.render(_templateObject || (_templateObject = babelHelpers.taggedTemplateLiteral(["<div class=\"", "\">", "</div>"])), this.getClassList(), this.getTextContainer());
 
 	      if (this.animated === true) {
 	        this.animateOpening();
 	      }
 
 	      if (this.closeBtn === true) {
-	        BX.append(this.getCloseBtn(), this.container);
+	        main_core.Dom.append(this.getCloseBtn(), this.container);
+	      }
+
+	      if (main_core.Type.isElementNode(this.beforeMessageHtml)) {
+	        main_core.Dom.prepend(this.getBeforeMessageHtml(), this.getTextContainer());
+	      }
+
+	      if (main_core.Type.isElementNode(this.afterMessageHtml)) {
+	        main_core.Dom.append(this.getAfterMessageHtml(), this.getTextContainer());
 	      }
 
 	      return this.container;
@@ -280,6 +318,33 @@ this.BX = this.BX || {};
 	    key: "render",
 	    value: function render() {
 	      return this.getContainer();
+	    }
+	  }, {
+	    key: "renderTo",
+	    value: function renderTo(node) {
+	      if (main_core.Type.isDomNode(node)) {
+	        return node.appendChild(this.getContainer());
+	      }
+
+	      return null;
+	    }
+	  }, {
+	    key: "destroy",
+	    value: function destroy() {
+	      main_core.Dom.remove(this.container);
+	      this.container = null;
+	      this.finished = false;
+	      this.textAfterContainer = null;
+	      this.textBeforeContainer = null;
+	      this.bar = null;
+
+	      for (var property in this) {
+	        if (this.hasOwnProperty(property)) {
+	          delete this[property];
+	        }
+	      }
+
+	      Object.setPrototypeOf(this, null);
 	    }
 	  }]);
 	  return Alert;

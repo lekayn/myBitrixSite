@@ -9,6 +9,7 @@ use Bitrix\Main\Error;
 use Bitrix\Main\Type\Collection;
 use Bitrix\Main\Type\DateTime;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Sale\Internals\FacebookConversion;
 
 /**
  * @global \CUser $USER
@@ -284,6 +285,14 @@ abstract class Element extends Base
 		if ($this->checkElementId())
 		{
 			parent::processResultData();
+			$this->arResult['IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED'] = false;
+			if (Loader::includeModule('sale'))
+			{
+				$this->arResult['IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED'] = FacebookConversion::isEventEnabled(
+					'CustomizeProduct'
+				);
+			}
+
 		}
 		else
 		{
@@ -1334,7 +1343,7 @@ abstract class Element extends Base
 
 	protected function editTemplateJsOffers(&$item, $offerSet)
 	{
-		$matrix = array();
+		$matrix = [];
 		$intSelected = -1;
 
 		foreach ($item['OFFERS'] as $keyOffer => $offer)
@@ -1357,17 +1366,19 @@ abstract class Element extends Base
 			$skuProps = false;
 			if (!empty($offer['DISPLAY_PROPERTIES']))
 			{
-				$skuProps = array();
+				$skuProps = [];
 				foreach ($offer['DISPLAY_PROPERTIES'] as $oneProp)
 				{
-					if ($oneProp['PROPERTY_TYPE'] === 'F')
+					if ($oneProp['PROPERTY_TYPE'] === Iblock\PropertyTable::TYPE_FILE)
+					{
 						continue;
+					}
 
-					$skuProps[] = array(
+					$skuProps[] = [
 						'CODE' => $oneProp['CODE'],
 						'NAME' => $oneProp['NAME'],
-						'VALUE' => $oneProp['DISPLAY_VALUE']
-					);
+						'VALUE' => $oneProp['DISPLAY_VALUE'],
+					];
 				}
 				unset($oneProp);
 			}
@@ -1380,7 +1391,7 @@ abstract class Element extends Base
 
 			$ratioSelectedIndex = $offer['ITEM_MEASURE_RATIO_SELECTED'];
 			$firstPhoto = reset($offer['MORE_PHOTO']);
-			$arOneRow = array(
+			$oneRow = [
 				'ID' => $offer['ID'],
 				'CODE' => $offer['CODE'],
 				'NAME' => $offer['~NAME'],
@@ -1409,10 +1420,10 @@ abstract class Element extends Base
 				'CATALOG_SUBSCRIBE' => $offer['PRODUCT']['SUBSCRIBE'],
 				'SLIDER' => $offer['MORE_PHOTO'],
 				'SLIDER_COUNT' => $offer['MORE_PHOTO_COUNT'],
-			);
+			];
 			unset($ratioSelectedIndex);
 
-			$matrix[$keyOffer] = $arOneRow;
+			$matrix[$keyOffer] = $oneRow;
 		}
 
 		if ($intSelected == -1)

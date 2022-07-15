@@ -5,6 +5,7 @@ use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Web\Json;
 
 \Bitrix\Main\UI\Extension::load("sender.error_handler");
+\Bitrix\Main\UI\Extension::load("bitrix24.phoneverify");
 
 /** @var CAllMain $APPLICATION */
 /** @var array $arParams */
@@ -17,6 +18,12 @@ $containerId = 'bx-sender-message-tester-' . $arParams['ID'];
 $hint = Loc::getMessage('SENDER_MESSAGE_TESTER_TMPL_TEST_HINT_'.mb_strtoupper($arResult['MESSAGE_CODE']));
 $hint = $hint ?: Loc::getMessage('SENDER_MESSAGE_TESTER_TMPL_TEST_HINT_'.mb_strtoupper($arResult['TYPE_CODE']));
 $hint = $hint ?: Loc::getMessage('SENDER_MESSAGE_TESTER_TMPL_TEST_HINT');
+
+$enablePhoneVerification =
+	(! (bool)$arParams['IS_PHONE_CONFIRMED'])
+	&& $arParams['IS_BX24_INSTALLED']
+	&& in_array($arParams['MESSAGE_CODE'], [null, \Bitrix\Sender\Transport\iBase::CODE_MAIL], true)
+;
 ?>
 <? if($arParams['CAN_EDIT']): ?>
 <div id="<?=htmlspecialcharsbx($containerId)?>" class="sender-message-tester">
@@ -38,12 +45,23 @@ $hint = $hint ?: Loc::getMessage('SENDER_MESSAGE_TESTER_TMPL_TEST_HINT');
 				'BUTTON_SELECT_CAPTION' => Loc::getMessage('SENDER_MESSAGE_TESTER_TMPL_TEST_SPECIFY')
 			))?>
 		</div>
+		<div class="sender-test-container">
+			<div class="sender-test-button-container">
+				<div class="sender-test-button-bottom">
+					<span data-role="test-button" class="ui-btn ui-btn-primary">
+						<?=Loc::getMessage('SENDER_MESSAGE_TESTER_TMPL_TEST_SEND')?>
+					</span>
 
-		<div>
-			<div class="sender-test-button-bottom">
-				<span data-role="test-button" class="ui-btn ui-btn-primary">
-					<?=Loc::getMessage('SENDER_MESSAGE_TESTER_TMPL_TEST_SEND')?>
-				</span>
+				</div>
+				<?php if($arResult['VALIDATION_TEST']):?>
+					<div class="sender-test-button-bottom">
+					<span data-role="test-validation-button" class="ui-btn ui-btn-light-border">
+						<?=Loc::getMessage('SENDER_MESSAGE_TESTER_TMPL_VALIDATION_TEST_SEND')?>
+					</span>
+					</div>
+				<?php endif;?>
+			</div>
+			<div class="result-container">
 				<span data-role="test-result" class="sender-test-result-line">
 					<!--
 					<span class="sender-test-result-line-icon"></span>
@@ -56,6 +74,12 @@ $hint = $hint ?: Loc::getMessage('SENDER_MESSAGE_TESTER_TMPL_TEST_HINT');
 
 <script type="text/javascript">
 	BX.ready(function () {
+		<?php if ($enablePhoneVerification): ?>
+		BX.Bitrix24.PhoneVerify
+			.setVerified(false)
+			.setMandatory(false);
+		<?php endif; ?>
+
 		BX.Sender.Message.Tester.init(<?=Json::encode(array(
 			'id' => $arParams['ID'],
 			'containerId' => $containerId,
@@ -64,6 +88,7 @@ $hint = $hint ?: Loc::getMessage('SENDER_MESSAGE_TESTER_TMPL_TEST_HINT');
 			'type' => $arResult['TYPE_ID'],
 			'types' => $arResult['TYPES'],
 			'lastRecipients' => $arResult['LAST_RECIPIENTS'],
+			'enablePhoneVerification' => $enablePhoneVerification,
 			'mess' => array(
 				'testSuccess' => Loc::getMessage('SENDER_MESSAGE_TESTER_TMPL_TEST_SUCCESS'),
 				'testSuccessPhone' => Loc::getMessage('SENDER_MESSAGE_TESTER_TMPL_TEST_SUCCESS_PHONE'),
@@ -71,6 +96,7 @@ $hint = $hint ?: Loc::getMessage('SENDER_MESSAGE_TESTER_TMPL_TEST_HINT');
 				'categoryLast' => Loc::getMessage('SENDER_MESSAGE_TESTER_TMPL_TEST_CAT_LAST'),
 				'searchTitleMail' => Loc::getMessage('SENDER_MESSAGE_TESTER_TMPL_TEST_TITLE_MAIL'),
 				'searchTitlePhone' => Loc::getMessage('SENDER_MESSAGE_TESTER_TMPL_TEST_TITLE_PHONE'),
+				'consentSuccess' => Loc::getMessage('SENDER_MESSAGE_TESTER_TMPL_VALIDATION_TEST_SUCCESS'),
 			)
 		))?>);
 	});

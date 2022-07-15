@@ -17,6 +17,22 @@ use Bitrix\Fileman\Block\EditorMail as BlockEditorMail;
 
 Loc::loadMessages(__FILE__);
 
+/**
+ * Class TemplateTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Template_Query query()
+ * @method static EO_Template_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Template_Result getById($id)
+ * @method static EO_Template_Result getList(array $parameters = array())
+ * @method static EO_Template_Entity getEntity()
+ * @method static \Bitrix\Sender\EO_Template createObject($setDefaultValues = true)
+ * @method static \Bitrix\Sender\EO_Template_Collection createCollection()
+ * @method static \Bitrix\Sender\EO_Template wakeUpObject($row)
+ * @method static \Bitrix\Sender\EO_Template_Collection wakeUpCollection($rows)
+ */
 class TemplateTable extends ORM\Data\DataManager
 {
 	const LOCAL_DIR_IMG = '/images/sender/preset/template/';
@@ -159,6 +175,18 @@ class TemplateTable extends ORM\Data\DataManager
 		return $result;
 	}
 
+	public static function onAfterAdd(ORM\Event $event)
+	{
+		$result = new ORM\EventResult;
+		$data = $event->getParameters();
+		if (isset($data['fields']['CONTENT']))
+		{
+			\Bitrix\Sender\FileTable::syncFiles($data['primary']['ID'], 1, $data['fields']['CONTENT']);
+		}
+
+		return $result;
+	}
+
 	/**
 	 * Handler of before delete event.
 	 *
@@ -174,6 +202,7 @@ class TemplateTable extends ORM\Data\DataManager
 		{
 			$data['fields']['CONTENT'] = Security\Sanitizer::fixTemplateStyles($data['fields']['CONTENT']);
 			$result->modifyFields($data['fields']);
+			\Bitrix\Sender\FileTable::syncFiles($data['primary']['ID'], 1, $data['fields']['CONTENT']);
 		}
 
 		return $result;
@@ -213,6 +242,10 @@ class TemplateTable extends ORM\Data\DataManager
 			$result->addError(new ORM\EntityError($message));
 		}
 
+		if (!$result->getErrors())
+		{
+			\Bitrix\Sender\FileTable::syncFiles($data['primary']['ID'], 1, '');
+		}
 		return $result;
 	}
 

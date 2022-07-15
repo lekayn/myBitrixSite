@@ -6,6 +6,10 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 
 use \Bitrix\Main\Localization\Loc;
 
+/** @var array $arParams */
+/** @var array $arResult */
+/** @var \CMain $APPLICATION */
+
 // init
 Loc::loadMessages(__FILE__);
 \CJSCore::init(array('sidepanel', 'action_dialog', 'loader'));
@@ -46,6 +50,53 @@ if ($isBitrix24Template)
 <?if (!$isBitrix24Template):?>
 <div class="tasks-interface-filter-container">
 <?endif;?>
+
+	<?
+	if (isset($arParams['BUTTONS']) && is_array($arParams['BUTTONS']))
+	{
+	if (count($arParams['BUTTONS']) == 1)
+	{
+		$buuton = array_shift($arParams['BUTTONS']);
+	if (isset($buuton['LINK']) && isset($buuton['TITLE']))
+	{
+		?>
+		<div class="pagetitle-container pagetitle-align-right-container">
+			<a href="<?= \htmlspecialcharsbx($buuton['LINK']);?>" id="landing-create-element" class="ui-btn ui-btn-md ui-btn-success ui-btn-icon-add landing-filter-action-link">
+				<?= \htmlspecialcharsbx($buuton['TITLE']);?>
+			</a>
+		</div>
+	<?
+	}
+	}
+	else
+	{
+	$buuton = array_shift($arParams['BUTTONS']);
+	?>
+	<?if (isset($buuton['LINK']) && isset($buuton['TITLE'])):?>
+		<div class="pagetitle-container pagetitle-align-right-container" id="landing-menu-actions">
+			<a href="<?= \htmlspecialcharsbx($buuton['LINK']);?>" id="landing-create-element" <?
+			?>class="ui-btn ui-btn-md ui-btn-success ui-btn-icon-add landing-filter-action-link ui-btn-dropdown">
+				<?= \htmlspecialcharsbx($buuton['TITLE']);?>
+			</a>
+		</div>
+		<script type="text/javascript">
+			var landingCreateButtons = [
+				<?foreach ($arParams['BUTTONS'] as $buuton):?>
+				<?if (isset($buuton['LINK']) && isset($buuton['TITLE'])):?>
+				{
+					href: '<?= \CUtil::JSEscape($buuton['LINK']);?>',
+					text: '<?= \CUtil::JSEscape($buuton['TITLE']);?>'
+				},
+				<?endif;?>
+				<?endforeach;?>
+				null
+			];
+		</script>
+	<?endif;?>
+		<?
+	}
+	}
+	?>
 
 	<div class="pagetitle-container<?if (!$isBitrix24Template) {?> pagetitle-container-light<?}?> pagetitle-flexible-space">
 		<?$APPLICATION->IncludeComponent(
@@ -94,6 +145,12 @@ if ($isBitrix24Template)
 						<?= !$bFirst ? ',' : '';?>{
 							href: '<?= \CUtil::JSEscape($link['LINK']);?>',
 							text: '<?= \CUtil::JSEscape($link['TITLE']);?>'
+							<? if (isset($link['DATASET']) && is_array($link['DATASET'])): ?>
+								, dataset: <?= \CUtil::phpToJSObject($link['DATASET']) ?>
+							<? endif ?>
+							<? if (isset($link['DELIMITER']) && $link['DELIMITER'] === true): ?>
+								, delimiter: true
+							<? endif ?>
 						}
 						<?
 						$bFirst = false;
@@ -110,57 +167,12 @@ if ($isBitrix24Template)
 			?>data-type="<?= $arParams['TYPE'];?>" <?
 			?>data-action="<?= \CUtil::jsEscape(Loc::getMessage('LANDING_TPL_CREATE_FOLDER_ACTION'));?>" <?
 			?>data-siteId="<?= $arParams['FOLDER_SITE_ID'];?>" <?
+			?>data-folderId="<?= $arParams['FOLDER_ID'];?>" <?
 			?>href="javascript:void(0);" <?
 			?>title="<?= Loc::getMessage('LANDING_TPL_CREATE_FOLDER');?>"></a>
 		<?else:?>
 		<?endif;?>
 
-		<?
-		if (isset($arParams['BUTTONS']) && is_array($arParams['BUTTONS']))
-		{
-			if (count($arParams['BUTTONS']) == 1)
-			{
-				$buuton = array_shift($arParams['BUTTONS']);
-				if (isset($buuton['LINK']) && isset($buuton['TITLE']))
-				{
-				?>
-				<div class="pagetitle-container pagetitle-align-right-container">
-					<a href="<?= \htmlspecialcharsbx($buuton['LINK']);?>" id="landing-create-element" class="ui-btn ui-btn-md ui-btn-primary ui-btn-icon-add landing-filter-action-link">
-						<?= \htmlspecialcharsbx($buuton['TITLE']);?>
-					</a>
-				</div>
-				<?
-				}
-			}
-			else
-			{
-				$buuton = array_shift($arParams['BUTTONS']);
-				?>
-				<?if (isset($buuton['LINK']) && isset($buuton['TITLE'])):?>
-				<div class="pagetitle-container pagetitle-align-right-container" id="landing-menu-actions">
-					<a href="<?= \htmlspecialcharsbx($buuton['LINK']);?>" id="landing-create-element" <?
-						?>class="ui-btn ui-btn-md ui-btn-primary ui-btn-icon-add landing-filter-action-link ui-btn-dropdown">
-						<?= \htmlspecialcharsbx($buuton['TITLE']);?>
-					</a>
-				</div>
-				<script type="text/javascript">
-					var landingCreateButtons = [
-						<?foreach ($arParams['BUTTONS'] as $buuton):?>
-							<?if (isset($buuton['LINK']) && isset($buuton['TITLE'])):?>
-							{
-								href: '<?= \CUtil::JSEscape($buuton['LINK']);?>',
-								text: '<?= \CUtil::JSEscape($buuton['TITLE']);?>'
-							},
-							<?endif;?>
-						<?endforeach;?>
-						null
-					];
-				</script>
-				<?endif;?>
-				<?
-			}
-		}
-		?>
 	</div>
 
 

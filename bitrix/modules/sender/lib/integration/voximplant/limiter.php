@@ -30,6 +30,7 @@ class Limiter implements Transport\iLimiter
 	public function __construct()
 	{
 		$this->setParameter('textView', true);
+		$this->setParameter('temporaryLimit', true);
 	}
 	/**
 	 * Get max.
@@ -106,5 +107,13 @@ class Limiter implements Transport\iLimiter
 	public function getUnit()
 	{
 		return null;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function isHidden()
+	{
+		return false;
 	}
 }

@@ -276,17 +276,20 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	      main_core.Dom.addClass(_this.layout, 'landing-ui-panel-content-with-subtitle');
 	    }
 
+	    if (_this.data.showFromRight === true) {
+	      _this.setLayoutClass('landing-ui-panel-show-from-right');
+	    }
+
 	    _this.init();
 
 	    main_core.Event.bind(window.top, 'keydown', _this.onKeyDown.bind(babelHelpers.assertThisInitialized(_this)));
-	    BX.Landing.PageObject.getInstance().view().then(function (frame) {
-	      void (!!frame && main_core.Event.bind(frame.contentWindow, 'keydown', _this.onKeyDown.bind(babelHelpers.assertThisInitialized(_this))));
-	    }, console.warn);
+	    BX.Landing.PageObject.getEditorWindow();
 
 	    if (_this.data.scrollAnimation) {
 	      _this.scrollObserver = new IntersectionObserver(_this.onIntersecting.bind(babelHelpers.assertThisInitialized(_this)));
 	    }
 
+	    _this.checkReadyToSave = _this.checkReadyToSave.bind(babelHelpers.assertThisInitialized(_this));
 	    return _this;
 	  }
 
@@ -495,6 +498,43 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	    value: function renderTo(target) {
 	      babelHelpers.get(babelHelpers.getPrototypeOf(Content.prototype), "renderTo", this).call(this, target);
 	      main_core.Dom.append(this.overlay, target);
+	    }
+	  }, {
+	    key: "checkReadyToSave",
+	    value: function checkReadyToSave() {
+	      var _this6 = this;
+
+	      var canSave = true;
+	      this.forms.forEach(function (form) {
+	        form.fields.forEach(function (field) {
+	          if (field.readyToSave === false) {
+	            canSave = false;
+	          }
+
+	          if (!field.getListeners('onChangeReadyToSave').has(_this6.checkReadyToSave)) {
+	            field.subscribe('onChangeReadyToSave', _this6.checkReadyToSave);
+	          }
+	        });
+	      });
+	      canSave ? this.enableSave() : this.disableSave();
+	    }
+	  }, {
+	    key: "disableSave",
+	    value: function disableSave() {
+	      var saveButton = this.buttons.get('save_block_content');
+
+	      if (saveButton) {
+	        saveButton.disable();
+	      }
+	    }
+	  }, {
+	    key: "enableSave",
+	    value: function enableSave() {
+	      var saveButton = this.buttons.get('save_block_content');
+
+	      if (saveButton) {
+	        saveButton.enable();
+	      }
 	    }
 	  }]);
 	  return Content;

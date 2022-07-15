@@ -76,7 +76,7 @@
 	      var _this3 = this;
 
 	      return new Promise(function (resolve, reject) {
-	        _this3.db.data.delete(_this3.code).then(function (data) {
+	        _this3.db.data["delete"](_this3.code).then(function (data) {
 	          resolve(true);
 	        }, function (error) {
 	          reject(error);
@@ -183,7 +183,7 @@
 	        value = value.map(function (element) {
 	          return _this4.prepareValueAfterGet(element);
 	        });
-	      } else if (value instanceof Date) ; else if (value && babelHelpers.typeof(value) === 'object') {
+	      } else if (value instanceof Date) ; else if (value && babelHelpers["typeof"](value) === 'object') {
 	        for (var index in value) {
 	          if (value.hasOwnProperty(index)) {
 	            value[index] = this.prepareValueAfterGet(value[index]);
@@ -212,7 +212,7 @@
 	        });
 	      } else if (value instanceof Date) {
 	        value = '#DT#' + value.toISOString();
-	      } else if (value && babelHelpers.typeof(value) === 'object') {
+	      } else if (value && babelHelpers["typeof"](value) === 'object') {
 	        for (var index in value) {
 	          if (value.hasOwnProperty(index)) {
 	            value[index] = this.prepareValueBeforeSet(value[index]);
@@ -312,7 +312,7 @@
 	        value = value.map(function (element) {
 	          return _this3.prepareValueAfterGet(element);
 	        });
-	      } else if (value instanceof Date) ; else if (value && babelHelpers.typeof(value) === 'object') {
+	      } else if (value instanceof Date) ; else if (value && babelHelpers["typeof"](value) === 'object') {
 	        for (var index in value) {
 	          if (value.hasOwnProperty(index)) {
 	            value[index] = this.prepareValueAfterGet(value[index]);
@@ -341,7 +341,7 @@
 	        });
 	      } else if (value instanceof Date) {
 	        value = '#DT#' + value.toISOString();
-	      } else if (value && babelHelpers.typeof(value) === 'object') {
+	      } else if (value && babelHelpers["typeof"](value) === 'object') {
 	        for (var index in value) {
 	          if (value.hasOwnProperty(index)) {
 	            value[index] = this.prepareValueBeforeSet(value[index]);
@@ -483,7 +483,7 @@
 	    value: function setVariables() {
 	      var variables = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
-	      if (!(babelHelpers.typeof(variables) === 'object' && variables)) {
+	      if (!(babelHelpers["typeof"](variables) === 'object' && variables)) {
 	        this.logger('error', 'VuexBuilderModel.setVars: passed variables is not a Object', store);
 	        return this;
 	      }
@@ -769,7 +769,7 @@
 	        if (typeof lastState === 'function') {
 	          lastState = lastState();
 
-	          if (babelHelpers.typeof(lastState) !== 'object' || !lastState) {
+	          if (babelHelpers["typeof"](lastState) !== 'object' || !lastState) {
 	            return false;
 	          }
 	        }
@@ -839,7 +839,7 @@
 
 	          if (typeof filter[field] === 'undefined') {
 	            return true;
-	          } else if (babelHelpers.typeof(filter[field]) === 'object' && filter[field]) {
+	          } else if (babelHelpers["typeof"](filter[field]) === 'object' && filter[field]) {
 	            var result = checkFunction(payload[field], filter[field]);
 
 	            if (result) {
@@ -890,7 +890,7 @@
 	  babelHelpers.createClass(VuexBuilderModel$$1, [{
 	    key: "setStore",
 	    value: function setStore(store) {
-	      if (!(store instanceof Vuex.Store)) {
+	      if (!(store instanceof index.Store)) {
 	        this.logger('error', 'VuexBuilderModel.setStore: passed store is not a Vuex.Store', store);
 	        return this;
 	      }
@@ -944,7 +944,7 @@
 
 	        if (typeof newState[key] === 'undefined') {
 	          newState[key] = currentState[key];
-	        } else if (!(newState[key] instanceof Array) && babelHelpers.typeof(newState[key]) === 'object' && newState[key] && babelHelpers.typeof(currentState[key]) === 'object' && currentState[key]) {
+	        } else if (!(newState[key] instanceof Array) && babelHelpers["typeof"](newState[key]) === 'object' && newState[key] && babelHelpers["typeof"](currentState[key]) === 'object' && currentState[key]) {
 	          newState[key] = Object.assign({}, currentState[key], newState[key]);
 	        }
 	      }
@@ -998,7 +998,7 @@
 	        }));
 	      } else if (element instanceof Date) {
 	        result = new Date(element.toISOString());
-	      } else if (babelHelpers.typeof(element) === 'object' && element) {
+	      } else if (babelHelpers["typeof"](element) === 'object' && element) {
 	        result = {};
 
 	        for (var param in element) {
@@ -1008,7 +1008,7 @@
 
 	          if (typeof exceptions === 'undefined' || typeof exceptions[param] === 'undefined') {
 	            result[param] = this.cloneState(element[param]);
-	          } else if (babelHelpers.typeof(exceptions[param]) === 'object' && exceptions[param]) {
+	          } else if (babelHelpers["typeof"](exceptions[param]) === 'object' && exceptions[param]) {
 	            result[param] = this.cloneState(element[param], exceptions[param]);
 	          }
 	        }
@@ -1106,7 +1106,7 @@
 	    key: "init",
 	    value: function init(store) {
 	      if (store) {
-	        if (!(store instanceof Vuex.Store)) {
+	        if (!(store instanceof index.Store)) {
 	          console.warn('VuexBuilder.init: passed store is not a Vuex.Store', store);
 	          return new this();
 	        }
@@ -1260,7 +1260,7 @@
 	    value: function setDatabaseConfig() {
 	      var config = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
-	      if (!(babelHelpers.typeof(config) === 'object' && config)) {
+	      if (!(babelHelpers["typeof"](config) === 'object' && config)) {
 	        return this;
 	      }
 
@@ -1345,7 +1345,7 @@
 	      var promises = [];
 
 	      if (!this.store) {
-	        this.store = Vuex.createStore();
+	        this.store = index.createStore();
 	      }
 
 	      this.models.forEach(function (model) {
@@ -1402,7 +1402,7 @@
 	      }
 
 	      if (!this.store) {
-	        this.store = Vuex.createStore();
+	        this.store = index.createStore();
 	      }
 
 	      if (this.databaseConfig.active) {
@@ -1440,7 +1440,7 @@
 	 * (c) 2021 Evan You
 	 * @license MIT
 	 *
-	 * @source: vuex.esm.browser.js
+	 * @source: https://cdn.jsdelivr.net/npm/vuex@3.6.2/dist/vuex.esm.browser.js
 	 */
 
 	function applyMixin(Vue) {
@@ -1527,7 +1527,7 @@
 	  var cache = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
 
 	  // just return if obj is immutable value
-	  if (obj === null || babelHelpers.typeof(obj) !== 'object') {
+	  if (obj === null || babelHelpers["typeof"](obj) !== 'object') {
 	    return obj;
 	  } // if obj is hit, it is in circular structure
 
@@ -1564,7 +1564,7 @@
 	}
 
 	function isObject(obj) {
-	  return obj !== null && babelHelpers.typeof(obj) === 'object';
+	  return obj !== null && babelHelpers["typeof"](obj) === 'object';
 	}
 
 	function isPromise(val) {
@@ -1785,7 +1785,7 @@
 	};
 	var objectAssert = {
 	  assert: function assert(value) {
-	    return typeof value === 'function' || babelHelpers.typeof(value) === 'object' && typeof value.handler === 'function';
+	    return typeof value === 'function' || babelHelpers["typeof"](value) === 'object' && typeof value.handler === 'function';
 	  },
 	  expected: 'function or object with "handler" function'
 	};
@@ -2061,7 +2061,7 @@
 
 	      this._withCommit(function () {
 	        var parentState = getNestedState(_this7.state, path.slice(0, -1));
-	        ui_vue.VueVendor.delete(parentState, path[path.length - 1]);
+	        ui_vue.VueVendor["delete"](parentState, path[path.length - 1]);
 	      });
 
 	      resetStore(this);
@@ -2342,7 +2342,7 @@
 	    }
 
 	    if (store._devtoolHook) {
-	      return res.catch(function (err) {
+	      return res["catch"](function (err) {
 	        store._devtoolHook.emit('vuex:error', err);
 
 	        throw err;
@@ -2397,7 +2397,7 @@
 	  }
 
 	  {
-	    assert(typeof type === 'string', "expects string as the type, but found ".concat(babelHelpers.typeof(type), "."));
+	    assert(typeof type === 'string', "expects string as the type, but found ".concat(babelHelpers["typeof"](type), "."));
 	  }
 	  return {
 	    type: type,
@@ -2746,7 +2746,7 @@
 	  try {
 	    logger.groupEnd();
 	  } catch (e) {
-	    logger.log('—— log end ——');
+	    logger.log('-- log end --');
 	  }
 	}
 
@@ -2763,13 +2763,7 @@
 	  return repeat('0', maxLength - num.toString().length) + num;
 	}
 
-	var Vuex = {
-	  store: function store(params) {
-	    return new Store(params);
-	  },
-	  createStore: function createStore(params) {
-	    return new Store(params);
-	  },
+	var index = {
 	  Store: Store,
 	  install: install,
 	  version: '3.6.2',
@@ -2779,14 +2773,23 @@
 	  mapActions: mapActions,
 	  createNamespacedHelpers: createNamespacedHelpers,
 	  createLogger: createLogger
+	}; // origin-end
+
+	index.store = function (params) {
+	  return new Store(params);
 	};
-	ui_vue.VueVendor.use(Vuex);
+
+	index.createStore = function (params) {
+	  return new Store(params);
+	};
+
+	ui_vue.VueVendor.use(index);
 
 	exports.VuexBuilder = VuexBuilder$$1;
 	exports.VuexBuilderModel = VuexBuilderModel$$1;
-	exports.Vuex = Vuex;
-	exports.VuexVendorV3 = Vuex;
-	exports.VuexVendor = Vuex;
+	exports.Vuex = index;
+	exports.VuexVendorV3 = index;
+	exports.VuexVendor = index;
 
 }((this.BX = this.BX || {}),BX,BX,BX));
 

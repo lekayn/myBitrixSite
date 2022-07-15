@@ -75,6 +75,7 @@ abstract class AbstractThreadStrategy implements IThreadStrategy
 				'select'  => $this->select,
 				'filter'  => $this->filter,
 				'runtime' => $this->runtime,
+				'order' => ['STATUS' => 'DESC'],
 				'limit'   => $limit
 			]
 		);
@@ -93,19 +94,24 @@ abstract class AbstractThreadStrategy implements IThreadStrategy
 
 	abstract protected function setRuntime(): void;
 
-	abstract protected function setFilter(): void;
-
+	protected function setFilter() : void
+	{
+		$this->filter = ['IS_UNSUB' => 'N'];
+	}
 	protected function setSelect(): void
 	{
 		$this->select = [
 			'*',
-			'NAME'                    => 'CONTACT.NAME',
-			'CONTACT_CODE'            => 'CONTACT.CODE',
-			'CONTACT_TYPE_ID'         => 'CONTACT.TYPE_ID',
-			'CONTACT_IS_SEND_SUCCESS' => 'CONTACT.IS_SEND_SUCCESS',
-			'CONTACT_BLACKLISTED'     => 'CONTACT.BLACKLISTED',
-			'CONTACT_UNSUBSCRIBED'    => 'MAILING_SUB.IS_UNSUB',
-			'CAMPAIGN_ID'             => 'POSTING.MAILING_ID'
+			'NAME'                     => 'CONTACT.NAME',
+			'CONTACT_CODE'             => 'CONTACT.CODE',
+			'CONTACT_TYPE_ID'          => 'CONTACT.TYPE_ID',
+			'CONTACT_IS_SEND_SUCCESS'  => 'CONTACT.IS_SEND_SUCCESS',
+			'CONTACT_BLACKLISTED'      => 'CONTACT.BLACKLISTED',
+			'CONTACT_UNSUBSCRIBED'      => 'CONTACT.IS_UNSUB',
+			'CONTACT_CONSENT_STATUS'   => 'CONTACT.CONSENT_STATUS',
+			'CONTACT_MAILING_UNSUBSCRIBED'     => 'MAILING_SUB.IS_UNSUB',
+			'CONTACT_CONSENT_REQUEST'  => 'CONTACT.CONSENT_REQUEST',
+			'CAMPAIGN_ID'              => 'POSTING.MAILING_ID',
 		];
 	}
 
@@ -202,7 +208,7 @@ abstract class AbstractThreadStrategy implements IThreadStrategy
 			EXPIRE_AT = \''.$expireAt.'\'
 			WHERE 
 			THREAD_ID = '.$this->threadId.' 
-			AND POSTING_ID = '.$this->postingId;;
+			AND POSTING_ID = '.$this->postingId;
 			Application::getConnection()->query($updateQuery);
 		}
 		catch (\Exception $e)
@@ -348,4 +354,14 @@ abstract class AbstractThreadStrategy implements IThreadStrategy
 
 		return !static::hasUnprocessedThreads();
 	}
+
+	/**
+	 * Returns true if sending not available
+	 * @return bool
+	 */
+	public function isProcessLimited(): bool
+	{
+		return false;
+	}
+
 }

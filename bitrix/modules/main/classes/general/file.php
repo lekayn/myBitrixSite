@@ -10,6 +10,7 @@ use Bitrix\Main;
 use Bitrix\Main\IO;
 use Bitrix\Main\UI\Viewer;
 use Bitrix\Main\File;
+use Bitrix\Main\Web;
 use Bitrix\Main\File\Image;
 use Bitrix\Main\File\Image\Rectangle;
 use Bitrix\Main\File\Internal;
@@ -1220,7 +1221,7 @@ class CFile extends CAllFile
 		{
 			if(in_array($ext, explode(",", static::GetImageExtensions())))
 			{
-				if($mime_type === false || strpos($mime_type, "image/") === 0)
+				if($mime_type === false || Web\MimeType::isImage($mime_type))
 				{
 					return true;
 				}
@@ -1539,29 +1540,32 @@ function ImgShw(ID, width, height, alt)
 		if(is_array($strImage))
 		{
 			$arImgParams = $strImage;
-			$iImageID = isset($arImgParams['ID']) ? intval($arImgParams['ID']) : 0;
+			$iImageID = isset($arImgParams['ID']) ? (int)$arImgParams['ID'] : 0;
 		}
 		else
 		{
 			$arImgParams = static::_GetImgParams($strImage, $iSizeWHTTP, $iSizeHHTTP);
-			$iImageID = intval($strImage);
+			$iImageID = (int)$strImage;
 		}
 
 		if(!$arImgParams)
+		{
 			return "";
+		}
 
-		$iMaxW = intval($iMaxW);
-		$iMaxH = intval($iMaxH);
-		$intWidth = $arImgParams['WIDTH'];
-		$intHeight = $arImgParams['HEIGHT'];
+		$iMaxW = (int)$iMaxW;
+		$iMaxH = (int)$iMaxH;
+		$intWidth = (int)$arImgParams['WIDTH'];
+		$intHeight = (int)$arImgParams['HEIGHT'];
 		if(
-			$iMaxW > 0 && $iMaxH > 0
+			$iMaxW > 0
+			&& $iMaxH > 0
 			&& ($intWidth > $iMaxW || $intHeight > $iMaxH)
 		)
 		{
 			$coeff = ($intWidth/$iMaxW > $intHeight/$iMaxH? $intWidth/$iMaxW : $intHeight/$iMaxH);
-			$iHeight = intval(roundEx($intHeight/$coeff));
-			$iWidth = intval(roundEx($intWidth/$coeff));
+			$iHeight = (int)roundEx($intHeight/$coeff);
+			$iWidth = (int)roundEx($intWidth/$coeff);
 		}
 		else
 		{
@@ -1581,7 +1585,9 @@ function ImgShw(ID, width, height, alt)
 		}
 
 		if (!preg_match("/^https?:/i", $strImage))
+		{
 			$strImage = CHTTP::urnEncode($strImage, "UTF-8");
+		}
 
 		if(GetFileType($strImage) == "FLASH")
 		{
@@ -1593,11 +1599,11 @@ function ImgShw(ID, width, height, alt)
 					WIDTH="'.$iWidth.'"
 					HEIGHT="'.$iHeight.'"
 					ALIGN="">
-						<PARAM NAME="movie" VALUE="'.$strImage.'" />
+						<PARAM NAME="movie" VALUE="'.htmlspecialcharsbx($strImage).'" />
 						<PARAM NAME="quality" VALUE="high" />
 						<PARAM NAME="bgcolor" VALUE="#FFFFFF" />
 						<embed
-							src="'.$strImage.'"
+							src="'.htmlspecialcharsbx($strImage).'"
 							quality="high"
 							bgcolor="#FFFFFF"
 							WIDTH="'.$iWidth.'"
@@ -1615,24 +1621,30 @@ function ImgShw(ID, width, height, alt)
 			$strAlt = $arImgParams['ALT']? $arImgParams['ALT']: $arImgParams['DESCRIPTION'];
 
 			if($sParams === null || $sParams === false)
+			{
 				$sParams = 'border="0" alt="'.htmlspecialcharsEx($strAlt).'"';
+			}
 			elseif(!preg_match('/(^|\\s)alt\\s*=\\s*(["\']?)(.*?)(\\2)/is', $sParams))
+			{
 				$sParams .= ' alt="'.htmlspecialcharsEx($strAlt).'"';
+			}
 
 			if($coeff === 1 || !$bPopup)
 			{
-				$strReturn = '<img src="'.$strImage.'" '.$sParams.' width="'.$iWidth.'" height="'.$iHeight.'" />';
+				$strReturn = '<img src="'.htmlspecialcharsbx($strImage).'" '.$sParams.' width="'.$iWidth.'" height="'.$iHeight.'" />';
 			}
 			else
 			{
 				if($sPopupTitle === false)
+				{
 					$sPopupTitle = GetMessage('FILE_ENLARGE');
+				}
 
 				if($strImageUrl <> '')
 				{
 					$strReturn =
-						'<a href="'.$strImageUrl.'" title="'.$sPopupTitle.'" target="_blank">'.
-						'<img src="'.$strImage.'" '.$sParams.' width="'.$iWidth.'" height="'.$iHeight.'" title="'.htmlspecialcharsEx($sPopupTitle).'" />'.
+						'<a href="'.$strImageUrl.'" title="'.htmlspecialcharsEx($sPopupTitle).'" target="_blank">'.
+						'<img src="'.htmlspecialcharsbx($strImage).'" '.$sParams.' width="'.$iWidth.'" height="'.$iHeight.'" title="'.htmlspecialcharsEx($sPopupTitle).'" />'.
 						'</a>';
 				}
 				else
@@ -1640,8 +1652,12 @@ function ImgShw(ID, width, height, alt)
 					static::OutputJSImgShw();
 
 					$strReturn =
-						'<a title="'.$sPopupTitle.'" onclick="ImgShw(\''.CUtil::addslashes($strImage).'\', '.$intWidth.', '.$intHeight.', \''.CUtil::addslashes(htmlspecialcharsEx(htmlspecialcharsEx($strAlt))).'\'); return false;" href="'.$strImage.'" target="_blank">'.
-						'<img src="'.$strImage.'" '.$sParams.' width="'.$iWidth.'" height="'.$iHeight.'" />'.
+						'<a title="'.$sPopupTitle.'" '.
+							'onclick="ImgShw(\''.htmlspecialcharsbx(CUtil::addslashes($strImage)).'\', '.$intWidth.', '.$intHeight.', \''.CUtil::addslashes(htmlspecialcharsEx(htmlspecialcharsEx($strAlt))).'\'); return false;" '.
+							'href="'.htmlspecialcharsbx($strImage).'" '.
+							'target="_blank"'.
+						'>'.
+							'<img src="'.htmlspecialcharsbx($strImage).'" '.$sParams.' width="'.$iWidth.'" height="'.$iHeight.'" />'.
 						'</a>';
 				}
 			}
@@ -1781,7 +1797,7 @@ function ImgShw(ID, width, height, alt)
 
 			if(!$bExternalStorage)
 			{
-				$http = new \Bitrix\Main\Web\HttpClient();
+				$http = new Web\HttpClient();
 				$http->setPrivateIp(false);
 				$temp_path = static::GetTempName('', 'tmp.'.md5(mt_rand()));
 				if($http->download($path, $temp_path))
@@ -1973,8 +1989,15 @@ function ImgShw(ID, width, height, alt)
 			}
 			else
 			{
-				global $arCloudImageSizeCache;
-				$arCloudImageSizeCache[$file["SRC"]] = array($file["WIDTH"], $file["HEIGHT"]);
+				if (isset($file["SRC"]))
+				{
+					global $arCloudImageSizeCache;
+					$arCloudImageSizeCache[$file["SRC"]] = array($file["WIDTH"], $file["HEIGHT"]);
+				}
+				else
+				{
+					trigger_error("Parameter \$file for CFile::ResizeImageGet does not have SRC element. You'd better pass an b_file.ID as a value for the \$file parameter.", E_USER_WARNING);
+				}
 
 				return array(
 					"src" => $file["SRC"],
@@ -2226,7 +2249,7 @@ function ImgShw(ID, width, height, alt)
 
 		$result = false;
 
-		$sourceRectangle = new Rectangle($sourceInfo->getWidth(), $sourceInfo->getHeight());
+		$sourceRectangle = $sourceInfo->toRectangle();
 		$destinationRectangle = new Rectangle($arSize["width"], $arSize["height"]);
 
 		$needResize = $sourceRectangle->resize($destinationRectangle, $resizeType);
@@ -2268,8 +2291,14 @@ function ImgShw(ID, width, height, alt)
 					}
 
 					$modified = false;
-					if($needResize)
+					if ($needResize)
 					{
+						// actual sizes
+						$sourceRectangle = $destinationImage->getDimensions();
+						$destinationRectangle = new Rectangle($arSize["width"], $arSize["height"]);
+
+						$sourceRectangle->resize($destinationRectangle, $resizeType);
+
 						$modified = $destinationImage->resize($sourceRectangle, $destinationRectangle);
 					}
 
@@ -2563,7 +2592,7 @@ function ImgShw(ID, width, height, alt)
 			}
 		}
 
-		$content_type = static::NormalizeContentType($content_type);
+		$content_type = Web\MimeType::normalize($content_type);
 
 		if($force_download)
 		{
@@ -2597,7 +2626,7 @@ function ImgShw(ID, width, height, alt)
 		{
 			if(!$fastDownload)
 			{
-				$src = new \Bitrix\Main\Web\HttpClient();
+				$src = new Web\HttpClient();
 			}
 			elseif(intval($arFile['HANDLER_ID']) > 0)
 			{
@@ -2673,7 +2702,7 @@ function ImgShw(ID, width, height, alt)
 					$response->addHeader("Cache-Control", "private, max-age=".$cache_time.", pre-check=".$cache_time);
 
 					$response->writeHeaders();
-					$application->terminate();
+					self::terminate();
 				}
 
 				$response->addHeader("ETag", $ETag);
@@ -2688,7 +2717,7 @@ function ImgShw(ID, width, height, alt)
 						$response->addHeader("Cache-Control", "private, max-age=".$cache_time.", pre-check=".$cache_time);
 
 						$response->writeHeaders();
-						$application->terminate();
+						self::terminate();
 					}
 				}
 			}
@@ -2765,7 +2794,7 @@ function ImgShw(ID, width, height, alt)
 					$response->addHeader('X-Accel-Redirect', $filename);
 				}
 				$response->writeHeaders();
-				$application->terminate();
+				self::terminate();
 			}
 			else
 			{
@@ -2784,7 +2813,7 @@ function ImgShw(ID, width, height, alt)
 					}
 					else
 					{
-						/** @var \Bitrix\Main\Web\HttpClient $src */
+						/** @var Web\HttpClient $src */
 						echo htmlspecialcharsbx($src->get($filename));
 					}
 					echo "<", "/pre", ">";
@@ -2808,17 +2837,29 @@ function ImgShw(ID, width, height, alt)
 					else
 					{
 						$fp = fopen("php://output", "wb");
-						/** @var \Bitrix\Main\Web\HttpClient $src */
+						/** @var Web\HttpClient $src */
 						$src->setOutputStream($fp);
 						$src->get($filename);
 					}
 				}
 				@ob_flush();
 				flush();
-				$application->terminate();
+				self::terminate();
 			}
 		}
 		return true;
+	}
+
+	private static function terminate(): void
+	{
+		/** @see \Bitrix\Main\HttpResponse::flush */
+		if (function_exists("fastcgi_finish_request"))
+		{
+			//php-fpm
+			fastcgi_finish_request();
+		}
+
+		Main\Application::getInstance()->terminate();
 	}
 
 	/**
@@ -2937,21 +2978,14 @@ function ImgShw(ID, width, height, alt)
 		return (new File\Image($src))->getExifData();
 	}
 
+	/**
+	 * @deprecated Use Web\MimeType::normalize()
+	 * @param $contentType
+	 * @return string
+	 */
 	public static function NormalizeContentType($contentType)
 	{
-		$ct = strtolower($contentType);
-		$ct = str_replace(array("\r", "\n", "\0"), "", $ct);
-
-		if (strpos($ct, "excel") !== false)
-		{
-			$ct = "application/vnd.ms-excel";
-		}
-		elseif (strpos($ct, "word") !== false && strpos($ct, "vnd.openxmlformats") === false)
-		{
-			$ct = "application/msword";
-		}
-
-		return $ct;
+		return Web\MimeType::normalize($contentType);
 	}
 
 	public static function GetContentType($path, $bPhysicalName = false)
@@ -2983,7 +3017,7 @@ function ImgShw(ID, width, height, alt)
 
 		if ($type == "")
 		{
-			$type = Main\Web\MimeType::getByFileExtension(substr($pathX, bxstrrpos($pathX, ".") + 1));
+			$type = Web\MimeType::getByFileExtension(substr($pathX, bxstrrpos($pathX, ".") + 1));
 		}
 
 		return $type;

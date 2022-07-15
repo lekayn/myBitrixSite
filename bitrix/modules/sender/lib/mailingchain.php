@@ -8,9 +8,11 @@
 namespace Bitrix\Sender;
 
 use Bitrix\Main\Application;
+use Bitrix\Main\ArgumentException;
 use Bitrix\Main\Config\Option;
 use Bitrix\Main\Entity;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ORM\Query\Query;
 use Bitrix\Main\SiteTable;
 use Bitrix\Main\Type;
 use Bitrix\Sender\Entity\Letter;
@@ -217,14 +219,17 @@ class MailingChainTable extends Entity\DataManager
 		else
 			return Loc::getMessage('SENDER_ENTITY_MAILING_CHAIN_VALID_EMAIL_FROM');
 	}
-
+	
 	/**
 	 * Copy mailing chain.
 	 *
-	 * @param integer $id Chain id
+	 * @param int|null $id Chain id
 	 * @return int|null Copied chain id
+	 * @throws \Bitrix\Main\ArgumentException
+	 * @throws \Bitrix\Main\ObjectPropertyException
+	 * @throws \Bitrix\Main\SystemException
 	 */
-	public static function copy($id)
+	public static function copy(?int $id): ?int
 	{
 		$dataDb = static::getList(array('filter' => array('ID' => $id)));
 		if (!$data = $dataDb->fetch())
@@ -269,24 +274,23 @@ class MailingChainTable extends Entity\DataManager
 
 		return $copiedId;
 	}
-
+	
 	/**
-	 * @param integer $mailingChainId
-	 * @param bool $prepareFields
-	 *
+	 * @param int|null $mailingChainId
 	 * @return int|null
 	 * @throws \Bitrix\Main\ArgumentException
 	 * @throws \Bitrix\Main\ObjectPropertyException
 	 * @throws \Bitrix\Main\SystemException
 	 */
-	public static function initPosting($mailingChainId)
+	public static function initPosting(?int $mailingChainId): ?int
 	{
 		$postingId = null;
 		$chainPrimary = array('ID' => $mailingChainId);
 		$mailingChain = static::getRowById($chainPrimary);
+		
 		if(!$mailingChain)
 		{
-			return $postingId;
+			return null;
 		}
 
 		$needAddPosting = true;
@@ -312,9 +316,19 @@ class MailingChainTable extends Entity\DataManager
 
 		if($needAddPosting)
 		{
+			$consentSupported = false;
+			try
+			{
+				$consentSupported = Transport\Adapter::create($mailingChain['MESSAGE_CODE'])->isConsentSupported();
+			}
+			catch (ArgumentException $e)
+			{
+			}
+
 			$postingAddDb = PostingTable::add(array(
 				'MAILING_ID' => $mailingChain['MAILING_ID'],
 				'MAILING_CHAIN_ID' => $mailingChain['ID'],
+				'CONSENT_SUPPORT' => $consentSupported
 			));
 			if ($postingAddDb->isSuccess())
 			{
@@ -433,14 +447,37 @@ class MailingChainTable extends Entity\DataManager
 
 		foreach($deleteIdList as $chainId)
 		{
-			MailingAttachmentTable::delete(array('CHAIN_ID' => $chainId));
-			MailingTriggerTable::delete(array('MAILING_CHAIN_ID' => $chainId));
-			PostingTable::delete(array('MAILING_CHAIN_ID' => $chainId));
+			MailingAttachmentTable::deleteList(array('CHAIN_ID' => $chainId));
+			MailingTriggerTable::deleteList(array('MAILING_CHAIN_ID' => $chainId));
+			PostingTable::deleteList(array('MAILING_CHAIN_ID' => $chainId));
 		}
 
 		return $result;
 	}
 
+	/**
+	 * @param array $filter
+	 * @return \Bitrix\Main\DB\Result
+	 * @throws \Bitrix\Main\ArgumentException
+	 * @throws \Bitrix\Main\DB\SqlQueryException
+	 * @throws \Bitrix\Main\SystemException
+	 */
+	public static function deleteList(array $filter)
+	{
+		$entity = static::getEntity();
+		$connection = $entity->getConnection();
+
+		\CTimeZone::disable();
+		$sql = sprintf(
+			'DELETE FROM %s WHERE %s',
+			$connection->getSqlHelper()->quote($entity->getDbTableName()),
+			Query::buildFilterSql($entity, $filter)
+		);
+		$res = $connection->query($sql);
+		\CTimeZone::enable();
+
+		return $res;
+	}
 	/**
 	 * @param Entity\Event $event
 	 * @return void
@@ -751,6 +788,22 @@ class MailingChainTable extends Entity\DataManager
 	}
 }
 
+/**
+ * Class MailingAttachmentTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_MailingAttachment_Query query()
+ * @method static EO_MailingAttachment_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_MailingAttachment_Result getById($id)
+ * @method static EO_MailingAttachment_Result getList(array $parameters = array())
+ * @method static EO_MailingAttachment_Entity getEntity()
+ * @method static \Bitrix\Sender\EO_MailingAttachment createObject($setDefaultValues = true)
+ * @method static \Bitrix\Sender\EO_MailingAttachment_Collection createCollection()
+ * @method static \Bitrix\Sender\EO_MailingAttachment wakeUpObject($row)
+ * @method static \Bitrix\Sender\EO_MailingAttachment_Collection wakeUpCollection($rows)
+ */
 class MailingAttachmentTable extends Entity\DataManager
 {
 
@@ -779,4 +832,27 @@ class MailingAttachmentTable extends Entity\DataManager
 		);
 	}
 
+	/**
+	 * @param array $filter
+	 * @return \Bitrix\Main\DB\Result
+	 * @throws \Bitrix\Main\ArgumentException
+	 * @throws \Bitrix\Main\DB\SqlQueryException
+	 * @throws \Bitrix\Main\SystemException
+	 */
+	public static function deleteList(array $filter)
+	{
+		$entity = static::getEntity();
+		$connection = $entity->getConnection();
+
+		\CTimeZone::disable();
+		$sql = sprintf(
+			'DELETE FROM %s WHERE %s',
+			$connection->getSqlHelper()->quote($entity->getDbTableName()),
+			Query::buildFilterSql($entity, $filter)
+		);
+		$res = $connection->query($sql);
+		\CTimeZone::enable();
+
+		return $res;
+	}
 }

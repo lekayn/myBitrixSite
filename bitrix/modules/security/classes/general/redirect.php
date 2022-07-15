@@ -125,17 +125,8 @@ class CSecurityRedirect
 							$url
 					);
 
-				if(
-					COption::GetOptionString("security", "redirect_action") == "show_message"
-					|| COption::GetOptionString("security", "redirect_action") == "show_message_and_stay"
-				)
+				if(COption::GetOptionString("security", "redirect_action") == "show_message_and_stay")
 				{
-					if (COption::GetOptionString("security", "redirect_action") == "show_message")
-						$timeout = intval(COption::GetOptionString("security",
-						"redirect_message_timeout"));
-					else
-						$timeout = 0;
-
 					$mess = COption::GetOptionString("security", "redirect_message_warning_".LANGUAGE_ID);
 					if($mess == '')
 						$mess = COption::GetOptionString("security", "redirect_message_warning");
@@ -177,9 +168,6 @@ class CSecurityRedirect
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=<?echo $charset?>" />
-<?if ($timeout > 0):?>
-<meta http-equiv="Refresh" content="<?=$timeout?>; URL=<?=htmlspecialcharsbx($url_e)?>">
-<?endif?>
 <meta name="robots" content="noindex, nofollow" />
 <link rel="stylesheet" type="text/css" href="/bitrix/themes/.default/adminstyles.css" />
 <link rel="stylesheet" type="text/css" href="/bitrix/themes/.default/404.css" />
@@ -252,7 +240,7 @@ class CSecurityRedirect
 		//There was no looped local redirects
 		//so it's only true referer
 		if(!defined("BX_SECURITY_LOCAL_REDIRECT"))
-			\Bitrix\Main\Application::getInstance()->getKernelSession()["LOCAL_REDIRECTS"] = array("C" => 0, "R" => $_SERVER["HTTP_REFERER"]);
+			\Bitrix\Main\Application::getInstance()->getKernelSession()["LOCAL_REDIRECTS"] = array("C" => 0, "R" => ($_SERVER["HTTP_REFERER"] ?? ''));
 
 		if(COption::GetOptionString("security", "redirect_href_sign") == "Y")
 			$content = preg_replace_callback("#(<a\\s[^>/]*?href\\s*=\\s*)(['\"])(.+?)(\\2)#i", array("self", "ReplaceHREF"), $content);

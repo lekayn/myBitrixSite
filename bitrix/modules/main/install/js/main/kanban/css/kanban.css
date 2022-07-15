@@ -1441,7 +1441,8 @@
 	bottom: 5px;
 	left: 12px;
 	right: 12px;
-	font-family: "OpenSans-Italic", "Helvetica Neue", Arial, Helvetica, sans-serif;
+	font-family: "OpenSans-Regular", "Helvetica Neue", Arial, Helvetica, sans-serif;
+	font-style: italic;
 	color: var(--graphite_alpha_60);
 	font-size: 13px;
 }
@@ -1456,7 +1457,7 @@
 	vertical-align: top;
 	width: 12px;
 	height: 9px;
-	margin: 5px 1px 0 1px;
+	margin: 6px 1px 0 1px;
 	background: url("data:image/svg+xml,%0A%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='9' viewBox='0 0 12 9'%3E%3Cpath fill='%239AA0A8' fill-rule='evenodd' d='M7.89560765,-2.84217094e-14 L11.0291329,3.13352523 L7.86010193,6.30255618 L7.875,3.679 L3.15593627,3.67946698 C2.13895927,3.67946698 1.30536727,4.4646315 1.22828363,5.46183719 L1.22246653,5.61293671 C1.22246653,6.68076256 2.08811042,7.54640645 3.15593627,7.54640645 L3.15593627,7.54640645 L3.784,7.546 L3.784,8.668 L3.09857968,8.6686511 C1.38728138,8.6686511 -1.48894595e-14,7.28136972 -1.50990331e-14,5.57007142 C-1.53086067e-14,3.85877311 1.38728138,2.47149173 3.09857968,2.47149173 L7.881,2.471 L7.89560765,-2.84217094e-14 Z' transform='rotate(-180 5.515 4.334)'/%3E%3C/svg%3E%0A") center no-repeat;
 }
 
@@ -1855,11 +1856,60 @@
 	background-repeat: no-repeat;
 }
 
+.bitrix24-light-theme .main-kanban-no-data-image {
+	background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2087%20111%22%3E%3Cdefs%3E%3Cstyle%3E.cls-1%20%7B%20fill%3A%20%23fff%3B%20fill-rule%3A%20evenodd%3B%20opacity%3A%201%3B%20%7D%3C/style%3E%3C/defs%3E%3Cpath%20class%3D%22cls-1%22%20d%3D%22M86.93%2025.17l.018-.018L61.884.032l-.03.03v-.05H.012v111h86.8v-.008h.17V31.988h.034v-6.82h-.085zM61.84%209.63l15.504%2015.54H61.84V9.63zm18.336%2094.564H6.816V6.83h48.222v18.34h-.02v6.818h25.16v72.206zM56.91%2044.814L44.43%2057.32%2031.95%2044.812%2026.576%2050.2l12.48%2012.508-12.48%2012.507%205.376%205.388L44.43%2068.1l12.48%2012.508%205.377-5.388-12.48-12.508L62.288%2050.2z%22/%3E%3C/svg%3E');
+}
+
+.bitrix24-dark-theme .main-kanban-no-data-image {
+	background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2087%20111%22%3E%3Cdefs%3E%3Cstyle%3E.cls-1%20%7B%20fill%3A%20%23333%3B%20fill-rule%3A%20evenodd%3B%20opacity%3A%201%3B%20%7D%3C/style%3E%3C/defs%3E%3Cpath%20class%3D%22cls-1%22%20d%3D%22M86.93%2025.17l.018-.018L61.884.032l-.03.03v-.05H.012v111h86.8v-.008h.17V31.988h.034v-6.82h-.085zM61.84%209.63l15.504%2015.54H61.84V9.63zm18.336%2094.564H6.816V6.83h48.222v18.34h-.02v6.818h25.16v72.206zM56.91%2044.814L44.43%2057.32%2031.95%2044.812%2026.576%2050.2l12.48%2012.508-12.48%2012.507%205.376%205.388L44.43%2068.1l12.48%2012.508%205.377-5.388-12.48-12.508L62.288%2050.2z%22/%3E%3C/svg%3E');
+}
+
 .main-kanban-no-data-text {
 	font: 32px "Helvetica Neue", Arial, Helvetica, sans-serif;
 	color: #c6c8cc;
 	text-align: center;
 	white-space: nowrap;
+}
+
+.bitrix24-light-theme .main-kanban-no-data-text {
+	color: #fff;
+}
+
+.bitrix24-dark-theme .main-kanban-no-data-text {
+	color: #333;
+}
+
+.main-kanban-no-data-title {
+	font-family: 'OpenSans-Light', Arial, Helvetica, sans-serif;
+	font-size: 31px;
+	color: #c6c8cc;
+	text-align: center;
+	margin-bottom: 21px;
+}
+
+.bitrix24-light-theme .main-kanban-no-data-title {
+	color: #fff;
+}
+
+.bitrix24-dark-theme .main-kanban-no-data-title {
+	color: #333;
+}
+
+.main-kanban-no-data-description {
+	font-family: 'OpenSans-Light', Arial, Helvetica, sans-serif;
+	font-size: 16px;
+	color: #c6c8cc;
+	text-align: center;
+	max-width: 525px;
+	line-height: normal;
+}
+
+.bitrix24-light-theme .main-kanban-no-data-description {
+	color: #fff;
+}
+
+.bitrix24-dark-theme .main-kanban-no-data-description {
+	color: #333;
 }
 
 .main-kanban-loader-container {

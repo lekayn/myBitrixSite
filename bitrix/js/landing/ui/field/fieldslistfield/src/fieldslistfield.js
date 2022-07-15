@@ -17,8 +17,10 @@ import type {ListItemOptions} from 'landing.ui.component.listitem';
 import {ProductField} from 'landing.ui.field.productfield';
 import 'calendar.resourcebookinguserfield';
 import 'socnetlogdest';
+import 'ui.hint';
 
 import './css/style.css';
+import {IconButton} from 'landing.ui.component.iconbutton';
 
 export class FieldsListField extends BaseField
 {
@@ -47,7 +49,7 @@ export class FieldsListField extends BaseField
 			left: [
 				{
 					id: 'selectField',
-					text: Loc.getMessage('LANDING_FIELDS_SELECT_FIELD_BUTTON_TITLE'),
+					text: Loc.getMessage('LANDING_FIELDS_ADD_FIELD_BUTTON_TITLE'),
 					onClick: this.onSelectFieldButtonClick,
 				},
 			],
@@ -248,10 +250,53 @@ export class FieldsListField extends BaseField
 				listItemOptions.title = this.getFieldItemTitle(options.id);
 
 				const crmField = this.getCrmFieldById(options.id);
-				listItemOptions.description = options.label || crmField.caption;
+				listItemOptions.description = options.label || (crmField ? crmField.caption : '');
 				listItemOptions.editable = true;
 				listItemOptions.isSeparator = false;
 				listItemOptions.fieldController = this.createResourceBookingFieldController(options);
+
+
+				if (options.editing.supportAutocomplete)
+				{
+					const autocompleteButton = new IconButton({
+						id: 'autocomplete',
+						type: (() => {
+							if (options.autocomplete)
+							{
+								return IconButton.Types.user1Active;
+							}
+
+							return IconButton.Types.user1;
+						})(),
+						style: {
+							opacity: 1,
+							cursor: 'default',
+						},
+						title: (() => {
+							if (options.autocomplete)
+							{
+								return Loc.getMessage('LANDING_FIELDS_ITEM_AUTOCOMPLETE_ENABLED');
+							}
+
+							return Loc.getMessage('LANDING_FIELDS_ITEM_AUTOCOMPLETE_DISABLED');
+						})(),
+					});
+
+					listItemOptions.form.subscribe('onChange', (event: BaseEvent) => {
+						if (event.getTarget().serialize().autocomplete)
+						{
+							autocompleteButton.setType(IconButton.Types.user1Active);
+						}
+						else
+						{
+							autocompleteButton.setType(IconButton.Types.user1);
+						}
+					});
+
+					listItemOptions.actions = [
+						autocompleteButton,
+					];
+				}
 
 				const listItem = new ListItem(listItemOptions);
 
@@ -316,10 +361,179 @@ export class FieldsListField extends BaseField
 		return Promise.resolve(listItem);
 	}
 
+	createCustomPriceDropdown(field)
+	{
+		return new BX.Landing.UI.Field.Dropdown({
+			id: 'customPrice',
+			selector: 'customPrice',
+			items: [
+				{name: Loc.getMessage('LANDING_FIELDS_LIST_FIELD_PRODUCTS_ALLOW_CUSTOM_PRICE_NOT_SELECTED'), value: null},
+				...(field.items.map((item) => {
+					return {name: item.label, value: item.value};
+				})),
+			],
+			content: field.items.reduce((acc, item) => {
+				if (item.changeablePrice && acc === null)
+				{
+					return item.value;
+				}
+
+				return acc;
+			}, null),
+		});
+	}
+
+	createProductDefaultValueDropdown(field)
+	{
+		const defaultValueField = new BX.Landing.UI.Field.Dropdown({
+			id: 'productDefaultValue',
+			selector: 'value',
+			title: Loc.getMessage('LANDING_FIELDS_ITEM_FORM_LIST_DEFAULT_VALUE_TITLE'),
+			content: field.value,
+			items: [
+				{
+					label: Loc.getMessage('LANDING_FORM_DEFAULT_VALUE_NOT_SELECTED'),
+					value: null,
+				},
+				...field.items,
+			].map((item) => {
+				return {
+					name: item.label,
+					value: item.value,
+				};
+			}),
+		});
+
+		if (field.items.length > 0)
+		{
+			defaultValueField.enable();
+		}
+		else
+		{
+			defaultValueField.disable();
+		}
+
+		return defaultValueField;
+	}
+
+	createDefaultValueField(field): BX.Landing.UI.Field.Dropdown
+	{
+		return new BX.Landing.UI.Field.Dropdown({
+			selector: 'value',
+			title: Loc.getMessage('LANDING_FIELDS_ITEM_FORM_LIST_DEFAULT_VALUE_TITLE'),
+			content: field.value,
+			items: [
+				{
+					label: Loc.getMessage('LANDING_FORM_DEFAULT_VALUE_NOT_SELECTED'),
+					value: null,
+				},
+				...field.items,
+			].map((item) => {
+				return {
+					name: item.label,
+					value: item.value,
+				};
+			}),
+		});
+	}
+
 	// eslint-disable-next-line class-methods-use-this
 	createFieldSettingsForm(field)
 	{
 		const fields = [];
+		const form = new FormSettingsForm({
+			serializeModifier(value) {
+				const modifiedValue = {...value};
+				if (Reflect.has(value, 'label'))
+				{
+					modifiedValue.label = Text.decode(value.label);
+				}
+
+				if (Reflect.has(value, 'required'))
+				{
+					modifiedValue.required = value.required.includes('required');
+				}
+
+				if (Reflect.has(value, 'multiple'))
+				{
+					modifiedValue.multiple = value.multiple.includes('multiple');
+				}
+
+				if (Reflect.has(value, 'bigPic'))
+				{
+					modifiedValue.bigPic = value.bigPic.includes('bigPic');
+				}
+
+				if (Reflect.has(value, 'value') && Type.isArrayFilled(value.items))
+				{
+					modifiedValue.items = modifiedValue.items.map((item) => {
+						item.selected = (value.value === item.value);
+						return item;
+					});
+				}
+
+				if (Reflect.has(value, 'products'))
+				{
+					modifiedValue.items = Runtime.clone(value.products);
+					if (!Type.isPlainObject(modifiedValue.editing))
+					{
+						modifiedValue.editing = {};
+					}
+
+					if (Reflect.has(value, 'value') && Type.isArrayFilled(modifiedValue.items))
+					{
+						modifiedValue.items.forEach((item) => {
+							item.selected = (String(value.value) === String(item.value));
+						});
+					}
+
+					modifiedValue.editing.catalog = Runtime.clone(value.products);
+				}
+
+				if (Reflect.has(value, 'valueType'))
+				{
+					if (!Type.isPlainObject(modifiedValue.editing))
+					{
+						modifiedValue.editing = {};
+					}
+
+					if (!Type.isPlainObject(modifiedValue.editing.editable))
+					{
+						modifiedValue.editing.editable = {};
+					}
+
+					modifiedValue.editing.editable.valueType = value.valueType;
+				}
+
+				if (Type.isArray(value.useCustomPrice))
+				{
+					modifiedValue.items.forEach((item) => {
+						item.changeablePrice = (
+							value.useCustomPrice.includes('useCustomPrice')
+							&& String(item.value) === String(value.customPrice)
+						);
+					});
+
+					delete modifiedValue.customPrice;
+					delete modifiedValue.useCustomPrice;
+				}
+
+				if (Type.isArray(value.autocomplete))
+				{
+					modifiedValue.autocomplete = value.autocomplete.length > 0;
+				}
+
+				if (Type.isArrayFilled(value.contentTypes))
+				{
+					if (value.contentTypes.includes('any'))
+					{
+						modifiedValue.contentTypes = [];
+					}
+				}
+
+				return modifiedValue;
+			},
+		});
 
 		if (field.type === 'product')
 		{
@@ -329,6 +543,45 @@ export class FieldsListField extends BaseField
 					selector: 'products',
 					items: field.editing.catalog || [],
 					iblockId: this.options.dictionary.catalog.id,
+					onChange: () => {
+						const oldCustomPrice = form.fields.get('customPrice');
+						const newCustomPrice = this.createCustomPriceDropdown({
+							...field,
+							items: form.serialize().items,
+						});
+
+						const useCustomPrice = field.items.some((item) => {
+							return item.changeablePrice;
+						});
+
+						const useCustomPriceField = form.fields.get('useCustomPrice');
+
+						if (useCustomPrice || useCustomPriceField.getValue().includes('useCustomPrice'))
+						{
+							Dom.style(newCustomPrice.getLayout(), 'display', null);
+						}
+						else
+						{
+							Dom.style(newCustomPrice.getLayout(), 'display', 'none');
+						}
+
+						newCustomPrice.setValue(oldCustomPrice.getValue());
+
+						form.replaceField(
+							oldCustomPrice,
+							newCustomPrice,
+						);
+
+						const oldDefaultValue = form.fields.get('productDefaultValue');
+						const newDefaultValue = this.createProductDefaultValueDropdown({
+							...field,
+							items: form.serialize().items,
+						});
+						form.replaceField(
+							oldDefaultValue,
+							newDefaultValue,
+						);
+					},
 				}),
 			);
 		}
@@ -406,55 +659,92 @@ export class FieldsListField extends BaseField
 					value: field.bigPic ? ['bigPic'] : [],
 				}),
 			);
-		}
 
-		if (
-			(
-				field.type === 'list'
-				|| field.type === 'radio'
-			)
-			&& field.editing.items.length > 0
-		)
-		{
-			const defaultValueField = new BX.Landing.UI.Field.Dropdown({
-				selector: 'value',
-				title: Loc.getMessage('LANDING_FIELDS_ITEM_FORM_LIST_DEFAULT_VALUE_TITLE'),
-				content: field.value,
-				items: [
-					{
-						value: Loc.getMessage('LANDING_FORM_DEFAULT_VALUE_NOT_SELECTED'),
-						id: null,
-					},
-					...field.editing.items,
-				].map((item) => {
-					return {
-						name: item.value,
-						value: item.id,
-					};
-				}),
+			const useCustomPrice = field.items.some((item) => {
+				return item.changeablePrice;
 			});
 
-			fields.push(
-				new ListSettingsField({
-					selector: 'items',
-					title: Loc.getMessage('LANDING_FIELDS_ITEM_FORM_LIST_SETTINGS_TITLE'),
-					items: (() => {
-						return field.editing.items.map((item) => {
-							const selectedItem = field.items.find((currentItem) => {
-								return String(currentItem.value) === String(item.id);
-							});
-							const checked = !!selectedItem;
+			const customPriceField = this.createCustomPriceDropdown(field);
+			if (useCustomPrice)
+			{
+				Dom.style(customPriceField.getLayout(), 'display', null);
+			}
+			else
+			{
+				Dom.style(customPriceField.getLayout(), 'display', 'none');
+			}
 
-							return {
-								name: checked ? selectedItem.label : item.value,
-								value: item.id,
-								checked,
-							};
-						});
-					})(),
+			fields.push(
+				new BX.Landing.UI.Field.Checkbox({
+					id: 'useCustomPrice',
+					selector: 'useCustomPrice',
+					compact: true,
+					items: [
+						{
+							name: Loc.getMessage('LANDING_FIELDS_LIST_FIELD_PRODUCTS_ALLOW_CUSTOM_PRICE'),
+							value: 'useCustomPrice',
+						},
+					],
+					value: useCustomPrice ? ['useCustomPrice'] : [],
+					onChange: (checkbox) => {
+						if (checkbox instanceof BaseField)
+						{
+							const customPriceField = form.fields.get('customPrice');
+							if (checkbox.getValue().includes('useCustomPrice'))
+							{
+								Dom.style(customPriceField.getLayout(), 'display', null);
+							}
+							else
+							{
+								Dom.style(customPriceField.getLayout(), 'display', 'none');
+							}
+						}
+					},
 				}),
 			);
 
+			fields.push(customPriceField);
+
+			fields.push(this.createProductDefaultValueDropdown(field));
+		}
+
+		if (['list', 'radio'].includes(field.type) && field.editing.items.length > 0)
+		{
+			const defaultValueField = this.createDefaultValueField(field);
+			const listSettingsField = new ListSettingsField({
+				selector: 'items',
+				title: Loc.getMessage('LANDING_FIELDS_ITEM_FORM_LIST_SETTINGS_TITLE'),
+				items: (() => {
+					return field.editing.items.map((item) => {
+						const selectedItem = field.items.find((currentItem) => {
+							return String(currentItem.value) === String(item.id);
+						});
+						const checked = !!selectedItem;
+
+						return {
+							name: checked ? selectedItem.label : item.value,
+							value: item.id,
+							checked,
+						};
+					});
+				})(),
+			});
+
+			listSettingsField.subscribe('onChange', () => {
+				const currentDefaultValueField = form.fields.find((item) => {
+					return item.selector === 'value';
+				});
+				form.replaceField(
+					currentDefaultValueField,
+					this.createDefaultValueField({
+						...field,
+						items: form.serialize().items,
+						value: currentDefaultValueField.getValue(),
+					}),
+				);
+			});
+
+			fields.push(listSettingsField);
 			fields.push(defaultValueField);
 		}
 
@@ -480,79 +770,143 @@ export class FieldsListField extends BaseField
 			&& Type.isArrayFilled(this.options.dictionary.contentTypes)
 		)
 		{
-			fields.push(
-				new BX.Landing.UI.Field.Checkbox({
-					selector: 'contentTypes',
-					title: Loc.getMessage('LANDING_FIELDS_ITEM_FORM_ALLOWED_FILE_TYPE'),
-					value: field.contentTypes,
-					items: this.options.dictionary.contentTypes.map((item) => {
-						return {name: item.name, value: item.id};
+			const adjustContentTypesField = (value) => {
+				if (value.includes('any'))
+				{
+					const inputs = [...contentTypesField.layout
+						.querySelectorAll('.landing-ui-field-checkbox-item-checkbox')];
+					inputs.forEach((input) => {
+						if (Dom.attr(input, 'value') === 'any')
+						{
+							Dom.removeClass(input.closest('.landing-ui-field-checkbox-item'), 'landing-ui-disabled');
+						}
+						else
+						{
+							Dom.addClass(input.closest('.landing-ui-field-checkbox-item'), 'landing-ui-disabled');
+						}
+					});
+				}
+				else
+				{
+					const inputs = [...contentTypesField.layout
+						.querySelectorAll('.landing-ui-field-checkbox-item-checkbox')];
+					inputs.forEach((input) => {
+						Dom.removeClass(input.closest('.landing-ui-field-checkbox-item'), 'landing-ui-disabled');
+					});
+				}
+			};
+
+			const selectedContentTypes = Type.isArrayFilled(field.contentTypes) ? field.contentTypes : ['any'];
+			let lastValue = selectedContentTypes;
+			const contentTypesField = new BX.Landing.UI.Field.Checkbox({
+				selector: 'contentTypes',
+				title: Loc.getMessage('LANDING_FIELDS_ITEM_FORM_ALLOWED_FILE_TYPE'),
+				value: selectedContentTypes,
+				items: [
+					(() => {
+						if (Loc.hasMessage('LANDING_FIELDS_ITEM_FORM_ALLOWED_ANY_FILE_TYPE'))
+						{
+							return {
+								name: Loc.getMessage('LANDING_FIELDS_ITEM_FORM_ALLOWED_ANY_FILE_TYPE'),
+								value: 'any',
+							};
+						}
+
+						return undefined;
+					})(),
+					...this.options.dictionary.contentTypes.map((item) => {
+						const hint = item.hint
+							? `<span class="ui-hint" data-hint="${Text.encode(item.hint)}"></span>`
+							: ''
+						;
+						return {
+							html: `<span style="display: flex; align-items: center;">${Text.encode(item.name)} ${hint}</span>`,
+							name: '',
+							value: item.id
+						};
 					}),
+				],
+				onValueChange: () => {
+					const value = contentTypesField.getValue();
+
+					if (value.includes('any'))
+					{
+						if (lastValue.includes('any'))
+						{
+							contentTypesField.setValue(value.filter((item) => item !== 'any'));
+						}
+						else
+						{
+							contentTypesField.setValue(['any']);
+						}
+					}
+
+					lastValue = contentTypesField.getValue();
+				},
+			});
+
+			BX.UI.Hint.init(contentTypesField.getLayout());
+			fields.push(contentTypesField);
+		}
+
+		if (Text.toBoolean(field.editing.supportAutocomplete) === true)
+		{
+			fields.push(new BX.Landing.UI.Field.Checkbox({
+				selector: 'autocomplete',
+				compact: true,
+				multiple: false,
+				items: [
+					{
+						name: Loc.getMessage('LANDING_FIELDS_ITEM_ENABLE_AUTOCOMPLETE'),
+						html: Text.encode(Loc.getMessage('LANDING_FIELDS_ITEM_ENABLE_AUTOCOMPLETE'))
+							+ `<span 
+									class="landing-ui-form-help" 
+									style="margin: 0 0 0 5px;"
+									onclick="top.BX.Helper.show('redirect=detail&code=14611764'); return false;"
+								><a href="javascript: void();"></a></span>`
+						,
+						value: 'autocomplete',
+					},
+				],
+				value: field.autocomplete ? ['autocomplete'] : false,
+			}));
+		}
+
+		if (Text.toBoolean(field.editing.hasHint) === true)
+		{
+			fields.push(
+				new TextField({
+					selector: 'hint',
+					title: Loc.getMessage('LANDING_FIELDS_ITEM_FORM_FIELD_HINT_TITLE'),
+					content: field.hint,
+					textOnly: true,
 				}),
 			);
 		}
 
-		return new FormSettingsForm({
-			fields,
-			serializeModifier(value) {
-				const modifiedValue = {...value};
-				if (Reflect.has(value, 'label'))
-				{
-					modifiedValue.label = Text.decode(value.label);
-				}
+		if (Text.toBoolean(field.editing.supportHintOnFocus) === true)
+		{
+			fields.push(
+				new BX.Landing.UI.Field.Checkbox({
+					selector: 'hintOnFocus',
+					compact: true,
+					multiple: false,
+					items: [
+						{
+							name: Loc.getMessage('LANDING_FIELDS_ITEM_ENABLE_HINT_ON_FOCUS'),
+							value: 'hintOnFocus',
+						},
+					],
+					value: field.hintOnFocus ? ['hintOnFocus'] : false,
+				}),
+			);
+		}
 
-				if (Reflect.has(value, 'required'))
-				{
-					modifiedValue.required = value.required.includes('required');
-				}
-
-				if (Reflect.has(value, 'multiple'))
-				{
-					modifiedValue.multiple = value.multiple.includes('multiple');
-				}
-
-				if (Reflect.has(value, 'bigPic'))
-				{
-					modifiedValue.bigPic = value.bigPic.includes('bigPic');
-				}
-
-				if (Reflect.has(value, 'value') && Type.isArrayFilled(value.items))
-				{
-					modifiedValue.items = modifiedValue.items.map((item) => {
-						item.selected = (value.value === item.value);
-						return item;
-					});
-				}
-
-				if (Reflect.has(value, 'products'))
-				{
-					modifiedValue.items = Runtime.clone(value.products);
-					if (!Type.isPlainObject(modifiedValue.editing))
-					{
-						modifiedValue.editing = {};
-					}
-
-					modifiedValue.editing.catalog = Runtime.clone(value.products);
-				}
-
-				if (Reflect.has(value, 'valueType'))
-				{
-					if (!Type.isPlainObject(modifiedValue.editing))
-					{
-						modifiedValue.editing = {};
-					}
-
-					if (!Type.isPlainObject(modifiedValue.editing.editable))
-					{
-						modifiedValue.editing.editable = {};
-					}
-
-					modifiedValue.editing.editable.valueType = value.valueType;
-				}
-
-				return modifiedValue;
-			},
+		fields.forEach((currentField) => {
+			form.addField(currentField);
 		});
+
+		return form;
 	}
 
 	getListContainer(): HTMLDivElement
@@ -576,6 +930,7 @@ export class FieldsListField extends BaseField
 			.then((selectedFields) => {
 				if (Type.isArrayFilled(selectedFields))
 				{
+					this.options.crmFields = FieldsPanel.getInstance().getOriginalCrmFields();
 					this.onFieldsSelect(selectedFields);
 				}
 			});
@@ -658,7 +1013,7 @@ export class FieldsListField extends BaseField
 				{
 					fields.push({...fields[0]});
 				}
-				
+
 				void this.showLoader();
 
 				FormClient.getInstance()

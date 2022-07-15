@@ -47,6 +47,7 @@ class Asset
 	private $bodyScript = false;
 	private $moveJsToBody = null;
 
+	private $templateExists = false;
 	private $siteTemplateID = '';
 	private $templatePath = '';
 	private $documentRoot = '';
@@ -289,10 +290,15 @@ class Asset
 	 */
 	public function startTarget($id = '', $mode = AssetMode::ALL)
 	{
-		$id = ToUpper(trim($id));
+		$id = strtoupper(trim($id));
 		if ($id == '')
 		{
 			return false;
+		}
+
+		if ($id == 'TEMPLATE')
+		{
+			$this->templateExists = true;
 		}
 
 		if (
@@ -304,7 +310,7 @@ class Asset
 			$this->targetList[$id]['START'] = true;
 			$this->target = &$this->targetList[$id];
 		}
-		elseif (!($id == 'TEMPLATE' || $id == 'PAGE'))
+		elseif ($id != 'TEMPLATE' && $id != 'PAGE')
 		{
 			if (isset($this->targetList[$id]))
 			{
@@ -336,7 +342,7 @@ class Asset
 	 */
 	public function stopTarget($id = '')
 	{
-		$id = ToUpper(trim($id));
+		$id = strtoupper(trim($id));
 		if ($id == 'TEMPLATE')
 		{
 			if($this->target['NAME'] == 'TEMPLATE')
@@ -378,7 +384,7 @@ class Asset
 	 */
 	public function getAssetInfo($id, $mode)
 	{
-		$id = ToUpper(trim($id));
+		$id = strtoupper(trim($id));
 		$emptyData = ['JS' => [], 'BUNDLE_JS' => [], 'CSS' => [], 'BUNDLE_CSS' => [], 'STRINGS' => []];
 
 		if (!isset($this->targetList[$id]))
@@ -493,7 +499,7 @@ class Asset
 	 */
 	public function compositeTarget($id = '')
 	{
-		$id = ToUpper(trim($id));
+		$id = strtoupper(trim($id));
 		if ($id == '' || !isset($this->targetList[$id]))
 		{
 			return false;
@@ -1126,13 +1132,17 @@ class Asset
 	 */
 	private function addTemplateCss()
 	{
-		if (!$this->ajax && (!defined("ADMIN_SECTION") || ADMIN_SECTION !== true))
+		if (
+			!$this->ajax
+			&& (!defined("ADMIN_SECTION") || ADMIN_SECTION !== true)
+			&& $this->templateExists
+		)
 		{
-			$this->css[$this->templatePath.'/styles.css']['TARGET'][] = 'TEMPLATE';
-			$this->css[$this->templatePath.'/styles.css']['ADDITIONAL'] = false;
+			$this->css[$this->templatePath . '/styles.css']['TARGET'][] = 'TEMPLATE';
+			$this->css[$this->templatePath . '/styles.css']['ADDITIONAL'] = false;
 
-			$this->css[$this->templatePath.'/template_styles.css']['TARGET'][] = 'TEMPLATE';
-			$this->css[$this->templatePath.'/template_styles.css']['ADDITIONAL'] = false;
+			$this->css[$this->templatePath . '/template_styles.css']['TARGET'][] = 'TEMPLATE';
+			$this->css[$this->templatePath . '/template_styles.css']['ADDITIONAL'] = false;
 		}
 	}
 
@@ -1282,7 +1292,7 @@ class Asset
 				if ($moduleInfo)
 				{
 					$cssInfo['TARGET'] = 'KERNEL';
-					if ($this->sliceKernel() && $this->optimizeCss())
+					if ($this->sliceKernel() && $this->optimizeCss() && is_array($moduleInfo))
 					{
 						$cssInfo['MODULE_ID'] = $moduleInfo['MODULE_ID'];
 						$cssInfo['TARGET'] = 'KERNEL_'.$moduleInfo['MODULE_ID'];
@@ -1313,7 +1323,10 @@ class Asset
 						];
 					}
 
-					$this->targetList['KERNEL']['CSS_LIST'][$cssInfo['TARGET']]['MODULE_NAME'] = $moduleInfo['MODULE_ID'];
+					if (is_array($moduleInfo))
+					{
+						$this->targetList['KERNEL']['CSS_LIST'][$cssInfo['TARGET']]['MODULE_NAME'] = $moduleInfo['MODULE_ID'];
+					}
 
 					// Add information about sets where used
 					foreach ($set['TARGET'] as $setID)
@@ -1513,7 +1526,7 @@ class Asset
 	public function getCss($type = AssetShowTargetType::ALL)
 	{
 		$res = '';
-		$cnt = $ruleCount = 0;
+		$cnt = 0;
 		$additional = [];
 		static $setList = [];
 		static $ajaxList = [];
@@ -2206,7 +2219,7 @@ class Asset
 		}
 
 		$this->setTemplateID();
-		$res = $assetMD5 = $comments = $contents = '';
+		$res = $comments = $contents = '';
 		$prefix = trim($prefix);
 		$prefix = mb_strlen($prefix) < 1 ? 'default' : $prefix;
 		$add2End = (strncmp($prefix, 'kernel', 6) == 0);
@@ -2230,7 +2243,7 @@ class Asset
 		$optimFileExist = $tmpInfo['FILE_EXIST'];
 
 		$writeResult = ($action == 'NEW' ? false : true);
-		$currentFileList = &$this->fileList[ToUpper($type)][$setName];
+		$currentFileList = &$this->fileList[strtoupper($type)][$setName];
 
 		if ($action != 'NO')
 		{

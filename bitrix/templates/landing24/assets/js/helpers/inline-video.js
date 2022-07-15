@@ -2,29 +2,35 @@
 {
 	"use strict";
 
-	BX.addCustomEvent(window, "BX.Landing.Block:init", function(event)
+	BX.addCustomEvent(window, "BX.Landing.Block:init", function (event)
 	{
-		initBlock([].slice.call(event.block.querySelectorAll("[data-source]")));
+		initBlock([].slice.call(event.block.querySelectorAll('[data-source]')));
 	});
 
-	BX.addCustomEvent("BX.Landing.Block:Node:update", function(event)
+	BX.addCustomEvent("BX.Landing.Block:Node:update", function (event)
 	{
-		initBlock([].slice.call(event.block.querySelectorAll("[data-source]")));
+		if (event.node && event.node.hasAttribute('data-source'))
+		{
+			initBlock([].slice.call(event.block.querySelectorAll('[data-source]')));
+		}
 	});
 
 	function initBlock(videos)
 	{
 		if (videos.length)
 		{
-			videos.forEach(function(video)
+			videos.forEach(function (video)
 			{
-				var video = resetPlayerPreview(video);
+				video = resetPlayerPreview(video);
+				const source = video.dataset.source;
+				const src = video.src ||  video.dataset.src;
 
-				if (BX.Landing.Utils.Matchers.youtube.test(video.dataset.source))
+				if (
+					BX.Landing.Utils.Matchers.youtube.test(source)
+					|| BX.Landing.Utils.Matchers.youtube.test(src)
+				)
 				{
-					var src = video.src ? video.src : video.dataset.src;
-					// autoplay load immediately
-					if (src.indexOf('autoplay=1') !== -1)
+					if (src.indexOf('autoplay=1') !== -1 && BX.Landing.getMode() !== 'edit')
 					{
 						loadPlayerYT(video, {autoplay: 1, mute: 1})
 					}
@@ -40,9 +46,11 @@
 					}
 				}
 				else if (
-					BX.Landing.Utils.Matchers.vimeo.test(video.dataset.source)
-					|| BX.Landing.Utils.Matchers.vine.test(video.dataset.source)
-					|| BX.Landing.Utils.Matchers.facebookVideos.test(video.dataset.source)
+					BX.Landing.Utils.Matchers.vimeo.test(source)
+					|| BX.Landing.Utils.Matchers.vine.test(source)
+					|| BX.Landing.Utils.Matchers.facebookVideos.test(source)
+					|| BX.Landing.Utils.Matchers.vk.test(source)
+					|| BX.Landing.Utils.Matchers.rutube.test(video.dataset.source)
 				)
 				{
 					loadPlayerFrame(video);
@@ -58,13 +66,14 @@
 	function showError(node)
 	{
 		node.classList.remove('g-video-preview');
+
 		node.classList.add('g-video-preview-error');
 		node.innerHTML = '<div class="g-landing-alert-v2">' +
 			'<div class="g-landing-alert-title">' +
 			BX.message('LANDING_VIDEO_ALERT_WRONG_SOURCE') +
 			'</div>' +
 			'<div class="g-landing-alert-text">' +
-			BX.message('LANDING_VIDEO_ALERT_WRONG_SOURCE_TEXT') +
+			BX.message('LANDING_VIDEO_ALERT_WRONG_SOURCE_TEXT_2') +
 			'</div>' +
 			'</div>';
 	}
@@ -82,7 +91,7 @@
 					backgroundImage: 'url('+ playerPreview.dataset.preview +')'
 				},
 				dataset: {
-					src: playerPreview.dataset.src,
+					src: playerPreview.src || playerPreview.dataset.src,
 					source: playerPreview.dataset.source
 				}
 			});
@@ -125,9 +134,9 @@
 				scheduledPlayers.push(playerPreview);
 			}
 
-			window.onYouTubeIframeAPIReady = function()
+			window.onYouTubeIframeAPIReady = function ()
 			{
-				scheduledPlayers.forEach(function(item)
+				scheduledPlayers.forEach(function (item)
 				{
 					loadPlayerYT(item, additionalParams)
 				});
@@ -149,8 +158,8 @@
 
 	/**
 	 *
-	 * @param {Element} playerPreview
-	 * @returns {Element}
+	 * @param {HTMLElement} playerPreview
+	 * @returns {HTMLElement}
 	 */
 	function loadPlayerFrame(playerPreview)
 	{
@@ -160,28 +169,36 @@
 			return playerPreview;
 		}
 
-		var playerFrame = BX.create('iframe', {
+		const selector = playerPreview.className;
+		playerPreview.className = 'landing-node-player-preview';
+
+		const playerFrame = BX.create('iframe', {
 			props: {
-				className: playerPreview.className
+				className: selector
 			},
 			attrs: {
-				src: playerPreview.dataset.src,
+				src: BX.util.htmlspecialcharsback(playerPreview.dataset.src),
 				frameborder: "0",
 				allowfullscreen: "allowfullscreen",
 				allow: "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
 			},
 			dataset: {
-				src: playerPreview.dataset.src,
-				source: playerPreview.dataset.source
+				src: BX.util.htmlspecialcharsback(playerPreview.dataset.src),
+				source: BX.util.htmlspecialcharsback(playerPreview.dataset.source),
 			},
 			events: {
-				load: function()
+				load: function ()
 				{
 					BX.remove(playerPreview);
+					loader.hide();
 				}
 			}
 		});
-		// todo: add loader img for iframe
+		const loader = new BX.Loader({
+			target: playerPreview
+		});
+		loader.show();
+
 		BX.insertBefore(playerFrame, playerPreview);
 		return playerFrame;
 	}

@@ -14,3 +14,7 @@
 	background-size: cover;
 	content: "";
 }
+
+.landing-ui-field-font-link {
+	font-size: 13px !important;
+}

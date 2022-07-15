@@ -5,6 +5,7 @@ use \Bitrix\Landing\Landing as LandingCore;
 use \Bitrix\Landing\Hook;
 use \Bitrix\Landing\Repo;
 use \Bitrix\Landing\File;
+use \Bitrix\Landing\Block;
 use \Bitrix\Landing\TemplateRef;
 
 class Landing
@@ -66,15 +67,31 @@ class Landing
 			$landing['TEMPLATE_REF'] = TemplateRef::getForLanding($landingId);
 		}
 
+		$landingInstance = LandingCore::createInstance($landingId);
+
+		// saved block (favorites)
+		if ($landing['TPL_CODE'])
+		{
+			$tplCode = $landing['TPL_CODE'];
+			if (strpos($tplCode, '@'))
+			{
+				[, $tplCode] = explode('@', $tplCode);
+			}
+			foreach (Block::getFavorites($tplCode) as $row)
+			{
+				$landingInstance->addBlockToCollection(new Block($row['ID']));
+			}
+		}
+
 		// blocks
 		$landing['BLOCKS'] = [];
-		$landingInstance = LandingCore::createInstance($landingId);
 		foreach ($landingInstance->getBlocks() as $block)
 		{
 			if (!$block->isActive())
 			{
 				continue;
 			}
+
 			// repo blocks
 			$repoBlock = [];
 			if ($block->getRepoId())
@@ -90,6 +107,29 @@ class Landing
 					];
 				}
 			}
+
+			$repoInfo = [];
+			if ($block->getRepoId())
+			{
+				$repoInfo = Repo::getById($block->getRepoId())->fetch();
+				if ($repoInfo)
+				{
+					$repoInfo = [
+						'NAME' => $repoInfo['NAME'],
+						'DESCRIPTION' => $repoInfo['DESCRIPTION'],
+						'SECTIONS' => $repoInfo['SECTIONS'],
+						'PREVIEW' => $repoInfo['PREVIEW'],
+						'MANIFEST' => $repoInfo['MANIFEST'],
+						'CONTENT' => $repoInfo['CONTENT']
+					];
+				}
+				else
+				{
+					$repoInfo = [];
+				}
+			}
+
+			$metaBlock = $block->getMeta();
 			$exportBlock = $block->export();
 			$exportItem = array(
 				'code' => $block->getCode(),
@@ -97,8 +137,10 @@ class Landing
 				'access' => $block->getAccess(),
 				'anchor' => $block->getLocalAnchor(),
 				'designed' => $block->isDesigned(),
+				'meta' => $metaBlock,
 				'full_content' => $block->isDesigned() ? $block->getContent() : null,
 				'repo_block' => $repoBlock,
+				'repo_info' => $repoInfo,
 				'cards' => $exportBlock['cards'],
 				'nodes' => $exportBlock['nodes'],
 				'menu' => $exportBlock['menu'],
@@ -106,6 +148,7 @@ class Landing
 				'attrs' => $exportBlock['attrs'],
 				'dynamic' => $exportBlock['dynamic']
 			);
+
 			foreach ($exportItem as $key => $item)
 			{
 				if (!$item)
@@ -114,6 +157,7 @@ class Landing
 				}
 			}
 			$landing['BLOCKS'][$block->getId()] = $exportItem;
+
 			$blockFiles = File::getFilesFromBlockContent(
 				$block->getId(),
 				$block->getContent()
@@ -121,6 +165,11 @@ class Landing
 			foreach ($blockFiles as $fileId)
 			{
 				$files[] = ['ID' => $fileId];
+			}
+			// favorite cover
+			if (intval($metaBlock['FAVORITE_META']['preview'] ?? 0) > 0)
+			{
+				$files[] = ['ID' => intval($metaBlock['FAVORITE_META']['preview'])];
 			}
 		}
 

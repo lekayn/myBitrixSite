@@ -13,6 +13,7 @@ BX.UI.InfoHelper =
 		this.inited = true;
 		this.frameUrlTemplate = params.frameUrlTemplate || '';
 		this.trialableFeatureList = params.trialableFeatureList || [];
+		this.demoStatus = params.demoStatus || 'UNKNOWN';
 
 		BX.bind(window, 'message', BX.proxy(function(event)
 		{
@@ -114,6 +115,13 @@ BX.UI.InfoHelper =
 								'*'
 							);
 						}
+
+						if (response.data.success === 'Y')
+						{
+							BX.onCustomEvent('BX.UI.InfoHelper:onActivateDemoLicenseSuccess', {
+								result: response
+							});
+						}
 					}.bind(this)
 				);
 			}
@@ -160,6 +168,14 @@ BX.UI.InfoHelper =
 								},
 								'*'
 							);
+						}
+
+						if (response.data.success === 'Y')
+						{
+							BX.onCustomEvent('BX.UI.InfoHelper:onActivateTrialFeatureSuccess', {
+								result: response,
+								featureId: event.data.featureId
+							});
 						}
 					}.bind(this)
 				);
@@ -235,6 +251,11 @@ BX.UI.InfoHelper =
 			return;
 		}
 
+		if (params.isLimit)
+		{
+			this.sendLimitSliderAnalyticsAjax(code, params);
+		}
+
 		BX.SidePanel.Instance.open(this.getSliderId(), {
 			contentCallback: function(slider) {
 				return new Promise(function(resolve, reject) {
@@ -249,6 +270,13 @@ BX.UI.InfoHelper =
 							url = BX.Uri.addParam(url, {
 								featureId: params.featureId,
 								trialableFeatureList: this.trialableFeatureList.join(',')
+							});
+						}
+
+						if (this.demoStatus)
+						{
+							url = BX.Uri.addParam(url, {
+								demoStatus: this.demoStatus
 							});
 						}
 
@@ -279,6 +307,30 @@ BX.UI.InfoHelper =
 				}
 			}
 		});
+	},
+
+	sendLimitSliderAnalyticsAjax: function(code, params)
+	{
+		var analyticsLabels = {};
+		var defaultAnalyticsLabels = {
+			limits: 'Y',
+			code: code
+		};
+
+		if (
+			params.limitAnalyticsLabels
+			&& BX.Type.isPlainObject(params.limitAnalyticsLabels)
+		)
+		{
+			analyticsLabels = Object.assign({}, params.limitAnalyticsLabels, defaultAnalyticsLabels);
+		}
+
+		if (!analyticsLabels.module)
+		{
+			console.info('Analytics labels must contain module name as a parameter!');
+		}
+
+		void BX.ajax.runAction('ui.infoHelper.showLimitSlider', {analyticsLabel: analyticsLabels});
 	},
 
 	close: function()

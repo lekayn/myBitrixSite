@@ -17,6 +17,8 @@
 		 */
 		services: {
 			youtube: "BX.Landing.MediaService.Youtube",
+			vk: "BX.Landing.MediaService.Vk",
+			rutube: "BX.Landing.MediaService.Rutube",
 			vimeo: "BX.Landing.MediaService.Vimeo",
 			vine: "BX.Landing.MediaService.Vine",
 			instagram: "BX.Landing.MediaService.Instagram",
@@ -42,15 +44,29 @@
 		 */
 		create: function(url, options)
 		{
-			var result = null;
+			const serviceClass = this.getRelevantClass(url);
+			if (serviceClass)
+			{
+				return new serviceClass(url, options);
+			}
 
-			for (var provider in this.services)
+			return null;
+		},
+
+		/**
+		 * Check url by all services. If valid for any - return class
+		 * @param {string} url - Service url. ex. https://www.youtube.com/watch?v=ukdbnzCNN2Y
+		 * @return {?Function}
+		 */
+		getRelevantClass: function(url)
+		{
+			let result = null;
+			for (let provider in this.services)
 			{
 				if (this.services.hasOwnProperty(provider) &&
 					BX.getClass(this.services[provider])["validate"](url))
 				{
-					var service = BX.getClass(this.services[provider]);
-					result = new service(url, options);
+					result = BX.getClass(this.services[provider]);
 					break;
 				}
 			}

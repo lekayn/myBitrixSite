@@ -1,7 +1,11 @@
 this.BX = this.BX || {};
 this.BX.Catalog = this.BX.Catalog || {};
-(function (exports,ui_entityEditor,ui_notification,main_core_events,translit,main_core,main_popup) {
+(function (exports,ui_entityEditor,ui_notification,ui_hint,translit,main_core_events,main_popup,main_core,catalog_storeUse) {
 	'use strict';
+
+	function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); enumerableOnly && (symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; })), keys.push.apply(keys, symbols); } return keys; }
+
+	function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = null != arguments[i] ? arguments[i] : {}; i % 2 ? ownKeys(Object(source), !0).forEach(function (key) { babelHelpers.defineProperty(target, key, source[key]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } return target; }
 
 	var LazyLoader = /*#__PURE__*/function () {
 	  function LazyLoader(id, settings) {
@@ -40,7 +44,7 @@ this.BX.Catalog = this.BX.Catalog || {};
 	    key: "load",
 	    value: function load() {
 	      if (!this.isLoaded()) {
-	        this.startRequest(babelHelpers.objectSpread({}, this.params, {
+	        this.startRequest(_objectSpread(_objectSpread({}, this.params), {
 	          'TABID': this.tabId
 	        }));
 	      }
@@ -83,6 +87,10 @@ this.BX.Catalog = this.BX.Catalog || {};
 	  return LazyLoader;
 	}();
 
+	function ownKeys$1(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); enumerableOnly && (symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; })), keys.push.apply(keys, symbols); } return keys; }
+
+	function _objectSpread$1(target) { for (var i = 1; i < arguments.length; i++) { var source = null != arguments[i] ? arguments[i] : {}; i % 2 ? ownKeys$1(Object(source), !0).forEach(function (key) { babelHelpers.defineProperty(target, key, source[key]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys$1(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } return target; }
+
 	var Tab = /*#__PURE__*/function () {
 	  function Tab(id, settings) {
 	    babelHelpers.classCallCheck(this, Tab);
@@ -98,7 +106,7 @@ this.BX.Catalog = this.BX.Catalog || {};
 	    this.loader = null;
 
 	    if (main_core.Type.isObjectLike(this.data.loader)) {
-	      this.loader = new LazyLoader(this.id, babelHelpers.objectSpread({}, this.data.loader, {
+	      this.loader = new LazyLoader(this.id, _objectSpread$1(_objectSpread$1({}, this.data.loader), {
 	        tabId: this.id,
 	        container: this.container
 	      }));
@@ -232,6 +240,16 @@ this.BX.Catalog = this.BX.Catalog || {};
 	        }));
 	      });
 	    }
+
+	    main_core_events.EventEmitter.subscribe('BX.Catalog.EntityCard.TabManager:onOpenTab', function (event) {
+	      var tabId = event.data.tabId;
+
+	      var item = _this.findItemById(tabId);
+
+	      if (item) {
+	        _this.selectItem(item);
+	      }
+	    });
 	  }
 
 	  babelHelpers.createClass(Manager, [{
@@ -244,6 +262,9 @@ this.BX.Catalog = this.BX.Catalog || {};
 	  }, {
 	    key: "selectItem",
 	    value: function selectItem(item) {
+	      main_core_events.EventEmitter.emit('BX.Catalog.EntityCard.TabManager:onSelectItem', {
+	        tabId: item.id
+	      });
 	      this.items.forEach(function (current) {
 	        return current.setActive(current === item);
 	      });
@@ -323,7 +344,7 @@ this.BX.Catalog = this.BX.Catalog || {};
 	          productId: this.getProductId(),
 	          selectedSectionIds: this.getValue()
 	        }
-	      }).then(this.renderFromResponse.bind(this)).catch(function (response) {
+	      }).then(this.renderFromResponse.bind(this))["catch"](function (response) {
 	        throw new Error(response.errors.join("\n"));
 	      });
 	    }
@@ -435,15 +456,19 @@ this.BX.Catalog = this.BX.Catalog || {};
 
 	var _templateObject$1, _templateObject2$1, _templateObject3$1, _templateObject4$1, _templateObject5$1, _templateObject6$1, _templateObject7, _templateObject8, _templateObject9, _templateObject10, _templateObject11, _templateObject12, _templateObject13, _templateObject14, _templateObject15, _templateObject16, _templateObject17, _templateObject18;
 
+	function _classPrivateMethodInitSpec(obj, privateSet) { _checkPrivateRedeclaration(obj, privateSet); privateSet.add(obj); }
+
+	function _checkPrivateRedeclaration(obj, privateCollection) { if (privateCollection.has(obj)) { throw new TypeError("Cannot initialize the same private elements twice on an object"); } }
+
 	function _classPrivateMethodGet(receiver, privateSet, fn) { if (!privateSet.has(receiver)) { throw new TypeError("attempted to get private field on non-instance"); } return fn; }
 
-	var _creatLabelForEditMode = new WeakSet();
+	var _creatLabelForEditMode = /*#__PURE__*/new WeakSet();
 
-	var _onInputHandler = new WeakSet();
+	var _onInputHandler = /*#__PURE__*/new WeakSet();
 
-	var _getHintNode = new WeakSet();
+	var _getHintNode = /*#__PURE__*/new WeakSet();
 
-	var _onCodeStateButtonClick = new WeakSet();
+	var _onCodeStateButtonClick = /*#__PURE__*/new WeakSet();
 
 	var NameCodeField = /*#__PURE__*/function (_BX$UI$EntityEditorMu) {
 	  babelHelpers.inherits(NameCodeField, _BX$UI$EntityEditorMu);
@@ -454,13 +479,13 @@ this.BX.Catalog = this.BX.Catalog || {};
 	    babelHelpers.classCallCheck(this, NameCodeField);
 	    _this = babelHelpers.possibleConstructorReturn(this, babelHelpers.getPrototypeOf(NameCodeField).call(this));
 
-	    _onCodeStateButtonClick.add(babelHelpers.assertThisInitialized(_this));
+	    _classPrivateMethodInitSpec(babelHelpers.assertThisInitialized(_this), _onCodeStateButtonClick);
 
-	    _getHintNode.add(babelHelpers.assertThisInitialized(_this));
+	    _classPrivateMethodInitSpec(babelHelpers.assertThisInitialized(_this), _getHintNode);
 
-	    _onInputHandler.add(babelHelpers.assertThisInitialized(_this));
+	    _classPrivateMethodInitSpec(babelHelpers.assertThisInitialized(_this), _onInputHandler);
 
-	    _creatLabelForEditMode.add(babelHelpers.assertThisInitialized(_this));
+	    _classPrivateMethodInitSpec(babelHelpers.assertThisInitialized(_this), _creatLabelForEditMode);
 
 	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "getValue", function () {
 	      return BX.UI.EntityEditorBoolean.superclass.getValue.apply(this);
@@ -743,7 +768,7 @@ this.BX.Catalog = this.BX.Catalog || {};
 	  return NameCodeField;
 	}(BX.UI.EntityEditorMultiText);
 
-	var _creatLabelForEditMode2 = function _creatLabelForEditMode2(name) {
+	function _creatLabelForEditMode2(name) {
 	  var label = main_core.Tag.render(_templateObject16 || (_templateObject16 = babelHelpers.taggedTemplateLiteral(["<label class=\"ui-entity-editor-block-title\"></label>"])));
 	  var labelText;
 
@@ -757,9 +782,9 @@ this.BX.Catalog = this.BX.Catalog || {};
 	  }
 
 	  return label;
-	};
+	}
 
-	var _onInputHandler2 = function _onInputHandler2(name) {
+	function _onInputHandler2(name) {
 	  this._changeHandler();
 
 	  if (this.allowToGenerateCode && name === 'NAME') {
@@ -767,13 +792,13 @@ this.BX.Catalog = this.BX.Catalog || {};
 	    var nameTextElement = document.getElementById('name_text');
 	    codeTextElement.value = BX.translit(nameTextElement.value, null);
 	  }
-	};
+	}
 
-	var _getHintNode2 = function _getHintNode2() {
+	function _getHintNode2() {
 	  return BX.UI.Hint.createNode(main_core.Loc.getMessage('CATALOG_ENTITY_CARD_SYMBOLIC_CODE_HINT'));
-	};
+	}
 
-	var _onCodeStateButtonClick2 = function _onCodeStateButtonClick2() {
+	function _onCodeStateButtonClick2() {
 	  var codeTextElement = document.getElementById('code_text');
 	  var nameTextElement = document.getElementById('name_text');
 	  var codeStateButtonElement = document.getElementById('code_state_button');
@@ -798,7 +823,7 @@ this.BX.Catalog = this.BX.Catalog || {};
 
 	    codeTextElement.value = newValue;
 	  }
-	};
+	}
 
 	var FieldsFactory = /*#__PURE__*/function () {
 	  function FieldsFactory() {
@@ -829,6 +854,9 @@ this.BX.Catalog = this.BX.Catalog || {};
 	  return FieldsFactory;
 	}();
 
+	function ownKeys$2(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); enumerableOnly && (symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; })), keys.push.apply(keys, symbols); } return keys; }
+
+	function _objectSpread$2(target) { for (var i = 1; i < arguments.length; i++) { var source = null != arguments[i] ? arguments[i] : {}; i % 2 ? ownKeys$2(Object(source), !0).forEach(function (key) { babelHelpers.defineProperty(target, key, source[key]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys$2(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } return target; }
 	var PROPERTY_PREFIX = 'PROPERTY_';
 	var PROPERTY_BLOCK_NAME = 'properties';
 
@@ -923,7 +951,7 @@ this.BX.Catalog = this.BX.Catalog || {};
 	        _this3._editor.commitSchemeChanges();
 
 	        _this3.isRequesting = false;
-	      }).catch(function (response) {
+	      })["catch"](function (response) {
 	        _this3.isRequesting = false;
 	      });
 	    }
@@ -963,7 +991,7 @@ this.BX.Catalog = this.BX.Catalog || {};
 	      var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
 	      var mode = options.mode || control._mode;
 	      control._mode = mode;
-	      control.getParent().addChild(control, babelHelpers.objectSpread({}, options, {
+	      control.getParent().addChild(control, _objectSpread$2(_objectSpread$2({}, options), {}, {
 	        enableSaving: false
 	      }));
 
@@ -1005,7 +1033,7 @@ this.BX.Catalog = this.BX.Catalog || {};
 
 	      var propertyBlockControl = this._editor.getControlById(PROPERTY_BLOCK_NAME);
 
-	      propertyBlockControl.addChild(control, babelHelpers.objectSpread({}, options, {
+	      propertyBlockControl.addChild(control, _objectSpread$2(_objectSpread$2({}, options), {}, {
 	        enableSaving: false
 	      }));
 	      return control;
@@ -1072,6 +1100,10 @@ this.BX.Catalog = this.BX.Catalog || {};
 	  return IblockSectionController;
 	}(BX.UI.EntityEditorController);
 
+	function ownKeys$3(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); enumerableOnly && (symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; })), keys.push.apply(keys, symbols); } return keys; }
+
+	function _objectSpread$3(target) { for (var i = 1; i < arguments.length; i++) { var source = null != arguments[i] ? arguments[i] : {}; i % 2 ? ownKeys$3(Object(source), !0).forEach(function (key) { babelHelpers.defineProperty(target, key, source[key]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys$3(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } return target; }
+
 	var VariationGridController = /*#__PURE__*/function (_BX$UI$EntityEditorCo) {
 	  babelHelpers.inherits(VariationGridController, _BX$UI$EntityEditorCo);
 
@@ -1134,12 +1166,16 @@ this.BX.Catalog = this.BX.Catalog || {};
 	      babelHelpers.get(babelHelpers.getPrototypeOf(VariationGridController.prototype), "rollback", this).call(this);
 	      this.checkEditorToolbar();
 	      this.unsubscribeGridEvents();
+	      BX.Main.gridManager.destroy(this.getGridId());
 	    }
 	  }, {
 	    key: "onAfterSave",
 	    value: function onAfterSave() {
 	      if (this.isChanged() || this._editor.isChanged()) {
 	        this.setGridControlCache(null);
+	        main_core_events.EventEmitter.emit('onAfterVariationGridSave', {
+	          gridId: this.getGridId()
+	        });
 	      }
 
 	      this.subscribeToFormSubmit();
@@ -1171,15 +1207,22 @@ this.BX.Catalog = this.BX.Catalog || {};
 	  }, {
 	    key: "unsubscribeGridEvents",
 	    value: function unsubscribeGridEvents() {
+	      var _this$getGrid, _this$getGrid$getSett, _this$getGrid2;
+
 	      var gridComponent = this.getVariationGridComponent();
 
 	      if (gridComponent) {
-	        gridComponent.unsubscribeCustomEvents();
+	        gridComponent.destroy();
 	      }
 
-	      main_core_events.EventEmitter.emit(this.getGrid().getSettingsWindow().getPopup(), 'onDestroy');
+	      var popup = (_this$getGrid = this.getGrid()) === null || _this$getGrid === void 0 ? void 0 : (_this$getGrid$getSett = _this$getGrid.getSettingsWindow()) === null || _this$getGrid$getSett === void 0 ? void 0 : _this$getGrid$getSett.getPopup();
+
+	      if (popup) {
+	        main_core_events.EventEmitter.emit(this.getGrid().getSettingsWindow().getPopup(), 'onDestroy');
+	      }
+
 	      main_core_events.EventEmitter.unsubscribeAll('BX.Main.grid:paramsUpdated');
-	      this.getGrid().destroy();
+	      (_this$getGrid2 = this.getGrid()) === null || _this$getGrid2 === void 0 ? void 0 : _this$getGrid2.destroy();
 	    }
 	  }, {
 	    key: "ajaxSuccessHandler",
@@ -1230,12 +1273,17 @@ this.BX.Catalog = this.BX.Catalog || {};
 	    value: function onBeforeGridRequest(event) {
 	      var _event$getCompatData3 = event.getCompatData(),
 	          _event$getCompatData4 = babelHelpers.slicedToArray(_event$getCompatData3, 2),
+	          grid = _event$getCompatData4[0],
 	          eventArgs = _event$getCompatData4[1];
+
+	      if (!grid || !grid.parent || grid.parent.getId() !== this.getGridId()) {
+	        return;
+	      }
 
 	      eventArgs.sessid = BX.bitrix_sessid();
 	      eventArgs.method = 'POST';
 	      eventArgs.url = this.getReloadUrl();
-	      eventArgs.data = babelHelpers.objectSpread({}, eventArgs.data, {
+	      eventArgs.data = _objectSpread$3(_objectSpread$3({}, eventArgs.data), {}, {
 	        signedParameters: this.getSignedParameters()
 	      });
 	      this.unsubscribeGridEvents();
@@ -1354,6 +1402,7 @@ this.BX.Catalog = this.BX.Catalog || {};
 
 	      eventArgs.options.data[skuGridName] = skuGridData;
 	      this.areaHeight = this.getGridControl().getWrapper().offsetHeight;
+	      BX.Main.gridManager.destroy(this.getGridId());
 	    }
 	  }]);
 	  return VariationGridController;
@@ -1450,6 +1499,10 @@ this.BX.Catalog = this.BX.Catalog || {};
 	  return BindingToCrmElementController;
 	}(BX.UI.EntityEditorController);
 
+	function ownKeys$4(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); enumerableOnly && (symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; })), keys.push.apply(keys, symbols); } return keys; }
+
+	function _objectSpread$4(target) { for (var i = 1; i < arguments.length; i++) { var source = null != arguments[i] ? arguments[i] : {}; i % 2 ? ownKeys$4(Object(source), !0).forEach(function (key) { babelHelpers.defineProperty(target, key, source[key]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys$4(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } return target; }
+
 	var FieldConfiguratorController = /*#__PURE__*/function (_BX$UI$EntityEditorCo) {
 	  babelHelpers.inherits(FieldConfiguratorController, _BX$UI$EntityEditorCo);
 
@@ -1523,7 +1576,7 @@ this.BX.Catalog = this.BX.Catalog || {};
 	        _this2._editor.saveSchemeChanges();
 
 	        _this2.isRequesting = false;
-	      }).catch(function (response) {
+	      })["catch"](function (response) {
 	        _this2.isRequesting = false;
 	      });
 	    }
@@ -1551,9 +1604,19 @@ this.BX.Catalog = this.BX.Catalog || {};
 	        signedParameters: this._editor._settings.ajaxData.SIGNED_PARAMETERS,
 	        data: fields
 	      }).then(function (response) {
+	        var _response$data;
+
+	        var property = response === null || response === void 0 ? void 0 : (_response$data = response.data) === null || _response$data === void 0 ? void 0 : _response$data.PROPERTY_FIELDS;
+
 	        if (currentField instanceof BX.UI.EntityEditorDatetime || currentField instanceof BX.UI.EntityEditorMultiDatetime) {
-	          var data = currentField.getSchemeElement().getData();
-	          data.enableTime = eventArgs.enableTime;
+	          var schemeElementData = currentField.getSchemeElement().getData();
+	          var propertyData = property === null || property === void 0 ? void 0 : property.data;
+
+	          if (propertyData) {
+	            schemeElementData.enableTime = propertyData.enableTime;
+	            schemeElementData.dateViewFormat = propertyData.dateViewFormat;
+	            currentField.refreshLayout();
+	          }
 	        }
 
 	        var newType = null;
@@ -1582,7 +1645,6 @@ this.BX.Catalog = this.BX.Catalog || {};
 	        }
 
 	        schemeElement = currentField.getSchemeElement();
-	        var property = response.data.PROPERTY_FIELDS;
 
 	        if ((currentField instanceof BX.UI.EntityEditorList || currentField instanceof BX.UI.EntityEditorMultiList) && property) {
 	          schemeElement = BX.UI.EntitySchemeElement.create(property);
@@ -1606,13 +1668,14 @@ this.BX.Catalog = this.BX.Catalog || {};
 	            },
 	            enableSaving: false
 	          });
+	          currentField._schemeElement = null;
 	          section.removeChild(currentField, {
 	            enableSaving: false
 	          });
 	        }
 
 	        _this3.isRequesting = false;
-	      }).catch(function (response) {
+	      })["catch"](function (response) {
 	        _this3.isRequesting = false;
 	      });
 	    }
@@ -1640,7 +1703,7 @@ this.BX.Catalog = this.BX.Catalog || {};
 	        case 'list':
 	        case 'multilist':
 	          formatted.PROPERTY_TYPE = 'L';
-	          fields.enumeration.forEach(function (enumItem, key) {
+	          (fields.enumeration || []).forEach(function (enumItem, key) {
 	            form.append(_this4.getFormFieldName('VALUES][' + key + '][SORT'), enumItem.SORT);
 	            form.append(_this4.getFormFieldName('VALUES][' + key + '][VALUE'), enumItem.VALUE);
 	            form.append(_this4.getFormFieldName('VALUES][' + key + '][ID'), enumItem.ID);
@@ -1649,7 +1712,7 @@ this.BX.Catalog = this.BX.Catalog || {};
 
 	        case 'directory':
 	          formatted.USER_TYPE = 'directory';
-	          fields.enumeration.forEach(function (enumItem, key) {
+	          (fields.enumeration || []).forEach(function (enumItem, key) {
 	            form.append(_this4.getFormFieldName('VALUES][' + key + '][SORT'), enumItem.SORT);
 	            form.append(_this4.getFormFieldName('VALUES][' + key + '][VALUE'), enumItem.VALUE.value);
 	            form.append(_this4.getFormFieldName('VALUES][' + key + '][XML_ID'), enumItem.XML_ID);
@@ -1727,7 +1790,7 @@ this.BX.Catalog = this.BX.Catalog || {};
 
 	      var sectionControl = this._editor.getControlById(sectionName);
 
-	      sectionControl.addChild(control, babelHelpers.objectSpread({}, options, {
+	      sectionControl.addChild(control, _objectSpread$4(_objectSpread$4({}, options), {}, {
 	        enableSaving: false
 	      }));
 	      return control;
@@ -2127,6 +2190,11 @@ this.BX.Catalog = this.BX.Catalog || {};
 	          }
 
 	          hashes.push(hash);
+
+	          if (main_core.Type.isNil(enumData['ID'])) {
+	            enumData['ID'] = main_core.Text.getRandom();
+	          }
+
 	          enumData['SORT'] = (params['enumeration'].length + 1) * 100;
 	          params['enumeration'].push(enumData);
 	        });
@@ -2178,7 +2246,7 @@ this.BX.Catalog = this.BX.Catalog || {};
 	        caption: BX.message("UI_ENTITY_EDITOR_UF_MULTIPLE_FIELD")
 	      });
 
-	      if (this._field instanceof BX.UI.EntityEditorMultiText || this._field instanceof BX.UI.EntityEditorMultiNumber || this._field instanceof BX.UI.EntityEditorMultiList || this._field instanceof BX.UI.EntityEditorMultiDatetime || this._field instanceof BX.UI.EntityEditorCustom && this._field.getSchemeElement()._settings.multiple) {
+	      if (this._field instanceof BX.UI.EntityEditorMultiText || this._field instanceof BX.UI.EntityEditorMultiNumber || this._field instanceof BX.UI.EntityEditorMultiList || this._field instanceof BX.UI.EntityEditorMultiDatetime || this._field instanceof BX.UI.EntityEditorMultiMoney || this._field instanceof BX.UI.EntityEditorCustom && this._field.getSchemeElement()._settings.multiple) {
 	        checkBox.checked = true;
 	      }
 
@@ -2812,33 +2880,82 @@ this.BX.Catalog = this.BX.Catalog || {};
 	  return GridFieldConfigurationManager;
 	}(BX.UI.EntityConfigurationManager);
 
-	var _templateObject$5, _templateObject2$5, _templateObject3$5, _templateObject4$5;
-	var EntityCard = /*#__PURE__*/function () {
-	  function EntityCard(id) {
+	var _templateObject$5;
+	var BaseCard = /*#__PURE__*/function () {
+	  function BaseCard(id) {
 	    var settings = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-	    babelHelpers.classCallCheck(this, EntityCard);
-	    babelHelpers.defineProperty(this, "stackWithOffset", null);
+	    babelHelpers.classCallCheck(this, BaseCard);
 	    this.id = main_core.Type.isStringFilled(id) ? id : main_core.Text.getRandom();
-	    this.settings = settings;
-	    this.cardSettings = settings.cardSettings || [];
-	    this.feedbackUrl = settings.feedbackUrl || '';
-	    this.settingsButtonId = settings.settingsButtonId;
 	    this.entityId = main_core.Text.toInteger(settings.entityId) || 0;
+	    this.settings = settings;
 	    this.container = document.getElementById(settings.containerId);
-	    this.variationGridId = settings.variationGridId;
-	    this.settingsButtonId = settings.settingsButtonId;
-	    this.componentName = settings.componentName || null;
-	    this.componentSignedParams = settings.componentSignedParams || null;
-	    this.isSimpleProduct = settings.isSimpleProduct || false;
 	    this.initializeTabManager();
 	    this.checkFadeOverlay();
-	    this.registerFieldsFactory();
-	    this.registerControllersFactory();
-	    this.registerEvents();
-	    this.bindCardSettingsButton();
-	    main_core_events.EventEmitter.subscribe('SidePanel.Slider:onMessage', this.onSliderMessage.bind(this));
-	    main_core_events.EventEmitter.subscribe('BX.UI.EntityEditorSection:onLayout', this.onSectionLayout.bind(this));
-	    main_core_events.EventEmitter.subscribe('Grid::updated', this.onGridUpdatedHandler.bind(this));
+	  }
+
+	  babelHelpers.createClass(BaseCard, [{
+	    key: "initializeTabManager",
+	    value: function initializeTabManager() {
+	      return new Manager(this.id, {
+	        container: document.getElementById(this.settings.tabContainerId),
+	        menuContainer: document.getElementById(this.settings.tabMenuContainerId),
+	        data: this.settings.tabs || []
+	      });
+	    }
+	  }, {
+	    key: "checkFadeOverlay",
+	    value: function checkFadeOverlay() {
+	      if (this.entityId <= 0) {
+	        this.overlay = main_core.Tag.render(_templateObject$5 || (_templateObject$5 = babelHelpers.taggedTemplateLiteral(["<div class=\"catalog-entity-overlay\"></div>"])));
+	        main_core.Dom.append(this.overlay, this.container);
+
+	        if (window === window.top) {
+	          this.overlay.style.position = 'absolute';
+	          this.overlay.style.top = this.overlay.style.left = this.overlay.style.right = '-15px';
+	        }
+	      }
+	    }
+	  }]);
+	  return BaseCard;
+	}();
+
+	var _templateObject$6, _templateObject2$5, _templateObject3$5, _templateObject4$5, _templateObject5$5, _templateObject6$3, _templateObject7$2;
+
+	var EntityCard = /*#__PURE__*/function (_BaseCard) {
+	  babelHelpers.inherits(EntityCard, _BaseCard);
+
+	  function EntityCard(id) {
+	    var _this;
+
+	    var settings = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+	    babelHelpers.classCallCheck(this, EntityCard);
+	    _this = babelHelpers.possibleConstructorReturn(this, babelHelpers.getPrototypeOf(EntityCard).call(this, id, settings));
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "stackWithOffset", null);
+	    _this.cardSettings = settings.cardSettings || [];
+	    _this.feedbackUrl = settings.feedbackUrl || '';
+	    _this.variationGridId = settings.variationGridId;
+	    _this.productStoreGridId = settings.productStoreGridId || null;
+	    _this.settingsButtonId = settings.settingsButtonId;
+	    _this.createDocumentButtonId = settings.createDocumentButtonId;
+	    _this.createDocumentButtonMenuPopupItems = settings.createDocumentButtonMenuPopupItems;
+	    _this.componentName = settings.componentName || null;
+	    _this.componentSignedParams = settings.componentSignedParams || null;
+	    _this.isSimpleProduct = settings.isSimpleProduct || false;
+
+	    _this.registerFieldsFactory();
+
+	    _this.registerControllersFactory();
+
+	    _this.registerEvents();
+
+	    _this.bindCardSettingsButton();
+
+	    _this.bindCreateDocumentButtonMenu();
+
+	    main_core_events.EventEmitter.subscribe('SidePanel.Slider:onMessage', _this.onSliderMessage.bind(babelHelpers.assertThisInitialized(_this)));
+	    main_core_events.EventEmitter.subscribe('BX.UI.EntityEditorSection:onLayout', _this.onSectionLayout.bind(babelHelpers.assertThisInitialized(_this)));
+	    main_core_events.EventEmitter.subscribe('Grid::updated', _this.onGridUpdatedHandler.bind(babelHelpers.assertThisInitialized(_this)));
+	    return _this;
 	  }
 
 	  babelHelpers.createClass(EntityCard, [{
@@ -2874,28 +2991,6 @@ this.BX.Catalog = this.BX.Catalog || {};
 	      return BX.UI.ButtonManager.getByUniqid(this.settingsButtonId);
 	    }
 	  }, {
-	    key: "initializeTabManager",
-	    value: function initializeTabManager() {
-	      return new Manager(this.id, {
-	        container: document.getElementById(this.settings.tabContainerId),
-	        menuContainer: document.getElementById(this.settings.tabMenuContainerId),
-	        data: this.settings.tabs || []
-	      });
-	    }
-	  }, {
-	    key: "checkFadeOverlay",
-	    value: function checkFadeOverlay() {
-	      if (this.entityId <= 0) {
-	        this.overlay = main_core.Tag.render(_templateObject$5 || (_templateObject$5 = babelHelpers.taggedTemplateLiteral(["<div class=\"catalog-entity-overlay\"></div>"])));
-	        main_core.Dom.append(this.overlay, this.container);
-
-	        if (window === window.top) {
-	          this.overlay.style.position = 'absolute';
-	          this.overlay.style.top = this.overlay.style.left = this.overlay.style.right = '-15px';
-	        }
-	      }
-	    }
-	  }, {
 	    key: "registerFieldsFactory",
 	    value: function registerFieldsFactory() {
 	      return new FieldsFactory();
@@ -2914,6 +3009,27 @@ this.BX.Catalog = this.BX.Catalog || {};
 	  }, {
 	    key: "onSectionLayout",
 	    value: function onSectionLayout() {}
+	  }, {
+	    key: "getProductStoreGridId",
+	    value: function getProductStoreGridId() {
+	      return this.productStoreGridId;
+	    }
+	  }, {
+	    key: "getProductStoreGridComponent",
+	    value: function getProductStoreGridComponent() {
+	      return main_core.Reflection.getClass('BX.Catalog.ProductStoreGridManager.Instance');
+	    }
+	  }, {
+	    key: "reloadProductStoreGrid",
+	    value: function reloadProductStoreGrid() {
+	      var gridComponent = this.getProductStoreGridComponent();
+
+	      if (gridComponent) {
+	        if (this.getProductStoreGridId() && this.getProductStoreGridId() === gridComponent.getGridId()) {
+	          gridComponent.reloadGrid();
+	        }
+	      }
+	    }
 	    /**
 	     * @returns {BX.Catalog.VariationGrid|null}
 	     */
@@ -2962,6 +3078,16 @@ this.BX.Catalog = this.BX.Catalog || {};
 	      main_core_events.EventEmitter.subscribe('onEntityUpdate', this.onEntityUpdateHandler.bind(this));
 	      main_core_events.EventEmitter.subscribe('onAttachFiles', this.onAttachFilesHandler.bind(this));
 	      main_core_events.EventEmitter.subscribe('BX.Main.Popup:onClose', this.onFileEditorCloseHandler.bind(this));
+	      main_core_events.EventEmitter.subscribe('onAfterVariationGridSave', this.onAfterVariationGridSave.bind(this));
+	    }
+	  }, {
+	    key: "onAfterVariationGridSave",
+	    value: function onAfterVariationGridSave(event) {
+	      var data = event.getData();
+
+	      if (data.gridId === this.getVariationGridId()) {
+	        this.reloadProductStoreGrid();
+	      }
 	    }
 	  }, {
 	    key: "onAttachFilesHandler",
@@ -3179,6 +3305,66 @@ this.BX.Catalog = this.BX.Catalog || {};
 	      });
 	    }
 	  }, {
+	    key: "bindCreateDocumentButtonMenu",
+	    value: function bindCreateDocumentButtonMenu() {
+	      var createDocumentButtonMenu = this.getCreateDocumentButtonMenu();
+
+	      if (createDocumentButtonMenu) {
+	        main_core.Event.bind(createDocumentButtonMenu.getContainer(), 'click', this.showCreateDocumentPopup.bind(this));
+	      }
+	    }
+	  }, {
+	    key: "getCreateDocumentButtonMenu",
+	    value: function getCreateDocumentButtonMenu() {
+	      var createDocumentButton = BX.UI.ButtonManager.getByUniqid(this.createDocumentButtonId);
+
+	      if (createDocumentButton) {
+	        return BX.UI.ButtonManager.getByUniqid(this.createDocumentButtonId).getMenuButton();
+	      }
+
+	      return null;
+	    }
+	  }, {
+	    key: "getCreateDocumentPopup",
+	    value: function getCreateDocumentPopup() {
+	      if (!this.createDocumentPopup) {
+	        this.createDocumentPopup = new main_popup.Popup(this.id + '-create-document', this.getCreateDocumentButtonMenu().getContainer(), {
+	          autoHide: true,
+	          draggable: false,
+	          offsetLeft: 0,
+	          offsetTop: 0,
+	          angle: {
+	            position: 'top',
+	            offset: 43
+	          },
+	          noAllPaddings: true,
+	          bindOptions: {
+	            forceBindPosition: true
+	          },
+	          closeByEsc: true,
+	          content: this.getCreateDocumentMenuContent()
+	        });
+	      }
+
+	      return this.createDocumentPopup;
+	    }
+	  }, {
+	    key: "showCreateDocumentPopup",
+	    value: function showCreateDocumentPopup() {
+	      this.getCreateDocumentPopup().show();
+	    }
+	  }, {
+	    key: "getCreateDocumentMenuContent",
+	    value: function getCreateDocumentMenuContent() {
+	      var popupWrapper = main_core.Tag.render(_templateObject$6 || (_templateObject$6 = babelHelpers.taggedTemplateLiteral(["<div class=\"menu-popup\"></div>"])));
+	      var popupItemsContainer = main_core.Tag.render(_templateObject2$5 || (_templateObject2$5 = babelHelpers.taggedTemplateLiteral(["<div class=\"menu-popup-items\"></div>"])));
+	      popupWrapper.appendChild(popupItemsContainer);
+	      this.createDocumentButtonMenuPopupItems.forEach(function (item) {
+	        popupItemsContainer.appendChild(main_core.Tag.render(_templateObject3$5 || (_templateObject3$5 = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t<a class=\"menu-popup-item menu-popup-item-no-icon\" href=\"", "\">\n\t\t\t\t\t<span class=\"menu-popup-item-text\">", "</span>\n\t\t\t\t</a>\n\t\t\t"])), item.link, item.text));
+	      });
+	      return popupWrapper;
+	    }
+	  }, {
 	    key: "getCardSettingsPopup",
 	    value: function getCardSettingsPopup() {
 	      if (!this.settingsPopup) {
@@ -3205,10 +3391,10 @@ this.BX.Catalog = this.BX.Catalog || {};
 	  }, {
 	    key: "showCardSettingsPopup",
 	    value: function showCardSettingsPopup() {
-	      var _this = this;
+	      var _this2 = this;
 
 	      var okCallback = function okCallback() {
-	        return _this.getCardSettingsPopup().show();
+	        return _this2.getCardSettingsPopup().show();
 	      };
 
 	      var variationGridInstance = main_core.Reflection.getClass('BX.Catalog.VariationGrid.Instance');
@@ -3222,22 +3408,40 @@ this.BX.Catalog = this.BX.Catalog || {};
 	  }, {
 	    key: "prepareCardSettingsContent",
 	    value: function prepareCardSettingsContent() {
-	      var _this2 = this;
+	      var _this3 = this;
 
-	      var content = main_core.Tag.render(_templateObject2$5 || (_templateObject2$5 = babelHelpers.taggedTemplateLiteral(["\n\t\t\t<div class='ui-entity-editor-popup-create-field-list'></div>\n\t\t"])));
+	      var content = main_core.Tag.render(_templateObject4$5 || (_templateObject4$5 = babelHelpers.taggedTemplateLiteral(["\n\t\t\t<div class='ui-entity-editor-popup-create-field-list'></div>\n\t\t"])));
 	      this.cardSettings.map(function (item) {
-	        content.append(_this2.getSettingItem(item));
+	        content.append(_this3.getSettingItem(item));
 	      });
 	      return content;
 	    }
 	  }, {
 	    key: "getSettingItem",
 	    value: function getSettingItem(item) {
-	      var input = main_core.Tag.render(_templateObject3$5 || (_templateObject3$5 = babelHelpers.taggedTemplateLiteral(["\n\t\t\t<input type=\"checkbox\">\n\t\t"])));
+	      var _item$disabled,
+	          _this4 = this;
+
+	      var input = main_core.Tag.render(_templateObject5$5 || (_templateObject5$5 = babelHelpers.taggedTemplateLiteral(["\n\t\t\t<input type=\"checkbox\">\n\t\t"])));
 	      input.checked = item.checked;
+	      input.disabled = (_item$disabled = item.disabled) !== null && _item$disabled !== void 0 ? _item$disabled : false;
 	      input.dataset.settingId = item.id;
-	      var setting = main_core.Tag.render(_templateObject4$5 || (_templateObject4$5 = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t<label class=\"ui-ctl-block ui-entity-editor-popup-create-field-item ui-ctl-w100\">\n\t\t\t\t\t<div class=\"ui-ctl-w10\" style=\"text-align: center\">", "</div>\n\t\t\t\t\t<div class=\"ui-ctl-w75\">\n\t\t\t\t\t\t<span class=\"ui-entity-editor-popup-create-field-item-title\">", "</span>\n\t\t\t\t\t\t<span class=\"ui-entity-editor-popup-create-field-item-desc\">", "</span>\t\n\t\t\t\t\t</div>\n\t\t\t\t</label>\n\t\t\t"])), input, item.title, item.desc);
-	      main_core.Event.bind(setting, 'change', this.setProductCardSetting.bind(this));
+	      var hintNode = main_core.Type.isStringFilled(item.hint) ? main_core.Tag.render(_templateObject6$3 || (_templateObject6$3 = babelHelpers.taggedTemplateLiteral(["<span class=\"catalog-entity-setting-hint\" data-hint=\"", "\"></span>"])), item.hint) : '';
+	      var setting = main_core.Tag.render(_templateObject7$2 || (_templateObject7$2 = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t<label class=\"ui-ctl-block ui-entity-editor-popup-create-field-item ui-ctl-w100\">\n\t\t\t\t\t<div class=\"ui-ctl-w10\" style=\"text-align: center\">", "</div>\n\t\t\t\t\t<div class=\"ui-ctl-w75\">\n\t\t\t\t\t\t<span class=\"ui-entity-editor-popup-create-field-item-title ", "\">", "", "</span>\n\t\t\t\t\t\t<span class=\"ui-entity-editor-popup-create-field-item-desc\">", "</span>\n\t\t\t\t\t</div>\n\t\t\t\t</label>\n\t\t\t"])), input, item.disabled ? 'catalog-entity-disabled-setting' : '', item.title, hintNode, item.desc);
+	      BX.UI.Hint.init(setting);
+
+	      if (item.id === 'SLIDER') {
+	        main_core.Event.bind(setting, 'change', function (event) {
+	          new catalog_storeUse.Slider().open(item.url, {}).then(function () {
+	            _this4.reloadGrid();
+
+	            _this4.getCardSettingsPopup().close();
+	          });
+	        });
+	      } else {
+	        main_core.Event.bind(setting, 'change', this.setProductCardSetting.bind(this));
+	      }
+
 	      return setting;
 	    }
 	  }, {
@@ -3269,9 +3473,14 @@ this.BX.Catalog = this.BX.Catalog || {};
 	      }
 	    }
 	  }, {
+	    key: "reloadGrid",
+	    value: function reloadGrid() {
+	      document.location.reload();
+	    }
+	  }, {
 	    key: "requestGridSettings",
 	    value: function requestGridSettings(setting, enabled) {
-	      var _this3 = this;
+	      var _this5 = this;
 
 	      if (!this.getVariationGrid()) ;
 
@@ -3291,17 +3500,25 @@ this.BX.Catalog = this.BX.Catalog || {};
 	          currentHeaders: headers
 	        }
 	      }).then(function () {
+	        var message = null;
 	        setting.checked = enabled;
 
-	        _this3.reloadVariationGrid();
+	        _this5.reloadVariationGrid();
 
-	        _this3.postSliderMessage('onUpdate', {});
+	        _this5.postSliderMessage('onUpdate', {});
 
-	        _this3.getCardSettingsPopup().close();
+	        _this5.getCardSettingsPopup().close();
 
-	        var message = enabled ? main_core.Loc.getMessage('CATALOG_ENTITY_CARD_SETTING_ENABLED') : main_core.Loc.getMessage('CATALOG_ENTITY_CARD_SETTING_DISABLED');
+	        if (setting.id === 'WAREHOUSE') {
+	          _this5.reloadGrid();
 
-	        _this3.showNotification(message.replace('#NAME#', setting.title), {
+	          message = enabled ? main_core.Loc.getMessage('CATALOG_ENTITY_CARD_WAREHOUSE_ENABLED') : main_core.Loc.getMessage('CATALOG_ENTITY_CARD_WAREHOUSE_DISABLED');
+	        } else {
+	          message = enabled ? main_core.Loc.getMessage('CATALOG_ENTITY_CARD_SETTING_ENABLED') : main_core.Loc.getMessage('CATALOG_ENTITY_CARD_SETTING_DISABLED');
+	          message = message.replace('#NAME#', setting.title);
+	        }
+
+	        _this5.showNotification(message, {
 	          category: 'popup-settings'
 	        });
 	      });
@@ -3309,7 +3526,7 @@ this.BX.Catalog = this.BX.Catalog || {};
 	  }, {
 	    key: "requestCardSettings",
 	    value: function requestCardSettings(setting, enabled) {
-	      var _this4 = this;
+	      var _this6 = this;
 
 	      BX.ajax.runComponentAction(this.componentName, 'setCardSetting', {
 	        mode: 'class',
@@ -3322,18 +3539,18 @@ this.BX.Catalog = this.BX.Catalog || {};
 	        setting.checked = enabled;
 
 	        if (setting.id === 'CATALOG_PARAMETERS') {
-	          var section = _this4.getEditorInstance().getControlByIdRecursive('catalog_parameters');
+	          var section = _this6.getEditorInstance().getControlByIdRecursive('catalog_parameters');
 
 	          if (section) {
 	            section.refreshLayout();
 	          }
 	        }
 
-	        _this4.getCardSettingsPopup().close();
+	        _this6.getCardSettingsPopup().close();
 
 	        var message = enabled ? main_core.Loc.getMessage('CATALOG_ENTITY_CARD_SETTING_ENABLED') : main_core.Loc.getMessage('CATALOG_ENTITY_CARD_SETTING_DISABLED');
 
-	        _this4.showNotification(message.replace('#NAME#', setting.title), {
+	        _this6.showNotification(message.replace('#NAME#', setting.title), {
 	          category: 'popup-settings'
 	        });
 	      });
@@ -3341,7 +3558,7 @@ this.BX.Catalog = this.BX.Catalog || {};
 	  }, {
 	    key: "updateSettingsCheckboxState",
 	    value: function updateSettingsCheckboxState() {
-	      var _this5 = this;
+	      var _this7 = this;
 
 	      var popupContainer = this.getCardSettingsPopup().getContentContainer();
 	      this.cardSettings.filter(function (item) {
@@ -3349,7 +3566,7 @@ this.BX.Catalog = this.BX.Catalog || {};
 	      }).forEach(function (item) {
 	        var allColumnsExist = true;
 	        item.columns.forEach(function (columnName) {
-	          if (!_this5.getVariationGrid().getColumnHeaderCellByName(columnName)) {
+	          if (!_this7.getVariationGrid().getColumnHeaderCellByName(columnName)) {
 	            allColumnsExist = false;
 	          }
 	        });
@@ -3362,9 +3579,10 @@ this.BX.Catalog = this.BX.Catalog || {};
 	    }
 	  }]);
 	  return EntityCard;
-	}();
+	}(BaseCard);
 
 	exports.EntityCard = EntityCard;
+	exports.BaseCard = BaseCard;
 
-}((this.BX.Catalog.EntityCard = this.BX.Catalog.EntityCard || {}),BX,BX,BX.Event,BX,BX,BX.Main));
+}((this.BX.Catalog.EntityCard = this.BX.Catalog.EntityCard || {}),BX,BX,BX,BX,BX.Event,BX.Main,BX,BX.Catalog.StoreUse));
 //# sourceMappingURL=entity-card.bundle.js.map

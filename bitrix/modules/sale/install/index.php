@@ -99,14 +99,14 @@ Class sale extends CModule
 
 	function InstallDB()
 	{
-		global $DB, $DBType, $APPLICATION;
+		global $DB, $APPLICATION;
 		$this->errors = false;
 
 		$clearInstall = false;
 		if(!$DB->Query("SELECT 'x' FROM b_sale_basket", true))
 		{
 			$clearInstall = true;
-			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/install/db/".$DBType."/install.sql");
+			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/install/db/mysql/install.sql");
 		}
 
 		if($this->errors !== false)
@@ -215,6 +215,8 @@ Class sale extends CModule
 
 		RegisterModuleDependences('rest', 'OnRestServiceBuildDescription', 'sale', '\Bitrix\Sale\PaySystem\RestService', 'onRestServiceBuildDescription');
 		RegisterModuleDependences('rest', 'OnRestServiceBuildDescription', 'sale', '\Bitrix\Sale\Delivery\Rest\Handlers', 'onRestServiceBuildDescription');
+		RegisterModuleDependences('rest', 'OnRestServiceBuildDescription', 'sale', '\Bitrix\Sale\Cashbox\Rest\RestService', 'onRestServiceBuildDescription');
+
 		$eventManager->registerEventHandler('main', 'onNumberGeneratorsClassesCollect', 'sale', '\Bitrix\Sale\Integration\Numerator\OrderIdNumberGenerator', 'onGeneratorClassesCollect');
 		$eventManager->registerEventHandler('main', 'onNumberGeneratorsClassesCollect', 'sale', '\Bitrix\Sale\Integration\Numerator\OrderUserOrdersNumberGenerator', 'onGeneratorClassesCollect');
 		$eventManager->registerEventHandler('main', 'onBuildNumeratorTemplateWordsList', 'sale', '\Bitrix\Sale\Integration\Numerator\AccountNumberCompatibilityManager', 'onBuildNumeratorTemplateWordsList');
@@ -232,6 +234,16 @@ Class sale extends CModule
 		$eventManager->registerEventHandler('report', 'onAnalyticPageBatchCollect', 'sale', '\Bitrix\Sale\Integration\Report\EventHandler', 'onAnalyticPageBatchCollect');
 
 		$eventManager->registerEventHandler('documentgenerator', 'onDocumentTransformationComplete', 'sale', '\Bitrix\Sale\DocumentGenerator\CallbackRegistry', 'onDocumentGenerated');
+
+		$eventManager->registerEventHandler('rest', 'onRestAppDelete', 'sale', '\Bitrix\Sale\PaySystem\RestService', 'onRestAppDelete');
+		$eventManager->registerEventHandler('rest', 'onRestAppDelete', 'sale', '\Bitrix\Sale\Delivery\Rest\BaseService', 'onRestAppDelete');
+		$eventManager->registerEventHandler('rest', 'onRestAppDelete', 'sale', '\Bitrix\Sale\Cashbox\Rest\RestService', 'onRestAppDelete');
+
+		$eventManager->registerEventHandler('main', 'OnSiteDelete','sale', '\Bitrix\Sale\Internals\FacebookConversion', 'OnSiteDeleteHandler');
+		$eventManager->registerEventHandler("main", "OnLangDelete", "sale", "CSaleLang", "OnLangDelete");
+
+		$eventManager->registerEventHandler('sale', 'OnPrintableCheckSend', 'sale', '\Bitrix\Sale\Cashbox\Internals\Analytics\EventHandler', 'onPrintableCheckSend');
+		$eventManager->registerEventHandler('sale', 'OnSaleAfterPsServiceProcessRequest', 'sale', '\Bitrix\Sale\PaySystem\Internals\Analytics\EventHandler', 'onSaleAfterPsServiceProcessRequest');
 
 		COption::SetOptionString("sale", "viewed_capability", "N");
 		COption::SetOptionString("sale", "viewed_count", 10);
@@ -371,20 +383,19 @@ Class sale extends CModule
 			);
 		}
 
-		\CAgent::AddAgent('\Bitrix\Sale\PaySystem\Internals\Analytics\Agent::send();', 'sale', 'Y', 86400, '', 'Y');
-		\CAgent::AddAgent('\Bitrix\Sale\Cashbox\Internals\Analytics\Agent::send();', 'sale', 'Y', 86400, '', 'Y');
-		\CAgent::AddAgent('\Bitrix\Sale\Delivery\Internals\Analytics\Agent::send();', 'sale', 'Y', 86400, '', 'Y');
+		\CAgent::AddAgent('\Bitrix\Sale\Internals\Analytics\Agent::send();', 'sale', 'Y', 86400, '', 'Y');
+		\CAgent::AddAgent('\Bitrix\Sale\Internals\Analytics\Storage::cleanUpAgent();', 'sale', 'Y', 86400, '', 'Y');
 
 		return true;
 	}
 
 	function UnInstallDB($arParams = array())
 	{
-		global $DB, $DBType, $APPLICATION;
+		global $DB, $APPLICATION;
 		$this->errors = false;
 		if(array_key_exists("savedata", $arParams) && $arParams["savedata"] != "Y")
 		{
-			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/install/db/".$DBType."/uninstall.sql");
+			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/install/db/mysql/uninstall.sql");
 
 			if($this->errors !== false)
 			{
@@ -480,6 +491,7 @@ Class sale extends CModule
 
 		UnRegisterModuleDependences('rest', 'OnRestServiceBuildDescription', 'sale', '\Bitrix\Sale\PaySystem\RestService', 'onRestServiceBuildDescription');
 		UnRegisterModuleDependences('rest', 'OnRestServiceBuildDescription', 'sale', '\Bitrix\Sale\Delivery\Rest\Handlers', 'onRestServiceBuildDescription');
+		UnRegisterModuleDependences('rest', 'OnRestServiceBuildDescription', 'sale', '\Bitrix\Sale\Cashbox\Rest\RestService', 'onRestServiceBuildDescription');
 
 		$eventManager = \Bitrix\Main\EventManager::getInstance();
 		$eventManager->unRegisterEventHandler('main', 'OnUserLogout', 'sale', '\Bitrix\Sale\DiscountCouponsManager', 'logout');
@@ -504,6 +516,18 @@ Class sale extends CModule
 		$eventManager->unRegisterEventHandler('report', 'onAnalyticPageBatchCollect', 'sale', '\Bitrix\Sale\Integration\Report\EventHandler', 'onAnalyticPageBatchCollect');
 
 		$eventManager->unRegisterEventHandler('documentgenerator', 'onDocumentTransformationComplete', 'sale', '\Bitrix\Sale\DocumentGenerator\CallbackRegistry', 'onDocumentGenerated');
+
+		$eventManager->unRegisterEventHandler('rest', 'onRestAppDelete', 'sale', '\Bitrix\Sale\PaySystem\RestService', 'onRestAppDelete');
+		$eventManager->unRegisterEventHandler('rest', 'onRestAppDelete', 'sale', '\Bitrix\Sale\Delivery\Rest\BaseService', 'onRestAppDelete');
+		$eventManager->unRegisterEventHandler('rest', 'onRestAppDelete', 'sale', '\Bitrix\Sale\Cashbox\Rest\RestService', 'onRestAppDelete');
+
+		$eventManager->unRegisterEventHandler('sale', 'OnBasketAdd', 'sale', '\Bitrix\Sale\Internals\FacebookConversion', 'onAddToCartHandler');
+		$eventManager->unRegisterEventHandler('sale', 'OnSaleComponentOrderCreated', 'sale', '\Bitrix\Sale\Internals\FacebookConversion', 'onOrderCreatedHandler');
+		$eventManager->unregisterEventHandler('main', 'OnSiteDelete','sale', '\Bitrix\Sale\Internals\FacebookConversion', 'OnSiteDeleteHandler');
+		$eventManager->unregisterEventHandler('main', 'onFeedbackFormSubmit','sale', '\Bitrix\Sale\Internals\FacebookConversion', 'onFeedbackFormContactHandler');
+
+		$eventManager->unRegisterEventHandler('sale', 'OnPrintableCheckSend', 'sale', '\Bitrix\Sale\Cashbox\Internals\Analytics\EventHandler', 'onPrintableCheckSend');
+		$eventManager->unRegisterEventHandler('sale', 'OnSaleAfterPsServiceProcessRequest', 'sale', '\Bitrix\Sale\PaySystem\Internals\Analytics\EventHandler', 'onSaleAfterPsServiceProcessRequest');
 
 		if (\Bitrix\Main\Loader::includeModule('sale'))
 		{

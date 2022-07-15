@@ -3,6 +3,7 @@
 namespace Bitrix\Landing\Assets\PreProcessing;
 
 use \Bitrix\Landing\Block;
+use \Bitrix\Landing\Node;
 use \Bitrix\Landing\File;
 use \Bitrix\Main\Web\DOM;
 
@@ -23,9 +24,6 @@ class Lazyload
 		$this->block = $block;
 		$this->manifest = $block->getManifest();
 		$this->content = $block->getContent();
-		// todo: block->getDom()?
-		$this->dom = new Dom\Document();
-		$this->dom->loadHTML($this->content);
 	}
 
 	/**
@@ -51,9 +49,12 @@ class Lazyload
 		$changed = false;
 		foreach ($this->manifest['nodes'] as $selector => $node)
 		{
+			if ($node['type'] === 'img' || $node['type'] === 'styleimg')
+			{
+				$domElements = Node\Style::getNodesBySelector($this->block, $selector);
+			}
 			if ($node['type'] === 'img')
 			{
-				$domElements = $this->dom->querySelectorAll($selector);
 				foreach ($domElements as $domElement)
 				{
 					if ($domElement->getTagName() === 'IMG')
@@ -67,11 +68,22 @@ class Lazyload
 					$changed = true;
 				}
 			}
+			elseif ($node['type'] === 'styleimg')
+			{
+				foreach ($domElements as $domElement)
+				{
+					if ($domElement->getTagName() !== 'IMG')
+					{
+						$this->parseStyleImg($domElement, $selector);
+						$changed = true;
+					}
+				}
+			}
 		}
 
 		if ($changed)
 		{
-			$this->block->saveContent($this->dom->saveHTML());
+			$this->block->saveContent($this->block->getDom()->saveHTML());
 			$this->block->save();
 		}
 	}
@@ -118,11 +130,12 @@ class Lazyload
 
 	protected function parseBg(DOM\Element $node, string $selector): void
 	{
-		$origStyle = $node->getAttribute('style');
-		if (!$origStyle)
+		$styles = DOM\StyleInliner::getStyle($node, false);
+		if (!$styles['background-image'])
 		{
 			return;
 		}
+		$origBg = implode('|', $styles['background-image']);
 
 		// get sizes for placeholder
 		if (
@@ -143,13 +156,12 @@ class Lazyload
 			$width = $height = self::BG_PLACEHOLDER_SIZE_DEFAULT;
 		}
 
-		$lazySrc = $this->createPlaceholderImage($width, $height);
-		$lazyStyle = "background-image: url({$lazySrc});";
-
 		$node->setAttribute('data-lazy-bg', 'Y');
-		$node->setAttribute('data-style', $origStyle);
-		$node->setAttribute('style', $lazyStyle);
-		if($origSrc = self::getSrcByBgStyle($origStyle))
+		$node->setAttribute('data-bg', $origBg);
+
+		$lazySrc = $this->createPlaceholderImage($width, $height);
+		DOM\StyleInliner::setStyle($node, array_merge($styles, ['background-image' => ["url({$lazySrc})"]]));
+		if ($origSrc = self::getSrcByBgStyle($origBg))
 		{
 			if ($origSrc['src'])
 			{
@@ -162,33 +174,56 @@ class Lazyload
 		}
 	}
 
+	protected function parseStyleImg(DOM\Element $node, string $selector): void
+	{
+		if (
+			($fileId = $node->getAttribute('data-fileid'))
+			&& $fileId > 0
+			&& ($fileArray = File::getFileArray($fileId))
+		)
+		{
+			$width = $fileArray['WIDTH'];
+			$height = $fileArray['HEIGHT'];
+
+			$node->setAttribute('data-lazy-styleimg', 'Y');
+			$node->setAttribute('data-style', $node->getAttribute('style'));
+
+			$lazySrc = $this->createPlaceholderImage($width, $height);
+			$node->setAttribute('style', "background-image:url({$lazySrc});");
+
+			// todo: after add src in saveNode - get it too
+		}
+	}
+
 	protected function getPlaceholderSizeFromManifest(string $selector)
 	{
-		if(!empty($dimensions = $this->manifest['nodes'][$selector]['dimensions']))
+		if (!empty($dimensions = $this->manifest['nodes'][$selector]['dimensions']))
 		{
-			foreach($dimensions as $key => $value)
+			foreach ($dimensions as $key => $value)
 			{
-				if(stripos($key, 'width') !== false)
+				if (mb_stripos($key, 'width') !== false)
 				{
 					$width = $value;
 				}
-				if(stripos($key, 'height') !== false)
+				if (mb_stripos($key, 'height') !== false)
 				{
 					$height = $value;
 				}
 			}
 
-			if(isset($width, $height))
+			if (isset($width, $height))
 			{
 				return [$width, $height];
 			}
 
-			if(isset($width) || isset($height))
+			if (isset($width) || isset($height))
 			{
 				$size = $width ?? $height;
+
 				return [$size, $size];
 			}
 		}
+
 		return false;
 	}
 

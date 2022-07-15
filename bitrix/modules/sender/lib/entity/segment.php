@@ -134,6 +134,11 @@ class Segment extends Base
 		$endpoints = $data['ENDPOINTS'];
 		unset($data['ENDPOINTS']);
 
+		if (!$id)
+		{
+			$data['STATUS'] = GroupTable::STATUS_DONE;
+		}
+
 		$id = $this->saveByEntity(GroupTable::getEntity(), $id, $data);
 		if ($this->hasErrors())
 		{
@@ -166,12 +171,17 @@ class Segment extends Base
 				{
 					\Bitrix\Sender\Log::stat('segment_field', $field, $id);
 				}
+				$isIncrementally = $connector instanceof Connector\IncrementallyConnector;
+
+				$dataCounter = $isIncrementally
+					? new Connector\DataCounter([])
+					: $connector->getDataCounter();
 
 				$groupConnector = array(
 					'GROUP_ID' => $id,
 					'NAME' => $connector->getName(),
 					'ENDPOINT' => $endpoint,
-					'ADDRESS_COUNT' => $connector->getDataCounter()->getSummary()
+					'ADDRESS_COUNT' => $dataCounter->getSummary()
 				);
 
 				if($endpoint['FILTER_ID'])
@@ -182,7 +192,7 @@ class Segment extends Base
 				$connectorResultDb = GroupConnectorTable::add($groupConnector);
 				if($connectorResultDb->isSuccess())
 				{
-					$dataCounters[] = $connector->getDataCounter();
+					$dataCounters[] = $dataCounter;
 				}
 
 				$this->updateDealCategory($id, $connector);
@@ -205,7 +215,7 @@ class Segment extends Base
 			{
 				continue;
 			}
-			GroupDealCategoryTable::delete(array('GROUP_ID' => $groupId));
+			GroupDealCategoryTable::deleteList(array('GROUP_ID' => $groupId));
 
 			foreach ($fieldValue as $dealCategory)
 			{

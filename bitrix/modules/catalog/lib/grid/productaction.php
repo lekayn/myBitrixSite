@@ -1,21 +1,21 @@
 <?php
+
 namespace Bitrix\Catalog\Grid;
 
-use Bitrix\Main,
-	Bitrix\Main\Localization\Loc,
-	Bitrix\Iblock,
-	Bitrix\Catalog;
+use Bitrix\Main;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Iblock;
+use Bitrix\Catalog;
 
 class ProductAction
 {
-	const SET_FIELD = 'product_field';
-	const CHANGE_PRICE = 'change_price';
+	public const SET_FIELD = 'product_field';
+	public const CHANGE_PRICE = 'change_price';
 
-	public static function updateSectionList(int $iblockId, array $sections, array $fields)
+	public static function updateSectionList(int $iblockId, array $sections, array $fields): Main\Result
 	{
 		$result = new Main\Result();
 
-		$iblockId = (int)$iblockId;
 		if ($iblockId <= 0)
 		{
 			$result->addError(new Main\Error(
@@ -25,7 +25,7 @@ class ProductAction
 		}
 
 		$catalog = \CCatalogSku::GetInfoByIBlock($iblockId);
-		if (empty($catalog) || $catalog['CATALOG_TYPE'] == \CCatalogSku::TYPE_PRODUCT)
+		if (empty($catalog))
 		{
 			$result->addError(new Main\Error(
 				Loc::getMessage('BX_CATALOG_PRODUCT_ACTION_ERR_BAD_CATALOG')
@@ -42,12 +42,16 @@ class ProductAction
 		}
 
 		$filter = [];
-		$blockedTypes = self::getBlockedProductTypes($catalog, $fields);
-		if (!empty($blockedTypes))
+		$allowedTypes = static::getAllowedProductTypes($catalog, $fields);
+		if (empty($allowedTypes))
 		{
-			$filter['!=TYPE'] = $blockedTypes;
+			$result->addError(new Main\Error(
+				Loc::getMessage('BX_CATALOG_PRODUCT_ACTION_ERR_BAD_FIELDS')
+			));
+			return $result;
 		}
-		unset($blockedTypes);
+		$filter['@TYPE'] = $allowedTypes;
+		unset($allowedTypes);
 
 		$sectionElements = self::getSectionProducts($iblockId, $sections, $filter);
 		if (empty($sectionElements))
@@ -58,9 +62,15 @@ class ProductAction
 		$sectionIdList = array_keys($sectionElements);
 		$sectionNames = [];
 		$iterator = Iblock\SectionTable::getList([
-			'select' => ['ID', 'NAME'],
-			'filter' => ['@ID' => $sectionIdList, '=IBLOCK_ID' => $iblockId],
-			'order' => ['ID' => 'ASC']
+			'select' => [
+				'ID',
+				'NAME',
+			],
+			'filter' => [
+				'@ID' => $sectionIdList,
+				'=IBLOCK_ID' => $iblockId,
+			],
+			'order' => ['ID' => 'ASC'],
 		]);
 		while ($row = $iterator->fetch())
 		{
@@ -93,11 +103,10 @@ class ProductAction
 		return $result;
 	}
 
-	public static function updateElementList(int $iblockId, array $elementIds, array $fields)
+	public static function updateElementList(int $iblockId, array $elementIds, array $fields): Main\Result
 	{
 		$result = new Main\Result();
 
-		$iblockId = (int)$iblockId;
 		if ($iblockId <= 0)
 		{
 			$result->addError(new Main\Error(
@@ -121,30 +130,37 @@ class ProductAction
 			return $result;
 		}
 		$catalog = \CCatalogSku::GetInfoByIBlock($iblockId);
-		if (empty($catalog) || $catalog['CATALOG_TYPE'] == \CCatalogSku::TYPE_PRODUCT)
+		if (empty($catalog))
 		{
 			$result->addError(new Main\Error(
 				Loc::getMessage('BX_CATALOG_PRODUCT_ACTION_ERR_BAD_CATALOG')
 			));
 			return $result;
 		}
-		$blockedTypes = self::getBlockedProductTypes($catalog, $fields);
-		if (!empty($blockedTypes))
+
+		$filter = [];
+		$allowedTypes = static::getAllowedProductTypes($catalog, $fields);
+		if (empty($allowedTypes))
 		{
-			$blockedTypes = array_fill_keys($blockedTypes, true);
+			$result->addError(new Main\Error(
+				Loc::getMessage('BX_CATALOG_PRODUCT_ACTION_ERR_BAD_FIELDS')
+			));
+			return $result;
 		}
+		$filter['@TYPE'] = $allowedTypes;
+		unset($allowedTypes);
 
 		$products = [];
 		foreach (array_chunk($elementIds, 500) as $pageIds)
 		{
+			$filter['@ID'] = $pageIds;
 			$iterator = Catalog\Model\Product::getList([
-				'select' => ['ID', 'TYPE'],
-				'filter' => ['@ID' => $pageIds]
+				'select' => ['ID'],
+				'filter' => $filter,
 			]);
 			while ($row = $iterator->fetch())
 			{
 				$row['ID'] = (int)$row['ID'];
-				$row['TYPE'] = (int)$row['TYPE'];
 				$products[$row['ID']] = $row;
 			}
 			unset($row, $iterator);
@@ -175,37 +191,14 @@ class ProductAction
 			}
 			else
 			{
-				$type = $products[$id]['TYPE'];
-				if (isset($blockedTypes[$type]))
+				$elementResult = Catalog\Model\Product::update($id, $data);
+				if (!$elementResult->isSuccess())
 				{
-					switch ($type)
-					{
-						case Catalog\ProductTable::TYPE_SKU:
-							$result->addError(new Main\Error(
-								Loc::getMessage('BX_CATALOG_PRODUCT_ACTION_ERR_CANNOT_MODIFY_SKU'),
-								$id
-							));
-							break;
-						case Catalog\ProductTable::TYPE_SET:
-							$result->addError(new Main\Error(
-								Loc::getMessage('BX_CATALOG_PRODUCT_ACTION_ERR_CANNOT_MODIFY_SET'),
-								$id
-							));
-							break;
-					}
+					$result->addError(new Main\Error(
+						implode('; ', $elementResult->getErrorMessages()),
+						$id
+					));
 				}
-				else
-				{
-					$elementResult = Catalog\Model\Product::update($id, $data);
-					if (!$elementResult->isSuccess())
-					{
-						$result->addError(new Main\Error(
-							implode('; ', $elementResult->getErrorMessages()),
-							$id
-						));
-					}
-				}
-				unset($type);
 			}
 		}
 		unset($elementResult, $id);
@@ -215,31 +208,28 @@ class ProductAction
 		return $result;
 	}
 
-	public static function updateProductField(int $iblockId, int $elementId, array $fields)
-	{
-
-	}
-
-	protected static function getSectionProducts(int $iblockId, array $sections, array $filter)
+	protected static function getSectionProducts(int $iblockId, array $sections, array $filter): ?array
 	{
 		global $USER;
 
-		$result = null;
+		if (!(isset($USER) && $USER instanceof \CUser))
+		{
+			return null;
+		}
 
 		if (!$USER->CanDoOperation('catalog_price'))
 		{
-			return false;
+			return null;
 		}
 
-		$iblockId = (int)$iblockId;
 		if ($iblockId <= 0)
 		{
-			return $result;
+			return null;
 		}
 		Main\Type\Collection::normalizeArrayValuesByInt($sections, false);
 		if (empty($sections))
 		{
-			return $result;
+			return null;
 		}
 
 		$filter['IBLOCK_ID'] = $iblockId;
@@ -304,33 +294,82 @@ class ProductAction
 		unset($sectionId);
 		unset($dublicates);
 
-		return $result;
+		return (!empty($result) ? $result : null);
 	}
 
-	protected static function getBlockedProductTypes(array $catalog, array $fields)
+	public static function getAllowedProductTypes(array $catalog, array $fields): array
 	{
-		$result = [];
+		static $list = null;
 
-		$setFields = [
-			'WEIGHT' => true,
-			'QUANTITY' => true,
-			'QUANTITY_TRACE' => true,
-			'CAN_BUY_ZERO' => true,
-			'MEASURE' => true
-		];
-		$blackList = array_intersect_key($fields, $setFields);
-		if (!empty($blackList))
+		if (empty($fields))
 		{
-			$result[] = Catalog\ProductTable::TYPE_SET;
+			return [];
 		}
-		unset($blackList, $setFields);
 
-		if (
-			$catalog['CATALOG_TYPE'] == \CCatalogSku::TYPE_FULL
-			&& (string)Main\Config\Option::get('catalog', 'show_catalog_tab_with_offers') !== 'Y'
-		)
+		if ($list === null)
 		{
-			$result[] = Catalog\ProductTable::TYPE_SKU;
+			$list = [
+				'WEIGHT',
+				'QUANTITY',
+				'QUANTITY_TRACE',
+				'CAN_BUY_ZERO',
+				'VAT_INCLUDED',
+				'VAT_ID',
+				'SUBSCRIBE',
+				'MEASURE',
+			];
+			$baseTypes = [
+				Catalog\ProductTable::TYPE_PRODUCT,
+				Catalog\ProductTable::TYPE_OFFER,
+				CATALOG\ProductTable::TYPE_FREE_OFFER,
+			];
+			if (
+				$catalog['CATALOG_TYPE'] === \CCatalogSku::TYPE_FULL
+				&& Main\Config\Option::get('catalog', 'show_catalog_tab_with_offers') === 'Y'
+			)
+			{
+				$baseTypes[] = Catalog\ProductTable::TYPE_SKU;
+			}
+			$list = array_fill_keys($list, $baseTypes);
+			unset($baseTypes);
+
+			$list['VAT_INCLUDED'][] = Catalog\ProductTable::TYPE_SET;
+			$list['VAT_ID'][] = Catalog\ProductTable::TYPE_SET;
+			$list['SUBSCRIBE'][] = Catalog\ProductTable::TYPE_SET;
+
+			$list += Catalog\Product\SystemField::getAllowedProductTypes();
+		}
+
+		$result = [];
+		foreach (array_keys($fields) as $fieldName)
+		{
+			if (!isset($list[$fieldName]))
+			{
+				$result = [];
+				break;
+			}
+			$result[] = $list[$fieldName];
+		}
+
+		if (!empty($result))
+		{
+			if (count($result) === 1)
+			{
+				$result = reset($result);
+			}
+			else
+			{
+				reset($result);
+				$check = array_shift($result);
+				foreach ($result as $row)
+				{
+					$check = array_intersect($check, $row);
+				}
+				unset($row);
+				$result = array_values($check);
+				unset($check);
+			}
+			sort($result);
 		}
 
 		return $result;

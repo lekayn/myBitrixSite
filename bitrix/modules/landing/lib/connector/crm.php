@@ -1,16 +1,17 @@
 <?php
 namespace Bitrix\Landing\Connector;
 
-use \Bitrix\Crm\Requisite\EntityLink;
-use \Bitrix\Main\Loader;
-use \Bitrix\SalesCenter\Integration\CrmManager;
-use \Bitrix\Landing\Manager;
+use Bitrix\Crm\Requisite\EntityLink;
+use Bitrix\Main\Loader;
+use Bitrix\SalesCenter\Integration\CrmManager;
+use Bitrix\Landing\Manager;
 
 class Crm
 {
 	protected const CACHE_TAG = 'landing_crm_contacts';
 	protected const OPTION_DATA_CODE = 'shop_master_data';
 
+	protected const ID_KEY = 'ID';
 	protected const COMPANY_KEY = 'COMPANY';
 	protected const PHONE_KEY = 'PHONE';
 	protected const EMAIL_KEY = 'EMAIL';
@@ -74,17 +75,16 @@ class Crm
 				$data[self::PHONE_KEY]
 			);
 		}
-		else
+
+		foreach (self::DEFAULT_CONTACTS as $key => $value)
 		{
-			foreach (self::DEFAULT_CONTACTS as $key => $value)
+			if (!($data[$key] ?? ''))
 			{
-				if (($data[$key] ?? '') !== ($contacts[$key] ?? ''))
-				{
-					if ($data[$key] ?? '')
-					{
-						$shopStoredData[$siteId][$key] = $data[$key];
-					}
-				}
+				continue;
+			}
+			if ($data[$key] !== ($contacts[$key] ?? ''))
+			{
+				$shopStoredData[$siteId][$key] = $data[$key];
 			}
 		}
 
@@ -96,9 +96,18 @@ class Crm
 	 * Returns contacts data from DB.
 	 * @return array
 	 */
-	protected static function getContactsRaw(): array
+	public static function getContactsRaw(): array
 	{
-		$contacts = [];
+		static $contacts = null;
+
+		if ($contacts === null)
+		{
+			$contacts = [];
+		}
+		else
+		{
+			return $contacts;
+		}
 
 		if (
 			!Loader::includeModule('crm')
@@ -113,11 +122,14 @@ class Crm
 			return $contacts;
 		}
 
-		if (!$contacts && EntityLink::getDefaultMyCompanyId() === 0)
+		$defaultCompanyId = EntityLink::getDefaultMyCompanyId();
+
+		if (!$contacts && $defaultCompanyId === 0)
 		{
 			return $contacts;
 		}
 
+		$contacts[self::ID_KEY] = $defaultCompanyId;
 		$contacts[self::COMPANY_KEY] = CrmManager::getPublishedCompanyName() ?: self::DEFAULT_COMPANY;
 
 		// get just first phone or email
@@ -170,6 +182,15 @@ class Crm
 			);
 		}
 
+		foreach ($contacts as &$value)
+		{
+			if (is_array($value))
+			{
+				$value = array_shift($value);
+			}
+		}
+		unset($value);
+
 		$cacheManager->endTagCache();
 		$cache->endDataCache($contacts);
 
@@ -196,9 +217,48 @@ class Crm
 	public static function onAfterCompanyChange(array $fields): void
 	{
 		$companyId = $fields['ID'] ?? null;
-		if ($companyId === \Bitrix\Crm\Requisite\EntityLink::getDefaultMyCompanyId())
+		if ($companyId === EntityLink::getDefaultMyCompanyId())
 		{
 			self::clearContactsCache();
 		}
+	}
+
+	/**
+	 * Returns replace-array for str_replace.
+	 *
+	 * @param int $siteId Site id.
+	 * @param bool $attributesReplace Return replace for inner attributes.
+	 * @return array
+	 */
+	public static function getReplacesForContent(int $siteId, bool $attributesReplace = true): array
+	{
+		$replace = [];
+
+		$crmContacts = self::getContacts($siteId);
+		$replace['#crmCompanyTitle'] = \htmlspecialcharsbx($crmContacts['COMPANY']);
+
+		if (!empty($crmContacts['PHONE']))
+		{
+			$phone = $crmContacts['PHONE'];
+			$phone = \htmlspecialcharsbx($phone);
+			$replace['#crmPhoneTitle1'] = $phone;// a-tag inside
+			if ($attributesReplace)
+			{
+				$replace['#crmPhone1'] = $phone;// a-href inside
+			}
+		}
+
+		if (!empty($crmContacts['EMAIL']))
+		{
+			$email = $crmContacts['EMAIL'];
+			$email = \htmlspecialcharsbx($email);
+			$replace['#crmEmailTitle1'] = $email;// a-tag inside
+			if ($attributesReplace)
+			{
+				$replace['#crmEmail1'] = $email;// a-href inside
+			}
+		}
+
+		return $replace;
 	}
 }

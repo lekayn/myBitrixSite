@@ -4,6 +4,9 @@ import {ajax, Event, Loc, Tag, Text, Type} from 'main.core';
 import {Vue} from "ui.vue";
 import {config} from "../../config";
 import "./panel-compilation";
+import {DialogDisable, Slider, EventType} from 'catalog.store-use'
+import {EventEmitter} from "main.core.events";
+import 'ui.hint';
 
 Vue.component(config.templatePanelButtons,
 {
@@ -16,6 +19,12 @@ Vue.component(config.templatePanelButtons,
 	props: {
 		options: Object,
 		mode: String,
+	},
+	data()
+	{
+		return {
+			settings: []
+		};
 	},
 	methods:
 	{
@@ -33,7 +42,7 @@ Vue.component(config.templatePanelButtons,
 		},
 		getInternalIndexByProductId(skuId)
 		{
-			let basket = this.$store.getters['productList/getBasket']();
+			const basket = this.$store.getters['productList/getBasket']();
 			return Object
 				.keys(basket)
 				.findIndex((inx) =>{
@@ -53,11 +62,12 @@ Vue.component(config.templatePanelButtons,
 							options: {
 								priceId: this.options.basePriceId,
 								urlBuilder: this.options.urlBuilder,
+								currency: this.options.currency,
 								resetSku: true
 							}
 						}
 					}
-				).then(response => this.processResponse(response));
+				).then(response => this.processResponse(response, params.isAddAnyway));
 			}
 			else
 			{
@@ -68,29 +78,34 @@ Vue.component(config.templatePanelButtons,
 							productId: id,
 							options: {
 								priceId: this.options.basePriceId,
-								urlBuilder: this.options.urlBuilder
+								urlBuilder: this.options.urlBuilder,
+								currency: this.options.currency,
 							}
 						}
 					}
-				).then(response => this.processResponse(response));
+				).then(response => this.processResponse(response, params.isAddAnyway));
 			}
 		},
-		processResponse(response)
+		processResponse(response, isAddAnyway)
 		{
-			const index = this.getInternalIndexByProductId(response.data.skuId);
+			const index = isAddAnyway ? -1 : this.getInternalIndexByProductId(response.data.skuId);
 			if (index < 0)
 			{
 				const productData = response.data;
-				const price = Text.toNumber(productData.fields.PRICE);
+				const basePrice = Text.toNumber(productData.fields.BASE_PRICE);
 				productData.fields = productData.fields || {};
 				let newItem = this.$store.getters['productList/getBaseProduct']();
 				newItem.fields = Object.assign(newItem.fields, {
-					price,
-					priceExclusive: price,
-					basePrice: price,
+					price: basePrice,
+					priceExclusive: basePrice,
+					basePrice,
 					name: productData.fields.NAME || '',
 					productId: productData.productId,
 					skuId: productData.skuId,
+					measureCode: productData.fields.MEASURE_CODE,
+					measureName: productData.fields.MEASURE_NAME,
+					measureRatio: productData.fields.MEASURE_RATIO,
+					properties: productData.fields.PROPERTIES,
 					offerId: productData.skuId > 0 ? productData.skuId : productData.productId,
 					module: 'catalog',
 					isCustomPrice: Type.isNil(productData.fields.PRICE) ? 'Y' : 'N',
@@ -99,7 +114,7 @@ Vue.component(config.templatePanelButtons,
 
 				delete(productData.fields);
 				newItem = Object.assign(newItem, productData);
-				newItem.sum = price;
+				newItem.sum = basePrice;
 
 				this.$root.$app.addProduct(newItem);
 			}
@@ -123,7 +138,7 @@ Vue.component(config.templatePanelButtons,
 		* */
 		removeEmptyItems()
 		{
-			let basket = this.$store.getters['productList/getBasket']();
+			const basket = this.$store.getters['productList/getBasket']();
 			basket.forEach((item, i)=>{
 				if(
 					basket[i].name === ''
@@ -169,7 +184,7 @@ Vue.component(config.templatePanelButtons,
 				lightShadow: true,
 				cacheable: false,
 				overlay: true,
-				content: Loc.getMessage('CATALOG_FORM_BLOCK_PROD_EXIST_DLG_TEXT').replace('#NAME#', params.name),
+				content: Loc.getMessage('CATALOG_FORM_BLOCK_PROD_EXIST_DLG_TEXT_FOR_DOUBLE').replace('#NAME#', params.name),
 				buttons: this.getButtons(params),
 			});
 
@@ -177,21 +192,21 @@ Vue.component(config.templatePanelButtons,
 		},
 		getButtons(product)
 		{
-			let buttons = [];
-			let params = product;
+			const buttons = [];
+			const params = product;
 			buttons.push(
 				new BX.UI.SaveButton(
 					{
 						text : Loc.getMessage('CATALOG_FORM_BLOCK_PROD_EXIST_DLG_OK'),
 						onclick: () => {
-							let productId = parseInt(params.id);
-							let inx = this.getInternalIndexByProductId(productId);
-							if(inx >= 0)
+							const productId = parseInt(params.id);
+							const index = this.getInternalIndexByProductId(productId);
+							if(index >= 0)
 							{
-								const item = this.$store.getters['productList/getBasket']()[inx];
-								item.fields.quantity++;
-								item.calculatedFields.QUANTITY++;
-								this.onUpdateBasketItem(inx, item);
+								this.handleAddItem(productId, {
+									...params,
+									isAddAnyway: true,
+								});
 							}
 							this.popup.destroy();
 						}
@@ -211,10 +226,10 @@ Vue.component(config.templatePanelButtons,
 		},
 		showDialogProductSearch()
 		{
-			let funcName = 'addBasketItemFromDialogProductSearch';
+			const funcName = 'addBasketItemFromDialogProductSearch';
 			window[funcName] = params => this.modifyBasketItem(params);
 
-			let popup = new BX.CDialog({
+			const popup = new BX.CDialog({
 				content_url: '/bitrix/tools/sale/product_search_dialog.php?'+
 					//todo: 'lang='+this._settings.languageId+
 					//todo: '&LID='+this._settings.siteId+
@@ -250,6 +265,31 @@ Vue.component(config.templatePanelButtons,
 				const value = event.target.checked ? 'Y' : 'N';
 				this.$root.$app.changeFormOption('showTaxBlock', value);
 			}
+			else if (event.target.dataset.settingId === 'warehouseOption')
+			{
+				const value = event.target.checked ? 'Y' : 'N';
+
+				if(value === 'Y')
+				{
+					this.popupMenu.close();
+					new Slider().open('/bitrix/components/bitrix/catalog.warehouse.master.clear/slider.php',{})
+					.then(() => {
+						ajax.runAction(
+							'catalog.config.isUsedInventoryManagement',
+							{}
+						).then(response => {
+
+							const index = this.getSettingItems().findIndex((item) =>
+							{
+								return item.id === event.target.dataset.settingId;
+							});
+
+							this.options.warehouseOption = response.data === true;
+							this.settings = this.getSettingItems();
+						});
+					})
+				}
+			}
 		},
 		getSettingItem(item): HTMLElement
 		{
@@ -257,22 +297,31 @@ Vue.component(config.templatePanelButtons,
 					<input type="checkbox"  class="ui-ctl-element">
 				`;
 			input.checked = item.checked;
+			input.disabled = item.disabled ?? false;
 			input.dataset.settingId = item.id;
+
+			const hintNode = (
+				Type.isStringFilled(item.hint)
+					? Tag.render`<span class="catalog-product-form-setting-hint" data-hint="${item.hint}"></span>`
+					: ''
+			);
 
 			const setting = Tag.render`
 				<label class="ui-ctl ui-ctl-checkbox ui-ctl-w100">
 					${input}
-					<div class="ui-ctl-label-text">${item.title}</div>
+					<div class="ui-ctl-label-text ${item.disabled ? 'catalog-product-form-disabled-setting' : ''}">${item.title}${hintNode}</div>
 				</label>
 			`;
+
+			BX.UI.Hint.init(setting);
 
 			Event.bind(setting, 'change', this.setSetting.bind(this));
 
 			return setting;
 		},
-		prepareSettingsContent(): HTMLElement
+		getSettingItems()
 		{
-			const settings = [
+			return [
 				// {
 				// 	id: 'taxIncludedOption',
 				// 	checked: (this.options.taxIncluded === 'Y'),
@@ -288,13 +337,23 @@ Vue.component(config.templatePanelButtons,
 				// 	checked: (this.options.showTaxBlock !== 'N'),
 				// 	title: this.localize.CATALOG_FORM_ADD_SHOW_TAXES_OPTION,
 				// },
+				{
+					id: 'warehouseOption',
+					checked: (this.options.warehouseOption),
+					disabled: (this.options.warehouseOption),
+					title: this.localize.CATALOG_FORM_ADD_SHOW_WAREHOUSE_OPTION,
+					hint: this.options.warehouseOption ? this.localize.CATALOG_FORM_ADD_SHOW_WAREHOUSE_HINT : '',
+				},
 			];
+		},
 
+		prepareSettingsContent(): HTMLElement
+		{
 			const content = Tag.render`
 					<div class='catalog-pf-product-config-popup'></div>
 				`;
 
-			settings.forEach(item => {
+			this.settings.forEach(item => {
 				content.append(this.getSettingItem(item));
 			});
 
@@ -302,8 +361,8 @@ Vue.component(config.templatePanelButtons,
 		},
 		showConfigPopup(event)
 		{
-			if (!this.popupMenu)
-			{
+			// if (!this.popupMenu)
+			// {
 				this.popupMenu = new Popup(null, event.target,
 					{
 						autoHide: true,
@@ -316,10 +375,33 @@ Vue.component(config.templatePanelButtons,
 						content: this.prepareSettingsContent()
 					}
 				);
-			}
+			// }
 
 			this.popupMenu.show();
 		},
+		openSlider(url, options)
+		{
+			if(!Type.isPlainObject(options))
+			{
+				options = {};
+			}
+			options = {...{cacheable: false, allowChangeHistory: false, events: {}}, ...options};
+			return new Promise((resolve) =>
+				{
+					if(Type.isString(url) && url.length > 1)
+					{
+						options.events.onClose = function(event)
+							{
+								resolve(event.getSlider());
+					};
+					BX.SidePanel.Instance.open(url, options);
+				}
+				else
+				{
+					resolve();
+				}
+			});
+		}
 	},
 	computed:
 	{
@@ -334,6 +416,10 @@ Vue.component(config.templatePanelButtons,
 		...Vuex.mapState({
 			productList: state => state.productList,
 		})
+	},
+	mounted()
+	{
+		this.settings = this.getSettingItems();
 	},
 	// language=Vue
 	template: `

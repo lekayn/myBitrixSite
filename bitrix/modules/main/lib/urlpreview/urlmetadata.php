@@ -8,6 +8,22 @@ use Bitrix\Main\Entity;
 use Bitrix\Main\Entity\AddResult;
 use Bitrix\Main\Entity\ScalarField;
 
+/**
+ * Class UrlMetadataTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_UrlMetadata_Query query()
+ * @method static EO_UrlMetadata_Result getByPrimary($primary, array $parameters = [])
+ * @method static EO_UrlMetadata_Result getById($id)
+ * @method static EO_UrlMetadata_Result getList(array $parameters = [])
+ * @method static EO_UrlMetadata_Entity getEntity()
+ * @method static \Bitrix\Main\UrlPreview\EO_UrlMetadata createObject($setDefaultValues = true)
+ * @method static \Bitrix\Main\UrlPreview\EO_UrlMetadata_Collection createCollection()
+ * @method static \Bitrix\Main\UrlPreview\EO_UrlMetadata wakeUpObject($row)
+ * @method static \Bitrix\Main\UrlPreview\EO_UrlMetadata_Collection wakeUpCollection($rows)
+ */
 class UrlMetadataTable extends Entity\DataManager
 {
 	const TYPE_STATIC = 'S';
@@ -59,7 +75,7 @@ class UrlMetadataTable extends Entity\DataManager
 	}
 
 	/**
-	 * Returns first record filtered by $url value
+	 * Returns last record filtered by $url value
 	 *
 	 * @param string $url Url of the page with metadata.
 	 * @return array|false
@@ -67,12 +83,16 @@ class UrlMetadataTable extends Entity\DataManager
 	 */
 	public static function getByUrl($url)
 	{
-		$parameters = array(
-			'select' => array('*'),
-			'filter' => array(
+		$parameters = [
+			'select' => ['*'],
+			'filter' => [
 				'=URL' => $url,
-			)
-		);
+			],
+			'order' => [
+				'ID' => 'desc'
+			],
+			'limit' => 1
+		];
 
 		return static::getList($parameters)->fetch();
 	}

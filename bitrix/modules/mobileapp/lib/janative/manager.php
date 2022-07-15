@@ -68,7 +68,7 @@ class Manager
                     {
                         try
                         {
-                            $component = new Component($item->getPath());
+                            $component = new Component($item->getPath(), $namespace);
                             $name = $item->getName();
                             $name = ($namespace == 'bitrix' ? $name : $namespace . ':' . $name);
                             $rawComponentList[$name] = $component;
@@ -80,9 +80,7 @@ class Manager
                 }
             }
 
-            self::$availableComponents = array_map(function ($component) {
-                return $component->getInfo();
-            }, $rawComponentList);
+			self::$availableComponents = $rawComponentList;
 
         }
 
@@ -187,18 +185,10 @@ class Manager
      * @return Component|null
      * @throws FileNotFoundException
      */
-    public static function getComponentByName($name): ?Component
-    {
+    public static function getComponentByName($name): ?Component {
         $components = self::fetchComponents();
-        if (array_key_exists($name, $components))
-        {
-            try
-            {
-                return new Component(Application::getDocumentRoot() . $components[$name]['path']);
-            } catch (Exception $e)
-            {
-                //do nothing
-            }
+        if (array_key_exists($name, $components)) {
+			return $components[$name];
         }
 
         return null;

@@ -25,11 +25,11 @@ return [
 		'nodes' => [
 			'.landing-block-node-text' => [
 				'name' => Loc::getMessage('LANDING_BLOCK_27_6_ONE_COL_FIX_TEXT_HEADINGS_NODES_LANDINGBLOCKNODE_TEXT'),
-				'type' => ['container', 'typo', 'padding-left', 'padding-right'],
+				'type' => ['container', 'typo', 'padding-left', 'padding-right', 'animation'],
 			],
 			'.landing-block-node-text-container' => [
 				'name' => Loc::getMessage('LANDING_BLOCK_27_6_ONE_COL_FIX_TEXT_HEADINGS_NODES_LANDINGBLOCKNODE_TEXT'),
-				'type' => ['container', 'text-align', 'border-color', 'heading'],
+				'type' => ['container', 'text-align', 'heading'],
 			],
 		],
 	],

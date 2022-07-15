@@ -1,12 +1,31 @@
 <?php
 use Bitrix\Main;
 use Bitrix\Catalog;
+use Bitrix\Sale;
 
 IncludeModuleLangFile(__DIR__.'\\store_docs.php');
 
 abstract class CCatalogDocsTypes
 {
+	/** @deprecated  */
+	public const TYPE_ARRIVAL = Catalog\StoreDocumentTable::TYPE_ARRIVAL;
+	/** @deprecated  */
+	public const TYPE_STORE_ADJUSTMENT = Catalog\StoreDocumentTable::TYPE_STORE_ADJUSTMENT;
+	/** @deprecated  */
+	public const TYPE_MOVING = Catalog\StoreDocumentTable::TYPE_MOVING;
+	/** @deprecated  */
+	public const TYPE_RETURN = Catalog\StoreDocumentTable::TYPE_RETURN;
+	/** @deprecated  */
+	public const TYPE_DEDUCT = Catalog\StoreDocumentTable::TYPE_DEDUCT;
+	/** @deprecated  */
+	public const TYPE_UNDO_RESERVE = Catalog\StoreDocumentTable::TYPE_UNDO_RESERVE;
+
 	protected static $clearAutoCache = array();
+
+	public static function getFields(): array
+	{
+		return [];
+	}
 
 	/** The method of conducting a document, distributes products to warehouses, according to the document type.
 	 * @param $documentId
@@ -35,18 +54,30 @@ abstract class CCatalogDocsTypes
 
 		$connection = Main\Application::getConnection();
 
-		$arErrorElement = array();
 		if (isset($arFields["ELEMENTS"]) && is_array($arFields["ELEMENTS"]))
 		{
+			$disabledStores = Catalog\StoreTable::getList([
+				'select' => ['ID'],
+				'filter' => ['=ACTIVE' => 'N'],
+			])->fetchAll();
+			$disabledStores = array_column($disabledStores, 'ID');
+
+			$basePriceType = CCatalogGroup::GetBaseGroupId();
+
 			foreach ($arFields["ELEMENTS"] as $elementId => $arElements)
 			{
-				$arErrorElement = self::checkTotalAmount($elementId, $arElements['ELEMENT_NAME']);
+				$existPriceRanges = null;
 				foreach ($arElements["POSITIONS"] as $arElement)
 				{
 					if (is_array($arElement))
 					{
 						if (isset($arElement["STORE_FROM"]))
 						{
+							if (in_array($arElement["STORE_FROM"], $disabledStores))
+							{
+								$APPLICATION->ThrowException(Main\Localization\Loc::getMessage('CAT_DOC_STORE_DEACTIVATED', ['#STORE#' => CCatalogStoreControlUtil::getStoreName($arElement["STORE_FROM"])]));
+								return false;
+							}
 							$rsResult = CCatalogStoreProduct::GetList(array(), array("PRODUCT_ID" => $arElement["PRODUCT_ID"], "STORE_ID" => $arElement["STORE_FROM"]), false, false, array('ID', 'AMOUNT'));
 							$arID = $rsResult->Fetch();
 							if(($arID !== false) || ($arElements["NEGATIVE_AMOUNT_TRACE"] == 'Y'))
@@ -60,19 +91,24 @@ abstract class CCatalogDocsTypes
 								else
 								{
 									$storeFromName = CCatalogStoreControlUtil::getStoreName($arElement["STORE_FROM"]);
-									$APPLICATION->ThrowException(GetMessage("CAT_DOC_INSUFFICIENTLY_AMOUNT", array("#STORE#" => '"'.$storeFromName.'"', "#PRODUCT#" => '"'.$arElements["ELEMENT_NAME"].'"')));
+									$APPLICATION->ThrowException(GetMessage("CAT_DOC_INSUFFICIENTLY_AMOUNT_2", array("#STORE#" => '"'.$storeFromName.'"', "#PRODUCT#" => '"'.$arElements["ELEMENT_NAME"].'"')));
 									return false;
 								}
 							}
 							else
 							{
 								$storeFromName = CCatalogStoreControlUtil::getStoreName($arElement["STORE_FROM"]);
-								$APPLICATION->ThrowException(GetMessage("CAT_DOC_INSUFFICIENTLY_AMOUNT", array("#STORE#" => $storeFromName, "#PRODUCT#" => $arElements["ELEMENT_NAME"])));
+								$APPLICATION->ThrowException(GetMessage("CAT_DOC_INSUFFICIENTLY_AMOUNT_2", array("#STORE#" => $storeFromName, "#PRODUCT#" => $arElements["ELEMENT_NAME"])));
 								return false;
 							}
 						}
 						if (isset($arElement["STORE_TO"]))
 						{
+							if (in_array($arElement["STORE_TO"], $disabledStores))
+							{
+								$APPLICATION->ThrowException(Main\Localization\Loc::getMessage('CAT_DOC_STORE_DEACTIVATED', ['#STORE#' => CCatalogStoreControlUtil::getStoreName($arElement["STORE_TO"])]));
+								return false;
+							}
 							if(!CCatalogStoreProduct::addToBalanceOfStore($arElement["STORE_TO"], $arElement["PRODUCT_ID"], $arElement["AMOUNT"]))
 								return false;
 						}
@@ -92,7 +128,7 @@ abstract class CCatalogDocsTypes
 						//TODO: replace to group operations
 						$iterator = Catalog\Model\Product::getList([
 							'select' => ['ID', 'QUANTITY_RESERVED', 'IBLOCK_ID' => 'IBLOCK_ELEMENT.IBLOCK_ID'],
-							'filter' => ['=ID' => $arElement["PRODUCT_ID"]]
+							'filter' => ['=ID' => $arElement["PRODUCT_ID"]],
 						]);
 						$product = $iterator->fetch();
 						unset($iterator);
@@ -121,31 +157,59 @@ abstract class CCatalogDocsTypes
 							$arFields['QUANTITY'] = -$product['QUANTITY_RESERVED'];
 						unset($row);
 
+						if ($basePriceType !== null && isset($arElement['BASE_PRICE_INFO']))
+						{
+							if ($existPriceRanges === null)
+							{
+								$existPriceRanges = self::isExistPriceRanges($product['ID'], $basePriceType);
+							}
+							if (!$existPriceRanges)
+							{
+								$iterator = Catalog\Model\Price::getList([
+									'select' => [
+										'ID',
+										'PRICE',
+										'CURRENCY',
+									],
+									'filter' => [
+										'=PRODUCT_ID' => $product['ID'],
+										'=CATALOG_GROUP_ID' => $basePriceType,
+									],
+								]);
+								$priceRow = $iterator->fetch();
+								unset($iterator);
+								if (!empty($priceRow))
+								{
+									if (
+										$priceRow['PRICE'] != $arElement['BASE_PRICE_INFO']['BASE_PRICE']
+										|| $priceRow['CURRENCY'] != $arElement['BASE_PRICE_INFO']['BASE_PRICE_CURRENCY']
+									)
+									{
+										Catalog\Model\Price::update(
+											(int)$priceRow['ID'],
+											[
+												'PRICE' => $arElement['BASE_PRICE_INFO']['BASE_PRICE'],
+												'CURRENCY' => $arElement['BASE_PRICE_INFO']['BASE_PRICE_CURRENCY'],
+											]
+										);
+									}
+								}
+								else
+								{
+									Catalog\Model\Price::add([
+										'PRODUCT_ID' => $product['ID'],
+										'CATALOG_GROUP_ID' => $basePriceType,
+										'PRICE' => $arElement['BASE_PRICE_INFO']['BASE_PRICE'],
+										'CURRENCY' => $arElement['BASE_PRICE_INFO']['BASE_PRICE_CURRENCY'],
+									]);
+								}
+							}
+						}
+
 						if (!CCatalogProduct::Update($arElement["PRODUCT_ID"], $arFields))
 						{
 							$APPLICATION->ThrowException(GetMessage("CAT_DOC_PURCHASING_INFO_ERROR"));
 							return false;
-						}
-						if (
-							isset($arElements['OLD_QUANTITY'])
-							&& self::isNeedClearPublicCache(
-								$arElements['OLD_QUANTITY'],
-								$arFields['QUANTITY'],
-								$arElements['QUANTITY_TRACE'],
-								$arElements['CAN_BUY_ZERO']
-							)
-						)
-						{
-							$productInfo = array(
-								'CAN_BUY_ZERO' => $arElements['CAN_BUY_ZERO'],
-								'NEGATIVE_AMOUNT_TRACE' => $arElements['NEGATIVE_AMOUNT_TRACE'],
-								'QUANTITY_TRACE' => $arElements['QUANTITY_TRACE'],
-								'OLD_QUANTITY' => $arElements['OLD_QUANTITY'],
-								'QUANTITY' => $arFields['QUANTITY'],
-								'DELTA' => $arFields['QUANTITY'] - $arElements['OLD_QUANTITY'],
-								'IBLOCK_ID' => $arElements['IBLOCK_ID']
-							);
-							self::clearPublicCache($arElement["PRODUCT_ID"], $productInfo);
 						}
 					}
 				}
@@ -154,9 +218,20 @@ abstract class CCatalogDocsTypes
 
 		unset($connection);
 
-		if(!empty($arErrorElement))
-			return $arErrorElement;
 		return true;
+	}
+
+	private static function isExistPriceRanges(int $productId, int $basePriceId): bool
+	{
+		return Catalog\PriceTable::getCount([
+			'=PRODUCT_ID' => $productId,
+			'=CATALOG_GROUP_ID' => $basePriceId,
+			[
+				'LOGIC' => 'OR',
+				'!=QUANTITY_FROM' => null,
+				'!=QUANTITY_TO' => null,
+			],
+		]) > 0;
 	}
 
 	/** The method works with barcodes. If necessary, check the uniqueness of multiple barcodes.
@@ -217,43 +292,12 @@ abstract class CCatalogDocsTypes
 		return $result;
 	}
 
-	protected static function checkTotalAmount($elementId, $name = '')
+	/**
+	 * @deprecated
+	 */
+	protected static function checkTotalAmount($elementId, $name = ''): array
 	{
-		global $DB, $APPLICATION;
-		static $arErrorElement = array();
-
-		$elementId = (int)$elementId;
-		$name = (string)$name;
-
-		$dbAmount = $DB->Query("SELECT SUM(SP.AMOUNT) as SUM, CP.QUANTITY as QUANTITY, CP.QUANTITY_RESERVED as RESERVED FROM b_catalog_store_product SP INNER JOIN b_catalog_product CP ON SP.PRODUCT_ID = CP.ID INNER JOIN b_catalog_store CS ON SP.STORE_ID = CS.ID WHERE SP.PRODUCT_ID = ".$elementId." AND CS.ACTIVE = 'Y' GROUP BY QUANTITY, QUANTITY_RESERVED ", true);
-		if($arAmount = $dbAmount->Fetch())
-		{
-			$sumAmountOfAllStore = $arAmount["SUM"];
-			$quantityReserv = $arAmount["RESERVED"];
-			$quantityTotal = $arAmount["QUANTITY"] + $quantityReserv;
-			if($sumAmountOfAllStore != $quantityTotal)
-			{
-				if ($name == '')
-				{
-					$dbProduct = CIBlockElement::GetList(
-						array(),
-						array("ID" => $elementId),
-						false,
-						false,
-						array('ID', 'NAME')
-					);
-					if ($arProduct = $dbProduct->Fetch())
-					{
-						$name = $arProduct['NAME'];
-					}
-				}
-				if ($name == '')
-					$name = $elementId;
-				$arErrorElement[] = $name;
-				$APPLICATION->ThrowException(GetMessage("CAT_DOC_WRONG_STORE_AMOUNT"));
-			}
-		}
-		return $arErrorElement;
+		return [];
 	}
 
 	protected static function checkAmountField($arDocElement, $name = '')
@@ -284,38 +328,9 @@ abstract class CCatalogDocsTypes
 		return true;
 	}
 
-	protected static function isNeedClearPublicCache($currentQuantity, $newQuantity, $quantityTrace, $canBuyZero, $ratio = 1)
+	protected static function checkParamsForConduction($documentId, $userId, $currency, $contractorId): bool
 	{
-		if (!defined('BX_COMP_MANAGED_CACHE'))
-			return false;
-		if ($canBuyZero == 'Y' || $quantityTrace == 'N')
-			return false;
-		if ($currentQuantity * $newQuantity > 0)
-			return false;
 		return true;
-	}
-
-	protected static function clearPublicCache($productID, $productInfo = array())
-	{
-		$productID = (int)$productID;
-		if ($productID <= 0)
-			return;
-		$iblockID = (int)(isset($productInfo['IBLOCK_ID']) ? $productInfo['IBLOCK_ID'] : CIBlockElement::GetIBlockByID($productID));
-		if ($iblockID <= 0)
-			return;
-		if (!isset(self::$clearAutoCache[$iblockID]))
-		{
-			CIBlock::clearIblockTagCache($iblockID);
-			self::$clearAutoCache[$iblockID] = true;
-		}
-
-		$productInfo['ID'] = $productID;
-		$productInfo['ELEMENT_IBLOCK_ID'] = $iblockID;
-		$productInfo['IBLOCK_ID'] = $iblockID;
-		foreach (GetModuleEvents('catalog', 'OnProductQuantityTrace', true) as $arEvent)
-		{
-			ExecuteModuleEventEx($arEvent, array($productID, $productInfo));
-		}
 	}
 }
 
@@ -324,18 +339,31 @@ class CCatalogArrivalDocs extends CCatalogDocsTypes
 	/** The method returns an array of fields needed for this type of document.
 	 * @return array
 	 */
-	public static function getFields()
+	public static function getFields(): array
 	{
-		return array(
-			"ELEMENT_ID" => array("required" => 'Y'),
-			"AMOUNT" => array("required" => 'Y'),
-			"NET_PRICE" => array("required" => 'Y'),
-			"STORE_TO" => array("required" => 'Y'),
-			"BAR_CODE" => array("required" => 'Y'),
-			"CONTRACTOR" => array("required" => 'Y'),
-			"CURRENCY" => array("required" => 'Y'),
-			"TOTAL" => array("required" => 'Y')
-		);
+		return [
+			'ELEMENT_ID' => ['required' => 'Y'],
+			'AMOUNT' => ['required' => 'Y'],
+			'NET_PRICE' => ['required' => 'Y'],
+			'STORE_TO' => ['required' => 'Y'],
+			'BAR_CODE' => ['required' => 'Y'],
+			'CONTRACTOR' => ['required' => 'Y'],
+			'CURRENCY' => ['required' => 'Y'],
+			'TOTAL' => ['required' => 'Y'],
+		];
+	}
+
+	protected static function  checkParamsForConduction($documentId, $userId, $currency, $contractorId): bool
+	{
+		global $APPLICATION;
+
+		if ($contractorId <= 0)
+		{
+			$APPLICATION->ThrowException(GetMessage('CAT_DOC_WRONG_CONTRACTOR'));
+			return false;
+		}
+
+		return true;
 	}
 
 	/**
@@ -353,25 +381,21 @@ class CCatalogArrivalDocs extends CCatalogDocsTypes
 		$userId = (int)$userId;
 		$contractorId = (int)$contractorId;
 		$arResult = array(
-			'ELEMENTS' => array()
+			'ELEMENTS' => array(),
 		);
 		$arElement = array();
 		$arDocElementId = array();
 		$sumAmountBarcodes = array();
 		$currency = ($currency !== null) ? $currency : '';
-		if($contractorId <= 0)
+		if (!static::checkParamsForConduction($documentId, $userId, $currency, $contractorId))
 		{
-			$APPLICATION->ThrowException(GetMessage("CAT_DOC_WRONG_CONTRACTOR"));
 			return false;
 		}
-		$dbDocElements = CCatalogStoreDocsElement::getList(
-			array(),
-			array("DOC_ID" => $documentId),
-			false,
-			false,
-			array("ID", "DOC_ID", "STORE_FROM", "STORE_TO", "ELEMENT_ID", "AMOUNT", "PURCHASING_PRICE", "ELEMENT_NAME")
-		);
-		while($arDocElement = $dbDocElements->Fetch())
+		$dbDocElements = Catalog\StoreDocumentElementTable::getList([
+			'select' => ['ID', 'DOC_ID', 'STORE_FROM', 'STORE_TO', 'ELEMENT_ID', 'AMOUNT', 'PURCHASING_PRICE', 'ELEMENT_NAME' => 'ELEMENT.NAME', 'BASE_PRICE'],
+			'filter' => ['DOC_ID' => $documentId],
+		]);
+		while($arDocElement = $dbDocElements->fetch())
 		{
 			if(!self::checkAmountField($arDocElement, $arDocElement["ELEMENT_NAME"]))
 			{
@@ -391,18 +415,45 @@ class CCatalogArrivalDocs extends CCatalogDocsTypes
 			if (!isset($arResult["ELEMENTS"][$elementId]))
 			{
 				$arResult["ELEMENTS"][$elementId] = array(
-					'POSITIONS' => array()
+					'POSITIONS' => array(),
 				);
 			}
-			$arResult["ELEMENTS"][$elementId]["POSITIONS"][] = array(
+
+			$position = [
 				"PRODUCT_ID" => $arDocElement["ELEMENT_ID"],
 				"STORE_TO" => $arDocElement["STORE_TO"],
 				"AMOUNT" => $arDocElement["AMOUNT"],
 				"PURCHASING_INFO" => array("PURCHASING_PRICE" => $arDocElement["PURCHASING_PRICE"], "PURCHASING_CURRENCY" => $currency),
-			);
+			];
+			if (isset($arDocElement['BASE_PRICE']))
+			{
+				$position['BASE_PRICE_INFO'] = [
+					'BASE_PRICE' => $arDocElement['BASE_PRICE'],
+					'BASE_PRICE_CURRENCY' => $currency,
+				];
+			}
+
+			if ((int)$position['STORE_TO'] <= 0)
+			{
+				$row = \Bitrix\Iblock\ElementTable::getList([
+					'select' => ['ID', 'NAME'],
+					'filter' => ['=ID' => $arDocElement["ELEMENT_ID"]]
+				])->fetch();
+				$APPLICATION->ThrowException(GetMessage(
+					"CAT_DOC_ERROR_STORE_TO",
+					["#PRODUCT#" => !empty($row['NAME']) ? $row['NAME'] : $arDocElement["ELEMENT_ID"]]
+				));
+				return false;
+			}
+
+			$arResult["ELEMENTS"][$elementId]["POSITIONS"][] = $position;
+
 		}
 		if(empty($arElement))
+		{
+			$APPLICATION->ThrowException(GetMessage("CAT_DOC_WRONG_ELEMENT_COUNT"));
 			return false;
+		}
 
 		$dbProductInfo = CCatalogProduct::GetList(
 			array(),
@@ -458,7 +509,7 @@ class CCatalogArrivalDocs extends CCatalogDocsTypes
 		$documentId = (int)$documentId;
 		$userId = (int)$userId;
 		$arResult = array(
-			'ELEMENTS' => array()
+			'ELEMENTS' => array(),
 		);
 		$arElement = array();
 		$arDocElementId = array();
@@ -490,7 +541,7 @@ class CCatalogArrivalDocs extends CCatalogDocsTypes
 			if (!isset($arResult["ELEMENTS"][$elementId]))
 			{
 				$arResult["ELEMENTS"][$elementId] = array(
-					'POSITIONS' => array()
+					'POSITIONS' => array(),
 				);
 			}
 			$arResult["ELEMENTS"][$elementId]["POSITIONS"][] = array(
@@ -545,20 +596,44 @@ class CCatalogArrivalDocs extends CCatalogDocsTypes
 
 }
 
+class CCatalogStoreAdjustmentDocs extends CCatalogArrivalDocs
+{
+	/** The method returns an array of fields needed for this type of document.
+	 * @return array
+	 */
+	public static function getFields(): array
+	{
+		return [
+			'ELEMENT_ID' => ['required' => 'Y'],
+			'AMOUNT' => ['required' => 'Y'],
+			'NET_PRICE' => ['required' => 'Y'],
+			'STORE_TO' => ['required' => 'Y'],
+			'BAR_CODE' => ['required' => 'Y'],
+			'CURRENCY' => ['required' => 'Y'],
+			'TOTAL' => ['required' => 'Y'],
+		];
+	}
+
+	protected static function checkParamsForConduction($documentId, $userId, $currency, $contractorId): bool
+	{
+		return true;
+	}
+}
+
 class CCatalogMovingDocs extends CCatalogDocsTypes
 {
 	/** The method returns an array of fields needed for this type of document.
 	 * @return array
 	 */
-	public static function getFields()
+	public static function getFields(): array
 	{
-		return array(
-			"ELEMENT_ID" => array("required" => 'Y'),
-			"AMOUNT" => array("required" => 'Y'),
-			"STORE_TO" => array("required" => 'Y'),
-			"BAR_CODE" => array("required" => 'Y'),
-			"STORE_FROM" => array("required" => 'Y'),
-		);
+		return [
+			'ELEMENT_ID' => ['required' => 'Y'],
+			'AMOUNT' => ['required' => 'Y'],
+			'STORE_TO' => ['required' => 'Y'],
+			'BAR_CODE' => ['required' => 'Y'],
+			'STORE_FROM' => ['required' => 'Y'],
+		];
 	}
 
 	/**
@@ -575,11 +650,15 @@ class CCatalogMovingDocs extends CCatalogDocsTypes
 		$documentId = (int)$documentId;
 		$userId = (int)$userId;
 		$arResult = array(
-			'ELEMENTS' => array()
+			'ELEMENTS' => array(),
 		);
 		$arElement = array();
 		$arDocElementId = array();
 		$sumAmountBarcodes = array();
+		if (!static::checkParamsForConduction($documentId, $userId, $currency, $contractorId))
+		{
+			return false;
+		}
 		$dbDocElements = CCatalogStoreDocsElement::getList(
 			array(),
 			array("DOC_ID" => $documentId),
@@ -607,7 +686,7 @@ class CCatalogMovingDocs extends CCatalogDocsTypes
 			if (!isset($arResult["ELEMENTS"][$elementId]))
 			{
 				$arResult["ELEMENTS"][$elementId] = array(
-					'POSITIONS' => array()
+					'POSITIONS' => array(),
 				);
 			}
 			$arResult["ELEMENTS"][$elementId]["POSITIONS"][] = array(
@@ -672,7 +751,7 @@ class CCatalogMovingDocs extends CCatalogDocsTypes
 		$documentId = (int)$documentId;
 		$userId = (int)$userId;
 		$arResult = array(
-			'ELEMENTS' => array()
+			'ELEMENTS' => array(),
 		);
 		$arElement = array();
 		$arDocElementId = array();
@@ -704,7 +783,7 @@ class CCatalogMovingDocs extends CCatalogDocsTypes
 			if (!isset($arResult["ELEMENTS"][$elementId]))
 			{
 				$arResult["ELEMENTS"][$elementId] = array(
-					'POSITIONS' => array()
+					'POSITIONS' => array(),
 				);
 			}
 			$arResult["ELEMENTS"][$elementId]["POSITIONS"][] = array(
@@ -762,14 +841,14 @@ class CCatalogReturnsDocs extends CCatalogDocsTypes
 	/** The method returns an array of fields needed for this type of document.
 	 * @return array
 	 */
-	public static function getFields()
+	public static function getFields(): array
 	{
-		return array(
-			"ELEMENT_ID" => array("required" => 'Y'),
-			"AMOUNT" => array("required" => 'Y'),
-			"STORE_TO" => array("required" => 'Y'),
-			"BAR_CODE" => array("required" => 'y'),
-		);
+		return [
+			'ELEMENT_ID' => ['required' => 'Y'],
+			'AMOUNT' => ['required' => 'Y'],
+			'STORE_TO' => ['required' => 'Y'],
+			'BAR_CODE' => ['required' => 'Y'],
+		];
 	}
 
 	/**
@@ -786,11 +865,15 @@ class CCatalogReturnsDocs extends CCatalogDocsTypes
 		$documentId = (int)$documentId;
 		$userId = (int)$userId;
 		$arResult = array(
-			'ELEMENTS' => array()
+			'ELEMENTS' => array(),
 		);
 		$arElement = array();
 		$arDocElementId = array();
 		$sumAmountBarcodes = array();
+		if (!static::checkParamsForConduction($documentId, $userId, $currency, $contractorId))
+		{
+			return false;
+		}
 		$dbDocElements = CCatalogStoreDocsElement::getList(
 			array(),
 			array("DOC_ID" => $documentId),
@@ -818,7 +901,7 @@ class CCatalogReturnsDocs extends CCatalogDocsTypes
 			if (!isset($arResult["ELEMENTS"][$elementId]))
 			{
 				$arResult["ELEMENTS"][$elementId] = array(
-					'POSITIONS' => array()
+					'POSITIONS' => array(),
 				);
 			}
 			$arResult["ELEMENTS"][$elementId]["POSITIONS"][] = array(
@@ -885,7 +968,7 @@ class CCatalogReturnsDocs extends CCatalogDocsTypes
 		$documentId = (int)$documentId;
 		$userId = (int)$userId;
 		$arResult = array(
-			'ELEMENTS' => array()
+			'ELEMENTS' => array(),
 		);
 		$arElement = array();
 		$arDocElementId = array();
@@ -917,7 +1000,7 @@ class CCatalogReturnsDocs extends CCatalogDocsTypes
 			if (!isset($arResult["ELEMENTS"][$elementId]))
 			{
 				$arResult["ELEMENTS"][$elementId] = array(
-					'POSITIONS' => array()
+					'POSITIONS' => array(),
 				);
 			}
 			$arResult["ELEMENTS"][$elementId]["POSITIONS"][] = array(
@@ -976,14 +1059,14 @@ class CCatalogDeductDocs extends CCatalogDocsTypes
 	/** The method returns an array of fields needed for this type of document.
 	 * @return array
 	 */
-	public static function getFields()
+	public static function getFields(): array
 	{
-		return array(
-			"ELEMENT_ID" => array("required" => 'Y'),
-			"AMOUNT" => array("required" => 'Y'),
-			"BAR_CODE" => array("required" => 'Y'),
-			"STORE_FROM" => array("required" => 'Y'),
-		);
+		return [
+			'ELEMENT_ID' => ['required' => 'Y'],
+			'AMOUNT' => ['required' => 'Y'],
+			'BAR_CODE' => ['required' => 'Y'],
+			'STORE_FROM' => ['required' => 'Y'],
+		];
 	}
 
 	/**
@@ -1000,11 +1083,15 @@ class CCatalogDeductDocs extends CCatalogDocsTypes
 		$documentId = (int)$documentId;
 		$userId = (int)$userId;
 		$arResult = array(
-			'ELEMENTS' => array()
+			'ELEMENTS' => array(),
 		);
 		$arElement = array();
 		$arDocElementId = array();
 		$sumAmountBarcodes = array();
+		if (!static::checkParamsForConduction($documentId, $userId, $currency, $contractorId))
+		{
+			return false;
+		}
 		$dbDocElements = CCatalogStoreDocsElement::getList(
 			array(),
 			array("DOC_ID" => $documentId),
@@ -1032,7 +1119,7 @@ class CCatalogDeductDocs extends CCatalogDocsTypes
 			if (!isset($arResult["ELEMENTS"][$elementId]))
 			{
 				$arResult["ELEMENTS"][$elementId] = array(
-					'POSITIONS' => array()
+					'POSITIONS' => array(),
 				);
 			}
 			$arResult["ELEMENTS"][$elementId]["POSITIONS"][] = array(
@@ -1100,7 +1187,7 @@ class CCatalogDeductDocs extends CCatalogDocsTypes
 		$documentId = (int)$documentId;
 		$userId = (int)$userId;
 		$arResult = array(
-			'ELEMENTS' => array()
+			'ELEMENTS' => array(),
 		);
 		$arElement = array();
 		$arDocElementId = array();
@@ -1132,7 +1219,7 @@ class CCatalogDeductDocs extends CCatalogDocsTypes
 			if (!isset($arResult["ELEMENTS"][$elementId]))
 			{
 				$arResult["ELEMENTS"][$elementId] = array(
-					'POSITIONS' => array()
+					'POSITIONS' => array(),
 				);
 			}
 			$arResult["ELEMENTS"][$elementId]["POSITIONS"][] = array(
@@ -1192,13 +1279,13 @@ class CCatalogUnReservedDocs extends CCatalogDocsTypes
 	/** The method returns an array of fields needed for this type of document.
 	 * @return array
 	 */
-	public static function getFields()
+	public static function getFields(): array
 	{
-		return array(
-			"ELEMENT_ID" => array("required" => 'Y'),
-			"AMOUNT" => array("required" => 'Y'),
-			"RESERVED" => array("required" => 'Y'),
-		);
+		return [
+			'ELEMENT_ID' => ['required' => 'Y'],
+			'AMOUNT' => ['required' => 'Y'],
+			'RESERVED' => ['required' => 'Y'],
+		];
 	}
 
 	/**
@@ -1214,6 +1301,10 @@ class CCatalogUnReservedDocs extends CCatalogDocsTypes
 
 		$documentId = (int)$documentId;
 		$i = 0;
+		if (!static::checkParamsForConduction($documentId, $userId, $currency, $contractorId))
+		{
+			return false;
+		}
 		$dbDocElements = CCatalogStoreDocsElement::getList(
 			array(),
 			array("DOC_ID" => $documentId),
@@ -1234,33 +1325,16 @@ class CCatalogUnReservedDocs extends CCatalogDocsTypes
 			{
 				if(!CCatalogProduct::Update($arDocElement["ELEMENT_ID"], array("QUANTITY_RESERVED" => $newReserved)))
 					return false;
-				$dbAmount = $DB->Query("SELECT SUM(SP.AMOUNT) as SUM, CP.QUANTITY_RESERVED as RESERVED FROM b_catalog_store_product SP INNER JOIN b_catalog_product CP ON SP.PRODUCT_ID = CP.ID INNER JOIN b_catalog_store CS ON SP.STORE_ID = CS.ID WHERE SP.PRODUCT_ID = ".$arDocElement["ELEMENT_ID"]."  AND CS.ACTIVE = 'Y' GROUP BY QUANTITY_RESERVED ", true);
+				$dbAmount = $DB->Query("SELECT SUM(SP.AMOUNT) as SUM, CP.QUANTITY_RESERVED as RESERVED FROM b_catalog_store_product SP INNER JOIN b_catalog_product CP ON SP.PRODUCT_ID = CP.ID INNER JOIN b_catalog_store CS ON SP.STORE_ID = CS.ID WHERE SP.PRODUCT_ID = ".$arDocElement["ELEMENT_ID"]."  AND CS.ACTIVE = 'Y' GROUP BY CP.QUANTITY_RESERVED ", true);
 				if($arAmount = $dbAmount->Fetch())
 				{
 					$arFields = array(
-						"QUANTITY" => doubleval($arAmount["SUM"] - $arAmount["RESERVED"])
+						"QUANTITY" => doubleval($arAmount["SUM"] - $arAmount["RESERVED"]),
 					);
 					if(!CCatalogProduct::Update($arDocElement["ELEMENT_ID"], $arFields))
 					{
 						$APPLICATION->ThrowException(GetMessage("CAT_DOC_PURCHASING_INFO_ERROR"));
 						return false;
-					}
-					if (self::isNeedClearPublicCache(
-						$arProductInfo['QUANTITY'],
-						$arFields['QUANTITY'],
-						$arProductInfo['QUANTITY_TRACE'],
-						$arProductInfo['CAN_BUY_ZERO']
-					))
-					{
-						$productInfo = array(
-							'CAN_BUY_ZERO' => $arProductInfo['CAN_BUY_ZERO'],
-							'NEGATIVE_AMOUNT_TRACE' => $arProductInfo['NEGATIVE_AMOUNT_TRACE'],
-							'QUANTITY_TRACE' => $arProductInfo['QUANTITY_TRACE'],
-							'OLD_QUANTITY' => $arProductInfo['QUANTITY'],
-							'QUANTITY' => $arFields['QUANTITY'],
-							'DELTA' => $arFields['QUANTITY'] - $arProductInfo['QUANTITY']
-						);
-						self::clearPublicCache($arProductInfo['ID'], $productInfo);
 					}
 				}
 			}
@@ -1307,7 +1381,7 @@ class CCatalogUnReservedDocs extends CCatalogDocsTypes
 			$newReserved = $arProductInfo["QUANTITY_RESERVED"] + $arDocElement["AMOUNT"];
 			$arResult["QUANTITY_RESERVED"] = $newReserved;
 
-			$dbAmount = $DB->Query("SELECT SUM(SP.AMOUNT) as SUM, CP.QUANTITY_RESERVED as RESERVED FROM b_catalog_store_product SP INNER JOIN b_catalog_product CP ON SP.PRODUCT_ID = CP.ID INNER JOIN b_catalog_store CS ON SP.STORE_ID = CS.ID WHERE SP.PRODUCT_ID = ".$arDocElement["ELEMENT_ID"]."  AND CS.ACTIVE = 'Y' GROUP BY QUANTITY_RESERVED ", true);
+			$dbAmount = $DB->Query("SELECT SUM(SP.AMOUNT) as SUM, CP.QUANTITY_RESERVED as RESERVED FROM b_catalog_store_product SP INNER JOIN b_catalog_product CP ON SP.PRODUCT_ID = CP.ID INNER JOIN b_catalog_store CS ON SP.STORE_ID = CS.ID WHERE SP.PRODUCT_ID = ".$arDocElement["ELEMENT_ID"]."  AND CS.ACTIVE = 'Y' GROUP BY CP.QUANTITY_RESERVED ", true);
 			if($arAmount = $dbAmount->Fetch())
 			{
 				$arResult["QUANTITY"] = doubleval($arAmount["SUM"] - $newReserved);
@@ -1315,23 +1389,6 @@ class CCatalogUnReservedDocs extends CCatalogDocsTypes
 				{
 					$APPLICATION->ThrowException(GetMessage("CAT_DOC_PURCHASING_INFO_ERROR"));
 					return false;
-				}
-				if (self::isNeedClearPublicCache(
-					$arProductInfo['QUANTITY'],
-					$arResult['QUANTITY'],
-					$arProductInfo['QUANTITY_TRACE'],
-					$arProductInfo['CAN_BUY_ZERO']
-				))
-				{
-					$productInfo = array(
-						'CAN_BUY_ZERO' => $arProductInfo['CAN_BUY_ZERO'],
-						'NEGATIVE_AMOUNT_TRACE' => $arProductInfo['NEGATIVE_AMOUNT_TRACE'],
-						'QUANTITY_TRACE' => $arProductInfo['QUANTITY_TRACE'],
-						'OLD_QUANTITY' => $arProductInfo['QUANTITY'],
-						'QUANTITY' => $arResult['QUANTITY'],
-						'DELTA' => $arResult['QUANTITY'] - $arProductInfo['QUANTITY']
-					);
-					self::clearPublicCache($arProductInfo['ID'], $productInfo);
 				}
 			}
 			$i++;

@@ -55,6 +55,7 @@
 		this.geocoder = param.geocoder || null;
 		this.map = param.map || null;
 		this.resultDisplay = param.resultDisplay || null;
+		this.showMap = (typeof param.showMap !== 'undefined' ? param.showMap : true);
 
 		this.multiple = !!param.multiple;
 
@@ -96,7 +97,7 @@
 
 	BX.Fileman.UserField.Address.prototype.isMapEnabled = function()
 	{
-		return true;
+		return this.showMap;
 	};
 
 	BX.Fileman.UserField.Address.prototype.callChangeEvent = function(input, value)
@@ -471,6 +472,11 @@
 
 	BX.Fileman.UserField.AddressSearchResultDisplay.prototype.resultHoverHandler = function(item, bindNode, callback, displayChangeCallback)
 	{
+		if (!this.dispatcher.isMapEnabled())
+		{
+			return function(){};
+		}
+
 		var geocoder = this.dispatcher.getGeoCoder();
 
 		return function(e)
@@ -702,7 +708,7 @@
 			}
 		});
 
-		// this.point.setContent(this.infoWindowContent);
+		this.point.setContent(this.infoWindowContent);
 
 		if(!this.hoverMode)
 		{
@@ -864,7 +870,7 @@
 
 	BX.Fileman.UserField.AddressSearchRestriction.prototype.getContent = function()
 	{
-		return '<span class="tariff-lock"></span>&nbsp;<span>'+BX.message('GOOGLE_MAP_TRIAL_HINT')+'</span> <a href="javascript:void(0)" onclick="BX.Fileman.UserField.addressSearchRestriction.showPopup()" class="uf-address-trial-more">'+ BX.message('GOOGLE_MAP_TRIAL_HINT_MORE')+'</a>';
+		return '<span class="tariff-lock"></span>&nbsp;<span>'+BX.message('GOOGLE_MAP_TRIAL_HINT')+'</span> <a href="javascript:void(0)" onclick="BX.loadExt(\'ui.info-helper\').then(function () {BX.UI.InfoHelper.show(\'limit_crm_google_map_user_field\');});" class="uf-address-trial-more">'+ BX.message('GOOGLE_MAP_TRIAL_HINT_MORE')+'</a>';
 	};
 
 	BX.Fileman.UserField.AddressSearchRestriction.prototype.showPopup = function()

@@ -470,7 +470,7 @@ class CSiteCheckerTest
 	function check_php_settings()
 	{
 		$strError = '';
-		$PHP_vercheck_min = '5.3.0';
+		$PHP_vercheck_min = '7.3.0';
 		if (version_compare($v = phpversion(), $PHP_vercheck_min, '<'))
 			$strError = GetMessage('SC_VER_ERR', array('#CUR#' => $v, '#REQ#' => $PHP_vercheck_min))."<br>";
 
@@ -1493,7 +1493,7 @@ class CSiteCheckerTest
 		if (!$res = $this->ConnectToHost('ssl://'.$host, 443))
 			return false;
 
-		$strRes = ToLower(GetHttpResponse($res, $strRequest, $strHeaders));
+		$strRes = mb_strtolower(GetHttpResponse($res, $strRequest, $strHeaders));
 		if (strpos($strRes, 'xml version=') !== false)
 			return true;
 
@@ -1839,7 +1839,7 @@ class CSiteCheckerTest
 
 			$strRes = GetHttpResponse($res, $strRequest, $strHeaders);
 
-			if (preg_match('#Location: (.+)#', $strHeaders, $regs))
+			if (preg_match('#Location: (.+)#i', $strHeaders, $regs))
 			{
 				$url = trim($regs[1]);
 				if (!$url)
@@ -2085,13 +2085,23 @@ class CSiteCheckerTest
 		$f = $res->Fetch();
 		$character_set_connection = $f['Value'];
 
-		$res = $DB->Query('SHOW VARIABLES LIKE "collation_connection"');
-		$f = $res->Fetch();
-		$collation_connection = $f['Value'];
+		if ($character_set_connection == 'utf8mb3')
+		{
+			$character_set_connection = 'utf8';
+		}
 
 		$res = $DB->Query('SHOW VARIABLES LIKE "character_set_results"');
 		$f = $res->Fetch();
 		$character_set_results = $f['Value'];
+
+		if ($character_set_results == 'utf8mb3')
+		{
+			$character_set_results = 'utf8';
+		}
+
+		$res = $DB->Query('SHOW VARIABLES LIKE "collation_connection"');
+		$f = $res->Fetch();
+		$collation_connection = $f['Value'];
 
 		$bAllIn1251 = true;
 		$res1 = $DB->Query('SELECT C.CHARSET FROM b_lang L, b_culture C WHERE C.ID=L.CULTURE_ID AND L.ACTIVE="Y"'); // for 'no kernel mode'
@@ -2195,6 +2205,11 @@ class CSiteCheckerTest
 		$f = $res->Fetch();
 		$charset = trim($f['Value']);
 
+		if ($charset == 'utf8mb3')
+		{
+			$charset = 'utf8';
+		}
+
 		$res = $DB->Query('SHOW VARIABLES LIKE "collation_database"');
 		$f = $res->Fetch();
 		$collation = trim($f['Value']);
@@ -2263,6 +2278,11 @@ class CSiteCheckerTest
 				$t_charset = getCharsetByCollation($t_collation);
 			}
 
+			if ($t_charset == 'utf8mb3')
+			{
+				$t_charset = 'utf8';
+			}
+
 			if ($charset != $t_charset)
 			{
 				// table charset differs
@@ -2316,7 +2336,7 @@ class CSiteCheckerTest
 					}
 					elseif ($this->force_repair)
 						$arFix[] = ' MODIFY `'.$f0['Field'].'` '.$f0['Type'].' CHARACTER SET '.$charset.($f0['Null'] == 'YES' ? ' NULL' : ' NOT NULL').
-							($f0['Default'] === NULL ? ($f0['Null'] == 'YES' ? ' DEFAULT NULL ' : '') : ' DEFAULT '.($f0['Type'] == 'timestamp' && $f0['Default'] ? $f0['Default'] : '"'.$DB->ForSQL($f0['Default']).'"')).' '.$f0['Extra'];
+							($f0['Default'] === NULL ? ($f0['Null'] == 'YES' ? ' DEFAULT NULL ' : '') : ' DEFAULT '.($f0['Type'] == 'timestamp' && $f0['Default'] ? $f0['Default'] : '"'.$DB->ForSQL($f0['Default']).'"')).' '.str_ireplace('DEFAULT_GENERATED', '', $f0['Extra']);
 				}
 				elseif ($collation != $f_collation)
 				{
@@ -2332,7 +2352,7 @@ class CSiteCheckerTest
 					}
 					else
 						$arFix[] = ' MODIFY `'.$f0['Field'].'` '.$f0['Type'].' COLLATE '.$collation.($f0['Null'] == 'YES' ? ' NULL' : ' NOT NULL').
-							($f0['Default'] === NULL ? ($f0['Null'] == 'YES' ? ' DEFAULT NULL ' : '') : ' DEFAULT '.($f0['Type'] == 'timestamp' && $f0['Default'] ? $f0['Default'] : '"'.$DB->ForSQL($f0['Default']).'"')).' '.$f0['Extra'];
+							($f0['Default'] === NULL ? ($f0['Null'] == 'YES' ? ' DEFAULT NULL ' : '') : ' DEFAULT '.($f0['Type'] == 'timestamp' && $f0['Default'] ? $f0['Default'] : '"'.$DB->ForSQL($f0['Default']).'"')).' '.str_ireplace('DEFAULT_GENERATED', '', $f0['Extra']);
 				}
 			}
 
@@ -3050,24 +3070,58 @@ function InitPureDB()
 	}
 }
 
-function TableFieldConstruct($f0)
+function TableFieldConstruct($field)
 {
 	global $DB;
-	$tmp = '`'.$f0['Field'].'` '.$f0['Type'].
-		($f0['Null'] == 'YES' ? ' NULL' : ' NOT NULL').
-		($f0['Default'] === NULL
-		?
-			($f0['Null'] == 'YES' ? ' DEFAULT NULL ' : '')
-		:
-			' DEFAULT '.
-			(($f0['Type'] == 'timestamp' || $f0['Type'] == 'datetime') && !preg_match('#^\d{4}#', $f0['Default'])
-			?
-				$f0['Default']
-				:
-				'"'.$DB->ForSQL($f0['Default']).'"'
-			)
-		).
-		' '.$f0['Extra'];
+
+	$tmp = '`'.$field['Field'].'` ';
+
+	if (preg_match("/^(TINYINT|SMALLINT|MEDIUMINT|INT|BIGINT)\\(\d+\\)(.*)/i", $field['Type'], $matches))
+	{
+		// As of MySQL 8.0.17, the ZEROFILL attribute is deprecated for numeric data types, as is the display width attribute for integer data types
+		$tmp .= $matches[1] . $matches[2];
+	}
+	else
+	{
+		$tmp .= $field['Type'];
+	}
+
+	if ($field['Null'] == 'YES')
+	{
+		$tmp .= ' NULL';
+	}
+	else
+	{
+		$tmp .= ' NOT NULL';
+	}
+
+	if ($field['Default'] === NULL)
+	{
+		if ($field['Null'] == 'YES')
+		{
+			$tmp .= ' DEFAULT NULL ';
+		}
+	}
+	else
+	{
+		$tmp .= ' DEFAULT ';
+		if (($field['Type'] == 'timestamp' || $field['Type'] == 'datetime') && !preg_match('#^\d{4}#', $field['Default']))
+		{
+			$tmp .= $field['Default'];
+		}
+		elseif ($field['Type'] == 'text' && preg_match("/^'.*'$/", $field['Default']))
+		{
+			// MariaDB's bug with text fields default values in single quotes
+			$tmp .= $field['Default'];
+		}
+		else
+		{
+			$tmp .= "'" . $DB->ForSQL($field['Default']) . "'";
+		}
+	}
+
+	$tmp .= ' ' . str_ireplace('DEFAULT_GENERATED', '', $field['Extra']);
+
 	return trim($tmp);
 }
 

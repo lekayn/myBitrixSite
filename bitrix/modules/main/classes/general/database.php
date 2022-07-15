@@ -17,7 +17,6 @@ abstract class CAllDatabase
 	var $DBHost;
 	var $DBLogin;
 	var $DBPassword;
-	var $bConnected;
 
 	var $db_Conn;
 	var $debug;
@@ -211,8 +210,10 @@ abstract class CAllDatabase
 
 	public function DoConnect($connectionName = '')
 	{
-		if ($this->bConnected)
+		if ($this->connection && $this->connection->isConnected())
 		{
+			// the connection can reconnect outside
+			$this->db_Conn = $this->connection->getResource();
 			return true;
 		}
 
@@ -282,7 +283,6 @@ abstract class CAllDatabase
 			$this->db_Conn = $connection->getResource();
 
 			$this->connection = $connection;
-			$this->bConnected = true;
 			$this->sqlTracker = null;
 			$this->cntQuery = 0;
 			$this->timeQuery = 0;
@@ -1050,9 +1050,9 @@ abstract class CAllDBResult
 		$this->SIZEN = $arParams["SIZEN"];
 		$this->NavShowAll = $arParams["SHOW_ALL"];
 		$this->NavPageSize = $arParams["SIZEN"];
-		$this->SESS_SIZEN = $arParams["SESS_SIZEN"];
-		$this->SESS_PAGEN = $arParams["SESS_PAGEN"];
-		$this->SESS_ALL = $arParams["SESS_ALL"];
+		$this->SESS_SIZEN = $arParams["SESS_SIZEN"] ?? null;
+		$this->SESS_PAGEN = $arParams["SESS_PAGEN"] ?? null;
+		$this->SESS_ALL = $arParams["SESS_ALL"] ?? null;
 
 		global $NavNum;
 

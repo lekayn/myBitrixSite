@@ -5,16 +5,13 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true) {
 
 use \Bitrix\Main\Localization\Loc;
 
-Loc::loadMessages(
-	\Bitrix\Landing\Manager::getDocRoot() .
-	'/bitrix/modules/landing/blocks/.components.php'
-);
+Loc::loadMessages(\Bitrix\Landing\Manager::getDocRoot() . '/bitrix/modules/landing/blocks/.components.php');
 
 \CBitrixComponent::includeComponentClass('bitrix:landing.blocks.cmpfilter');
 
 $return = [
 	'block' => [
-		'name' => Loc::getMessage('LD_BLOCK_STORE_CATALOG_LIST_STORE_V3_NAME'),
+		'name' => Loc::getMessage('LD_BLOCK_STORE_CATALOG_LIST_STORE_V3_NAME2'),
 		'section' => ['store'],
 		'type' => 'store',
 		'html' => false,
@@ -75,16 +72,10 @@ $return = [
 					'DATA_LAYER_NAME' => [],
 					'BRAND_PROPERTY' => [],
 					// visual
-					'PRODUCT_ROW_VARIANTS' => [
-						'style' => true,
-					],
 					'LABEL_PROP_POSITION' => [
 						'style' => true,
 					],
 					'DISCOUNT_PERCENT_POSITION' => [
-						'style' => true,
-					],
-					'PRODUCT_BLOCKS_ORDER' => [
 						'style' => true,
 					],
 					'DEFERRED_LOAD' => [
@@ -100,6 +91,12 @@ $return = [
 			],
 		],
 	],
+	'style' => [
+		'block' => [
+			'type' => ['block-default-wo-background'],
+		],
+		'nodes' => [],
+	]
 ];
 
 $params =& $return['nodes']['bitrix:catalog.section']['extra']['editable'];

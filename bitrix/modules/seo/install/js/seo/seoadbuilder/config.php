@@ -10,9 +10,12 @@ return [
 	'rel' => [
 		'main.popup',
 		'ui.buttons',
+		'seo.ads.login',
 		'catalog.product-selector',
 		'main.core.events',
+		'ui.textcrop',
 		'main.core',
+		'ui.entity-selector',
 	],
 	'skip_core' => false,
 ];

@@ -29,9 +29,10 @@ class Component extends Base
 	 * @param null $path
 	 * @throws Exception
 	 */
-	public function __construct($path = null)
+	public function __construct($path = null, $namespace = "bitrix")
 	{
 		Mobile::Init();
+
 		if (mb_strpos($path, Application::getDocumentRoot()) === 0)
 		{
 			$this->path = $path;
@@ -50,6 +51,7 @@ class Component extends Base
 		$this->baseFileName = 'component';
 		$file = new File($directory->getPath() . '/component.js');
 		$this->name = $directory->getName();
+		$this->namespace = $namespace;
 
 		if (!$directory->isExists() || !$file->isExists())
 		{
@@ -109,7 +111,26 @@ class Component extends Base
 			$extensionContent = $this->getExtensionsContent($loadExtensionsSeparately);
 			$lang = $this->getLangDefinitionExpression();
 			$object = Utils::jsonEncode($this->getInfo());
-			$componentList = Utils::jsonEncode(Manager::getAvailableComponents());
+			$relativeComponents = $this->getComponentDependencies();
+			$componentScope = Manager::getAvailableComponents();
+			if ($relativeComponents !== null) {
+				$relativeComponentsScope = [];
+				foreach ($relativeComponents as $scope)
+				{
+					if (array_key_exists($scope, $componentScope)) {
+						$relativeComponentsScope[$scope] = $componentScope[$scope];
+					}
+				}
+
+				$componentScope = $relativeComponentsScope;
+			}
+
+			$componentList = array_map(function ($component) {
+				return $component->getInfo();
+			}, $componentScope);
+
+
+			$componentList = Utils::jsonEncode($componentList);
 			$isExtranetModuleInstalled = Loader::includeModule('extranet');
 
 			if ($isExtranetModuleInstalled)
@@ -149,25 +170,8 @@ class Component extends Base
 				'userId' => $USER->GetId(),
 				'extranet' => $isExtranetUser
 			]);
-			$export = <<<JS
-		this.jnexport = (...exportData) => {
-			exportData.forEach(exportItem=>{
-				if(exportItem instanceof Array)
-				{
-					if(exportItem.length === 2)
-					{
-						this[exportItem[1]] = exportItem[0]
-					}
-				}
-				else
-				{
-					this[exportItem.name] = exportItem
-				}
-			})
-		};
-
-JS;
-
+			$file = new File(Application::getDocumentRoot()."/bitrix/js/mobileapp/platform.js");
+			$export = $file->getContents();
 			$inlineContent = <<<JS
 \n\n//-------- component '$this->name' ---------- 
 								
@@ -182,7 +186,17 @@ $lang
 								
 JS;
 
-			$content = $export. $extensionContent . $inlineContent;
+			$content = $export. $inlineContent. $extensionContent;
+
+			if ($this->isHotreloadEnabled()) {
+				$hotreloadHost = JN_HOTRELOAD_HOST;
+
+				$content .= <<<JS
+(()=>{ let wsclient = startHotReload(this.env.userId, "$hotreloadHost") })();
+JS;
+
+			}
+
 			$file = new File("{$this->path}/{$this->baseFileName}.js");
 			$componentCode = $file->getContents();
 
@@ -260,7 +274,42 @@ JS;
 
 	public function getPublicPath(): string
     {
-		return "/mobileapp/jn/{$this->name}/?version=" . $this->getVersion();
+		$name = ($this->namespace !== "bitrix" ? $this->namespace . ":" : "") . $this->name;
+		$name = urlencode($name);
+		return "/mobileapp/jn/$name/?version=" . $this->getVersion();
+	}
+
+	public function getLangMessages()
+	{
+		$langPhrases = parent::getLangMessages();
+		$extensions = $this->getDependencies();
+		foreach ($extensions as $extension)
+		{
+			$extensionPhrases = (new Extension($extension))->getLangMessages();
+			$langPhrases = array_merge($langPhrases, $extensionPhrases);
+		}
+
+		return $langPhrases;
+	}
+
+	public function getComponentDependencies(): ?array
+	{
+		$componentDependencies = parent::getComponentDependencies();
+		if (is_array($componentDependencies)) {
+			$dependencies = $this->getDependencies();
+
+			foreach ($dependencies as $dependency)
+			{
+				$list = (new Extension($dependency))->getComponentDependencies();
+				if ($list !== null) {
+					$componentDependencies = array_merge($componentDependencies, $list);
+				}
+			}
+
+			return array_unique($componentDependencies);
+		}
+
+		return null;
 	}
 
 	/**
@@ -281,8 +330,11 @@ JS;
 
 	private function getExtensionsContent($lazyLoad = false): string
     {
-		$content = '';
+		$content = "\n//extension '{$this->name}'\n";
 		$deps = $this->getDependencies();
+		if ($this->isHotreloadEnabled()) {
+			array_unshift($deps, 'hotreload');
+		}
 		if ($lazyLoad)
 		{
 			$count = count($deps);
@@ -323,5 +375,9 @@ JS;
         }
 
 		return $content;
+	}
+
+	private function isHotreloadEnabled(): Bool {
+		return (defined('JN_HOTRELOAD_ENABLED') && defined('JN_HOTRELOAD_HOST'));
 	}
 }

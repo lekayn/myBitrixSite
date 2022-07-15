@@ -47,6 +47,9 @@
 		this.classPopupFieldList1Column = 'main-ui-filter-field-list-1-column';
 		this.classPopupFieldList2Column = 'main-ui-filter-field-list-2-column';
 		this.classPopupFieldList3Column = 'main-ui-filter-field-list-3-column';
+		this.classPopupFieldList4Column = 'main-ui-filter-field-list-4-column';
+		this.classPopupFieldList5Column = 'main-ui-filter-field-list-5-column';
+		this.classPopupFieldList6Column = 'main-ui-filter-field-list-6-column';
 		this.classFieldListItem = 'main-ui-filter-field-list-item';
 		this.classEditButton = 'main-ui-filter-add-edit';
 		this.classPresetEdit = 'main-ui-filter-edit';
@@ -81,12 +84,18 @@
 		this.classRestoreButton = 'main-ui-filter-reset-link';
 		this.classPinButton = 'main-ui-filter-icon-pin';
 		this.classPopupOverlay = 'popup-window-overlay';
+		this.classSidePanelContainer = 'side-panel-container';
 		this.classPinnedPreset = 'main-ui-item-pin';
 		this.classWaitButtonClass = 'ui-btn-clock';
 		this.classForAllCheckbox = 'main-ui-filter-save-for-all';
 		this.classShow = 'main-ui-show';
 		this.classFocus = 'main-ui-focus';
 		this.classPresetField = 'main-ui-filter-preset-field';
+		this.classPopupSearchFieldListItemHidden = 'main-ui-filter-field-list-item-hidden';
+		this.classPopupSearchFieldListItemVisible = 'main-ui-filter-field-list-item-visible';
+		this.classPopupSearchSectionItem = 'main-ui-filter-popup-search-section-input';
+		this.classPopupSearchSectionItemIcon = 'main-ui-filter-popup-search-section-item-icon';
+		this.classPopupSearchSectionItemIconActive = 'main-ui-filter-popup-search-section-item-icon-active';
 		this.numberPostfix = '_numsel';
 		this.datePostfix = '_datesel';
 		this.toPostfix = '_to';
@@ -96,6 +105,8 @@
 		this.quarterPostfix = '_quarter';
 		this.yearPostfix = '_year';
 		this.generalTemplateId = '';
+		this.maxPopupColumnCount = 6;
+		this.popupWidth = 630;
 		this.init(options, parent);
 	};
 

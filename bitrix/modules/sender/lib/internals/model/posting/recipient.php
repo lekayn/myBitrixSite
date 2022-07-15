@@ -15,6 +15,19 @@ use Bitrix\Sender\Internals\Model;
  * Class RecipientTable
  *
  * @package Bitrix\Sender\Internals\Model\Posting
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Recipient_Query query()
+ * @method static EO_Recipient_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Recipient_Result getById($id)
+ * @method static EO_Recipient_Result getList(array $parameters = array())
+ * @method static EO_Recipient_Entity getEntity()
+ * @method static \Bitrix\Sender\Internals\Model\Posting\EO_Recipient createObject($setDefaultValues = true)
+ * @method static \Bitrix\Sender\Internals\Model\Posting\EO_Recipient_Collection createCollection()
+ * @method static \Bitrix\Sender\Internals\Model\Posting\EO_Recipient wakeUpObject($row)
+ * @method static \Bitrix\Sender\Internals\Model\Posting\EO_Recipient_Collection wakeUpCollection($rows)
  */
 class RecipientTable extends Main\Entity\DataManager
 {
@@ -23,6 +36,7 @@ class RecipientTable extends Main\Entity\DataManager
 	const SEND_RESULT_ERROR = 'E';
 	const SEND_RESULT_WAIT = 'W';
 	const SEND_RESULT_DENY = 'D';
+	const SEND_RESULT_WAIT_ACCEPT = 'A';
 
 	/**
 	 * Get table name.

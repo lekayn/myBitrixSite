@@ -33,7 +33,8 @@ declare module 'ui.vue'
 		isCustom(): boolean;
 	}
 	class $BitrixLoc {
-		getMessage(name: string): string;
+		getMessage(name: string, replacements?: {[key: string]: string}): string;
+		hasMessage(name: string): boolean;
 		getMessages(): object;
 		setMessage(id: string | {[key: string]: string}, value?: string): void;
 	}
@@ -43,8 +44,10 @@ declare module 'ui.vue'
 		function createApp(props?: {[key: string]: unknown}|null): VueCreateAppResult;
 		function component(name: string, definition: object, options?: BitrixVueComponentOptions): boolean;
 		function localComponent(name: string, definition: object, options?: BitrixVueComponentOptions): object;
+		function getLocalComponent(name: string): object;
 		function mutateComponent(name: string, mutations: object): BitrixVueRevertHandle;
 		function cloneComponent(name: string, source: string, mutations: object): boolean;
+		function cloneLocalComponent(source: object|string, mutations: object): object;
 		function isComponent(name: string): boolean;
 		function isLocal(name: string): boolean;
 		function isMutable(name: string): boolean;

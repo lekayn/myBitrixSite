@@ -8,6 +8,7 @@ use \Bitrix\Landing\Binding;
 use \Bitrix\Landing\Rights;
 use \Bitrix\Landing\Manager;
 use \Bitrix\Landing\Site;
+use \Bitrix\Landing\Restriction;
 
 Loc::loadMessages(__FILE__);
 
@@ -77,6 +78,23 @@ class SocialNetwork
 			return '';
 		}
 
+		// tariff limits
+		if (!Restriction\Manager::isAllowed('limit_crm_free_knowledge_base_project'))
+		{
+			$asset = \Bitrix\Main\Page\Asset::getInstance();
+			$asset->addString(
+				$asset->insertJs(
+					'var KnowledgeCreate = function() 
+						{
+							' . Restriction\Manager::getActionCode('limit_crm_free_knowledge_base_project') . '
+						};',
+					'',
+					true
+				)
+			);
+			return 'javascript:void(KnowledgeCreate());';
+		}
+
 		$link = '';
 		$groupId = intval($groupId);
 		$bindings = self::getBindingRow($groupId, false);
@@ -94,21 +112,8 @@ class SocialNetwork
 			self::userInGroup($groupId)
 		)
 		{
-			$asset = \Bitrix\Main\Page\Asset::getInstance();
-			$asset->addString(
-				$asset->insertJs(
-					'var KnowledgeCreate = function(url) 
-					{
-						top.window.history.pushState(\'\', \'\', \'?tab=' . self::SETTINGS_CODE_SHORT . '\');
-						BX.SidePanel.Instance.open(url, {allowChangeHistory: false});
-					};',
-				 	'',
-				 	true
-				)
-			);
 			\CJSCore::init('sidepanel');
 			$link = SITE_DIR . str_replace('#groupId#', $groupId, self::PATH_GROUP_BINDING);
-			$link = 'javascript:void(KnowledgeCreate(\'' . $link . '\'));';
 		}
 
 		return $link;
@@ -227,10 +232,11 @@ class SocialNetwork
 	/**
 	 * Returns group path by id.
 	 * @param int $groupId Group id.
-	 * @param string $pagePath Page of landing.
+	 * @param string|null $pagePath Page of landing.
+	 * @param bool $generalPath Returns only general path of group.
 	 * @return string
 	 */
-	public static function getTabUrl($groupId, $pagePath = null)
+	public static function getTabUrl(int $groupId, ?string $pagePath = null, bool $generalPath = false): ?string
 	{
 		static $groupPath = null;
 
@@ -243,10 +249,18 @@ class SocialNetwork
 			}
 		}
 
-		$groupId = intval($groupId);
 		if ($groupId && $groupPath)
 		{
 			$groupPath = str_replace('#group_id#', $groupId, $groupPath);
+		}
+
+		if ($generalPath)
+		{
+			return $groupPath;
+		}
+
+		if ($groupId && $groupPath)
+		{
 			$uri = new \Bitrix\Main\Web\Uri($groupPath);
 			$uri->addParams([
 				'tab' => self::SETTINGS_CODE_SHORT

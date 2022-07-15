@@ -48,6 +48,7 @@ class Item implements \JsonSerializable
 	protected $customData;
 	protected $captionOptions;
 	protected $badgesOptions;
+	protected $avatarOptions;
 
 	protected $sort;
 	protected $contextSort;
@@ -58,19 +59,22 @@ class Item implements \JsonSerializable
 
 	public function __construct(array $options)
 	{
-		if (!empty($options['id']) && (is_string($options['id']) || is_int($options['id'])))
+		$id = $options['id'] ?? null;
+		if ((is_string($id) && $id !== '') || is_int($id))
 		{
-			$this->id = $options['id'];
+			$this->id = $id;
 		}
 
-		if (!empty($options['entityId']) && is_string($options['entityId']))
+		$entityId = $options['entityId'] ?? null;
+		if (is_string($entityId) && $entityId !== '')
 		{
-			$this->entityId = strtolower($options['entityId']);
+			$this->entityId = strtolower($entityId);
 		}
 
-		if (!empty($options['entityType']) && is_string($options['entityType']))
+		$entityType = $options['entityType'] ?? null;
+		if (is_string($entityType) && $entityType !== '')
 		{
-			$this->entityType = $options['entityType'];
+			$this->entityType = $entityType;
 		}
 
 		$this->addTab($options['tabs'] ?? null);
@@ -88,6 +92,11 @@ class Item implements \JsonSerializable
 		if (isset($options['avatar']) && is_string($options['avatar']))
 		{
 			$this->setAvatar($options['avatar']);
+		}
+
+		if (isset($options['avatarOptions']) && is_array($options['avatarOptions']))
+		{
+			$this->setAvatarOptions($options['avatarOptions']);
 		}
 
 		if (isset($options['textColor']) && is_string($options['textColor']))
@@ -306,6 +315,26 @@ class Item implements \JsonSerializable
 		}
 
 		return $this;
+	}
+
+	public function setAvatarOptions(array $avatarOptions): self
+	{
+		$this->getAvatarOptions()->setValues($avatarOptions);
+
+		return $this;
+	}
+
+	/**
+	 * @return Dictionary
+	 */
+	public function getAvatarOptions(): Dictionary
+	{
+		if ($this->avatarOptions === null)
+		{
+			$this->avatarOptions = new Dictionary();
+		}
+
+		return $this->avatarOptions;
 	}
 
 	public function getTextColor(): ?string
@@ -705,6 +734,11 @@ class Item implements \JsonSerializable
 		if ($this->isHidden())
 		{
 			$json['hidden'] = true;
+		}
+
+		if ($this->avatarOptions !== null && $this->getAvatarOptions()->count() > 0)
+		{
+			$json['avatarOptions'] = $this->getAvatarOptions()->getValues();
 		}
 
 		if ($this->captionOptions !== null && $this->getCaptionOptions()->count() > 0)

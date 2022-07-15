@@ -7,6 +7,7 @@
  */
 
 use Bitrix\Main;
+use Bitrix\Main\Config\Configuration;
 use Bitrix\Main\Text;
 use Bitrix\Main\Application;
 use Bitrix\Main\Context;
@@ -1869,28 +1870,17 @@ function utf8win1251($s)
 	return Main\Text\Encoding::convertEncoding($s, "UTF-8", "Windows-1251");
 }
 
+/**
+ * @deprecated
+ * @param $str
+ * @param false $lang
+ * @return string
+ */
 function ToUpper($str, $lang = false)
 {
-	static $lower = array();
-	static $upper = array();
 	if(!defined("BX_CUSTOM_TO_UPPER_FUNC"))
 	{
-		if(defined("BX_UTF"))
-		{
-			return mb_strtoupper($str);
-		}
-		else
-		{
-			if($lang === false)
-				$lang = LANGUAGE_ID;
-			if(!isset($lower[$lang]))
-			{
-				$arMsg = IncludeModuleLangFile(__FILE__, $lang, true);
-				$lower[$lang] = $arMsg["ABC_LOWER"];
-				$upper[$lang] = $arMsg["ABC_UPPER"];
-			}
-			return mb_strtoupper(strtr($str, $lower[$lang], $upper[$lang]));
-		}
+		return mb_strtoupper($str);
 	}
 	else
 	{
@@ -1899,28 +1889,17 @@ function ToUpper($str, $lang = false)
 	}
 }
 
+/**
+ * @deprecated
+ * @param $str
+ * @param false $lang
+ * @return string
+ */
 function ToLower($str, $lang = false)
 {
-	static $lower = array();
-	static $upper = array();
 	if(!defined("BX_CUSTOM_TO_LOWER_FUNC"))
 	{
-		if(defined("BX_UTF"))
-		{
-			return mb_strtolower($str);
-		}
-		else
-		{
-			if($lang === false)
-				$lang = LANGUAGE_ID;
-			if(!isset($lower[$lang]))
-			{
-				$arMsg = IncludeModuleLangFile(__FILE__, $lang, true);
-				$lower[$lang] = $arMsg["ABC_LOWER"];
-				$upper[$lang] = $arMsg["ABC_UPPER"];
-			}
-			return mb_strtolower(strtr($str, $upper[$lang], $lower[$lang]));
-		}
+		return mb_strtolower($str);
 	}
 	else
 	{
@@ -2259,6 +2238,7 @@ function HTMLToTxt($str, $strSiteUrl="", $aDelete=array(), $maxlen=70)
 	static $search = array(
 		"'<script[^>]*?>.*?</script>'si",
 		"'<style[^>]*?>.*?</style>'si",
+		"'<svg[^>]*?>.*?</svg>'si",
 		"'<select[^>]*?>.*?</select>'si",
 		"'&(quot|#34);'i",
 		"'&(iexcl|#161);'i",
@@ -2268,6 +2248,7 @@ function HTMLToTxt($str, $strSiteUrl="", $aDelete=array(), $maxlen=70)
 	);
 
 	static $replace = array(
+		"",
 		"",
 		"",
 		"",
@@ -2293,12 +2274,12 @@ function HTMLToTxt($str, $strSiteUrl="", $aDelete=array(), $maxlen=70)
 		$str = preg_replace($del_reg, "", $str);
 
 	//ищем картинки
-	$str = preg_replace("/(<img\\s.*?src\\s*=\\s*)([\"']?)(\\/.*?)(\\2)(\\s.+?>|\\s*>)/is", "[".chr(1).$strSiteUrl."\\3".chr(1)."] ", $str);
-	$str = preg_replace("/(<img\\s.*?src\\s*=\\s*)([\"']?)(.*?)(\\2)(\\s.+?>|\\s*>)/is", "[".chr(1)."\\3".chr(1)."] ", $str);
+	$str = preg_replace("/(<img\\s[^>]*?src\\s*=\\s*)([\"']?)(\\/.*?)(\\2)(\\s.+?>|\\s*>)/is", "[".chr(1).$strSiteUrl."\\3".chr(1)."] ", $str);
+	$str = preg_replace("/(<img\\s[^>]*?src\\s*=\\s*)([\"']?)(.*?)(\\2)(\\s.+?>|\\s*>)/is", "[".chr(1)."\\3".chr(1)."] ", $str);
 
 	//ищем ссылки
-	$str = preg_replace("/(<a\\s.*?href\\s*=\\s*)([\"']?)(\\/.*?)(\\2)(.*?>)(.*?)<\\/a>/is", "\\6 [".chr(1).$strSiteUrl."\\3".chr(1)."] ", $str);
-	$str = preg_replace("/(<a\\s.*?href\\s*=\\s*)([\"']?)(.*?)(\\2)(.*?>)(.*?)<\\/a>/is", "\\6 [".chr(1)."\\3".chr(1)."] ", $str);
+	$str = preg_replace("/(<a\\s[^>]*?href\\s*=\\s*)([\"']?)(\\/.*?)(\\2)(.*?>)(.*?)<\\/a>/is", "\\6 [".chr(1).$strSiteUrl."\\3".chr(1)."] ", $str);
+	$str = preg_replace("/(<a\\s[^>]*?href\\s*=\\s*)([\"']?)(.*?)(\\2)(.*?>)(.*?)<\\/a>/is", "\\6 [".chr(1)."\\3".chr(1)."] ", $str);
 
 	//ищем <br>
 	$str = preg_replace("#<br[^>]*>#i", "\r\n", $str);
@@ -2363,10 +2344,8 @@ function htmlspecialcharsbx($string, $flags = ENT_COMPAT, $doubleEncode = true)
 	return htmlspecialchars($string, $flags, (defined("BX_UTF")? "UTF-8" : "ISO-8859-1"), $doubleEncode);
 }
 
-function CheckDirPath($path, $bPermission = true)
+function CheckDirPath($path)
 {
-	$path = str_replace(array("\\", "//"), "/", $path);
-
 	//remove file name
 	if(mb_substr($path, -1) != "/")
 	{
@@ -3312,7 +3291,9 @@ function IncludeModuleLangFile($filepath, $lang=false, $bReturnArray=false)
 	}
 
 	if($lang === false)
-		$lang = LANGUAGE_ID;
+	{
+		$lang = (defined('LANGUAGE_ID') ? LANGUAGE_ID : 'en');
+	}
 
 	$lang_subst = LangSubst($lang);
 
@@ -3435,66 +3416,35 @@ function SendError($error)
 	}
 }
 
-function AddMessage2Log($sText, $sModule = "", $traceDepth = 6, $bShowArgs = false)
+function AddMessage2Log($text, $module = '', $traceDepth = 6, $showArgs = false)
 {
-	if (defined("LOG_FILENAME") && LOG_FILENAME <> '')
+	if (defined('LOG_FILENAME') && LOG_FILENAME <> '')
 	{
-		if(!is_string($sText))
+		$logger = new Main\Diag\FileLogger(LOG_FILENAME, 0);
+		$formatter = new Main\Diag\LogFormatter($showArgs);
+		$logger->setFormatter($formatter);
+
+		$trace = '';
+		if ($traceDepth > 0)
 		{
-			$sText = var_export($sText, true);
+			$trace = Main\Diag\Helper::getBackTrace($traceDepth, ($showArgs ? null : DEBUG_BACKTRACE_IGNORE_ARGS), 2);
 		}
-		if ($sText <> '')
-		{
-			ignore_user_abort(true);
-			if ($fp = @fopen(LOG_FILENAME, "ab"))
-			{
-				if (flock($fp, LOCK_EX))
-				{
-					@fwrite($fp, "Host: ".$_SERVER["HTTP_HOST"]."\nDate: ".date("Y-m-d H:i:s")."\nModule: ".$sModule."\n".$sText."\n");
-					$arBacktrace = Bitrix\Main\Diag\Helper::getBackTrace($traceDepth, ($bShowArgs? null : DEBUG_BACKTRACE_IGNORE_ARGS));
-					$strFunctionStack = "";
-					$strFilesStack = "";
-					$firstFrame = (count($arBacktrace) == 1? 0: 1);
-					$iterationsCount = min(count($arBacktrace), $traceDepth);
-					for ($i = $firstFrame; $i < $iterationsCount; $i++)
-					{
-						if ($strFunctionStack <> '')
-							$strFunctionStack .= " < ";
 
-						if (isset($arBacktrace[$i]["class"]))
-							$strFunctionStack .= $arBacktrace[$i]["class"]."::";
+		$context = [
+			'module' => $module,
+			'message' => $text,
+			'trace' => $trace,
+		];
 
-						$strFunctionStack .= $arBacktrace[$i]["function"];
+		$message = "Host: {host}\n"
+			. "Date: {date}\n"
+			. ($module != '' ? "Module: {module}\n" : '')
+			. "{message}\n"
+			. "{trace}"
+			. "{delimiter}\n"
+		;
 
-						if(isset($arBacktrace[$i]["file"]))
-							$strFilesStack .= "\t".$arBacktrace[$i]["file"].":".$arBacktrace[$i]["line"]."\n";
-						if($bShowArgs && isset($arBacktrace[$i]["args"]))
-						{
-							$strFilesStack .= "\t\t";
-							if (isset($arBacktrace[$i]["class"]))
-								$strFilesStack .= $arBacktrace[$i]["class"]."::";
-							$strFilesStack .= $arBacktrace[$i]["function"];
-							$strFilesStack .= "(\n";
-							foreach($arBacktrace[$i]["args"] as $value)
-								$strFilesStack .= "\t\t\t".$value."\n";
-							$strFilesStack .= "\t\t)\n";
-
-						}
-					}
-
-					if ($strFunctionStack <> '')
-					{
-						@fwrite($fp, "    ".$strFunctionStack."\n".$strFilesStack);
-					}
-
-					@fwrite($fp, "----------\n");
-					@fflush($fp);
-					@flock($fp, LOCK_UN);
-					@fclose($fp);
-				}
-			}
-			ignore_user_abort(false);
-		}
+		$logger->debug($message, $context);
 	}
 }
 
@@ -4203,9 +4153,9 @@ function DeleteParam($ParamNames)
 	return http_build_query($aParams, "", "&");
 }
 
-function check_email($email, $bStrict=false)
+function check_email($email, $strict = false, $domainCheck = false)
 {
-	if(!$bStrict)
+	if(!$strict)
 	{
 		$email = trim($email);
 		if(preg_match("#.*?[<\\[\\(](.*?)[>\\]\\)].*#i", $email, $arr) && $arr[1] <> '')
@@ -4227,9 +4177,10 @@ function check_email($email, $bStrict=false)
 	{
 		$encoding = strtolower(Context::getCurrent()->getCulture()->getCharset());
 	}
+	$encodedEmail = $email;
 	if($encoding <> "utf-8")
 	{
-		$email = Text\Encoding::convertEncoding($email, $encoding, "UTF-8");
+		$encodedEmail = Text\Encoding::convertEncoding($email, $encoding, "UTF-8");
 	}
 
 	//http://tools.ietf.org/html/rfc2822#section-3.2.4
@@ -4240,14 +4191,21 @@ function check_email($email, $bStrict=false)
 
 	//"." can't be in the beginning or in the end of local-part
 	//dot-atom-text = 1*atext *("." 1*atext)
-	if(preg_match("#^[{$atom}]+(\\.[{$atom}]+)*@(([{$domain}]+\\.)+)([{$domain}]{2,20})$#ui", $email))
+	if(preg_match("#^[{$atom}]+(\\.[{$atom}]+)*@(([{$domain}]+\\.)+)([{$domain}]{2,20})$#ui", $encodedEmail))
 	{
+		if ($domainCheck)
+		{
+			$email = Main\Mail\Mail::toPunycode($email);
+			$parts = explode('@', $email);
+			$host = $parts[1] . '.';
+
+			return (checkdnsrr($host, 'MX') || checkdnsrr($host, 'A'));
+		}
+
 		return true;
 	}
-	else
-	{
-		return false;
-	}
+
+	return false;
 }
 
 function initvar($varname, $value='')
@@ -4991,11 +4949,11 @@ class CUtil
 			{
 				if($params["change_case"] == "L" || $params["change_case"] == "l")
 				{
-					$chr_new = ToLower($chr_new);
+					$chr_new = mb_strtolower($chr_new);
 				}
 				elseif($params["change_case"] == "U" || $params["change_case"] == "u")
 				{
-					$chr_new = ToUpper($chr_new);
+					$chr_new = mb_strtoupper($chr_new);
 				}
 
 				$str_new .= $chr_new;
@@ -6094,6 +6052,20 @@ function bxmail($to, $subject, $message, $additional_headers="", $additional_par
 		)
 	);
 	$event->send();
+
+	$defaultMailConfiguration = Configuration::getValue("smtp");
+	if (
+		$defaultMailConfiguration
+		&& $defaultMailConfiguration['enabled']
+		&& $context->getSmtp()
+		|| $defaultMailConfiguration['enabled']
+		&& $defaultMailConfiguration['host']
+		&& $defaultMailConfiguration['login']
+	)
+	{
+		$mailer = Main\Mail\Smtp\Mailer::getInstance($context);
+		return $mailer->sendMailBySmtp($to, $subject, $message, $additional_headers, $additional_parameters);
+	}
 
 	if(function_exists("custom_mail"))
 	{

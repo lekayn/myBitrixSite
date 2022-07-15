@@ -6,6 +6,7 @@ use \Bitrix\Landing\File;
 use \Bitrix\Landing\Landing;
 use \Bitrix\Landing\Hook;
 use \Bitrix\Landing\Assets;
+use \Bitrix\Landing\Restriction;
 use \Bitrix\Landing\Block as BlockCore;
 use \Bitrix\Main\Localization\Loc;
 use \Bitrix\Landing\PublicActionResult;
@@ -671,6 +672,19 @@ class Block
 
 		Landing::setEditMode();
 
+		if (Utils::isTrue($designed))
+		{
+			if (!Restriction\Manager::isAllowed('limit_crm_free_superblock1'))
+			{
+				return $result;
+			}
+		}
+
+		if (strpos($content, 'block-wrapper'))
+		{
+			$content = preg_replace('/^<div.*?class="[^"]*block-wrapper[\s"][^>]+>(.*?)<\/div>$/is', '$1', $content);
+		}
+
 		$landing = Landing::createInstance($lid, [
 			'blocks_id' => $block
 		]);
@@ -726,6 +740,29 @@ class Block
 			}
 		}
 		$result->setError($landing->getError());
+
+		return $result;
+	}
+
+	/**
+	 * Publication one block from landing.
+	 * @param int $block Block id.
+	 * @return PublicActionResult
+	 */
+	public static function publication(int $block): PublicActionResult
+	{
+		$result = new PublicActionResult();
+
+		$lid = BlockCore::getLandingIdByBlockId($block);
+		if ($lid)
+		{
+			$landing = Landing::createInstance($lid);
+			if ($landing->exist())
+			{
+				$result->setResult($landing->publication($block));
+			}
+			$result->setError($landing->getError());
+		}
 
 		return $result;
 	}
@@ -960,9 +997,10 @@ class Block
 	 * @param mixed $picture File url / file array.
 	 * @param string $ext File extension.
 	 * @param array $params Some file params.
-	 * @return \Bitrix\Landing\PublicActionResult
+	 * @param bool $temp This is temporary file.
+	 * @return PublicActionResult
 	 */
-	public static function uploadFile($block, $picture, $ext = false, array $params = array())
+	public static function uploadFile($block, $picture, $ext = false, array $params = [], $temp = false): PublicActionResult
 	{
 		static $mixedParams = ['picture'];
 
@@ -980,7 +1018,7 @@ class Block
 			$file = Manager::savePicture($picture, $ext, $params);
 			if ($file)
 			{
-				File::addToBlock($block, $file['ID']);
+				File::addToBlock($block, $file['ID'], Utils::isTrue($temp));
 				$result->setResult(array(
 					'id' => $file['ID'],
 					'src' => $file['SRC']
@@ -1002,6 +1040,29 @@ class Block
 				Loc::getMessage('LANDING_BLOCK_NOT_FOUND')
 			);
 			$result->setError($error);
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Returns disk's file by attached object id.
+	 * @param int $fileId File (attached object) id.
+	 * @return PublicActionResult
+	 */
+	public static function getFileDisk(int $fileId): PublicActionResult
+	{
+		static $internal = true;
+
+		$result = new PublicActionResult();
+		$result->setResult(null);
+
+		if ($file = \Bitrix\Landing\Connector\Disk::getFileInfo($fileId, true, true))
+		{
+			$result->setResult([
+				'ID' => $file['OBJECT_ID'],
+				'NAME' => $file['NAME']
+			]);
 		}
 
 		return $result;

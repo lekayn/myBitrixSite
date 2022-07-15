@@ -6,6 +6,11 @@ require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/prolog.php");
 
 Loader::includeModule('sale');
 
+if (!\Bitrix\Sale\Configuration::isCanUsePersonalization())
+{
+	LocalRedirect('/bitrix/admin/');
+}
+
 IncludeModuleLangFile(__FILE__);
 
 // Page header
@@ -200,7 +205,9 @@ require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_aft
 
 	<div class="adm-c-bigdata-title-box">
 		<h2><?=GetMessage('BIGDATA_CONVERT')?></h2>
-		<div class="adm-c-bigdata-mac"><iframe width="389" height="245" src="//www.youtube.com/embed/AtNZQGbkjHI?rel=0&amp;controls=0&amp;showinfo=0" frameborder="0" allowfullscreen></iframe></div>
+		<?if (\Bitrix\Main\Application::getInstance()->getLicense()->getRegion() !== 'ua'):?>
+			<div class="adm-c-bigdata-mac"><iframe width="389" height="245" src="//www.youtube.com/embed/AtNZQGbkjHI?rel=0&amp;controls=0&amp;showinfo=0" frameborder="0" allowfullscreen></iframe></div>
+		<?endif;?>
 	</div>
 
 	<div class="adm-c-bigdata-content">

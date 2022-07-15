@@ -8,6 +8,7 @@ use Bitrix\Catalog\v2\Sku\BaseSku;
 use Bitrix\Catalog\Component\ImageInput;
 use Bitrix\Catalog\v2\IoC\ServiceContainer;
 use Bitrix\Catalog\v2\Property\Property;
+use Bitrix\Catalog\Url\ShopBuilder;
 use Bitrix\Iblock\PropertyEnumerationTable;
 use Bitrix\Iblock\PropertyTable;
 use Bitrix\Iblock\Url\AdminPage\BuilderManager;
@@ -17,7 +18,6 @@ class BasketItem
 {
 	private const DISCOUNT_TYPE_MONETARY = 1;
 	private const DISCOUNT_TYPE_PERCENTAGE = 2;
-	private const SHOP_DETAIL_URL_TYPE = 'SHOP';
 	private const BRAND_PROPERTY_CODE = 'BRAND_REF';
 
 	private $fields;
@@ -42,6 +42,7 @@ class BasketItem
 			'name' => '',
 			'sort' => 0,
 			'module' => '',
+			'catalogPrice' => null,
 			'basePrice' => 0,
 			'price' => 0,
 			'priceExclusive' => 0,
@@ -60,7 +61,7 @@ class BasketItem
 			'brands' => '',
 		];
 
-		$this->setDetailUrlManagerType(self::SHOP_DETAIL_URL_TYPE);
+		$this->setDetailUrlManagerType(ShopBuilder::TYPE_ID);
 
 		$basePriceGroup = \CCatalogGroup::GetBaseGroup();
 		if ($basePriceGroup)
@@ -90,8 +91,8 @@ class BasketItem
 			return '';
 		}
 
-		$skuTreeItems =  $skuTree->loadWithSelectedOffers([
-			$product->getId() => $this->sku->getId()
+		$skuTreeItems = $skuTree->loadJsonOffers([
+			$product->getId() => $this->sku->getId(),
 		]);
 
 		if (!$skuTreeItems[$product->getId()][$this->sku->getId()])
@@ -134,6 +135,7 @@ class BasketItem
 		}
 
 		$urlBuilder->setIblockId($parent->getIblockId());
+
 		return $urlBuilder->getElementDetailUrl($parent->getId());
 	}
 
@@ -173,6 +175,7 @@ class BasketItem
 		$this->fields['module'] = 'catalog';
 
 		$this->fillFieldsFromSku();
+
 		return $this;
 	}
 
@@ -233,7 +236,7 @@ class BasketItem
 		if ($formattedValues !== null && !empty($formattedValues['PROPERTY_VALUES']))
 		{
 			$this->fields['brands'] = array_unique(
-				array_column($formattedValues['PROPERTY_VALUES'],  'VALUE')
+				array_column($formattedValues['PROPERTY_VALUES'], 'VALUE')
 			);
 		}
 	}
@@ -260,7 +263,7 @@ class BasketItem
 				->fetchAll()
 			;
 
-			$enumValueMap = array_column($enumSettings, 'VALUE','ID');
+			$enumValueMap = array_column($enumSettings, 'VALUE', 'ID');
 		}
 
 		$propertySettings = $property->getSettings();
@@ -291,30 +294,34 @@ class BasketItem
 
 		$propertySettings = array_intersect_key($propertySettings, $propertyKeys);
 		$propertySettings['PROPERTY_VALUES'] = $formattedValues;
+
 		return $propertySettings;
 	}
 
 	private function fillMeasureFields(): void
 	{
 		$measureId = (int)$this->sku->getField('MEASURE');
-		if ($measureId > 0)
-		{
-			$measureRow = \CCatalogMeasure::getList(
-				array('CODE' => 'ASC'),
-				array('=ID' => $this->sku->getField('MEASURE')),
-				false,
-				array('nTopCount' => 1),
-				array('CODE', 'SYMBOL', 'SYMBOL_INTL')
-			);
+		$filter =
+			$measureId > 0
+				? ['=ID' => $this->sku->getField('MEASURE')]
+				: ['=IS_DEFAULT' => 'Y']
+		;
 
-			if ($measure = $measureRow->Fetch())
-			{
-				$name = $measure['SYMBOL'] ?? $measure['SYMBOL_INTL'];
-				$this
-					->setMeasureCode((int)$measure['CODE'])
-					->setMeasureName($name)
-				;
-			}
+		$measureRow = \CCatalogMeasure::getList(
+			['CODE' => 'ASC'],
+			$filter,
+			false,
+			['nTopCount' => 1],
+			['CODE', 'SYMBOL', 'SYMBOL_INTL']
+		);
+
+		if ($measure = $measureRow->Fetch())
+		{
+			$name = $measure['SYMBOL'] ?? $measure['SYMBOL_INTL'];
+			$this
+				->setMeasureCode((int)$measure['CODE'])
+				->setMeasureName($name)
+			;
 		}
 
 		$ratioItem = $this->sku->getMeasureRatioCollection()->findDefault();
@@ -357,6 +364,32 @@ class BasketItem
 		}
 	}
 
+	private function hasEditRights(): bool
+	{
+		global $USER;
+
+		if (!$this->sku || !$USER instanceof \CUser)
+		{
+			return false;
+		}
+
+		return
+			\CIBlockElementRights::UserHasRightTo($this->sku->getIblockId(), $this->sku->getId(), 'element_edit')
+			&& \CIBlockElementRights::UserHasRightTo($this->sku->getIblockId(), $this->sku->getId(), 'element_edit_price')
+			&& !$USER->CanDoOperation('catalog_price')
+		;
+	}
+
+	public function getCatalogPrice(): ?float
+	{
+		if (!$this->priceItem)
+		{
+			return null;
+		}
+
+		return (float)$this->priceItem->getPrice();
+	}
+
 	public function setQuantity(float $value): self
 	{
 		$this->fields['quantity'] = $value;
@@ -390,8 +423,7 @@ class BasketItem
 		$this->fields['discountType'] =
 			$value === self::DISCOUNT_TYPE_MONETARY
 				? self::DISCOUNT_TYPE_MONETARY
-				: self::DISCOUNT_TYPE_PERCENTAGE
-		;
+				: self::DISCOUNT_TYPE_PERCENTAGE;
 
 		return $this;
 	}
@@ -517,8 +549,10 @@ class BasketItem
 			'showDiscount' => !empty($this->getField('discount')) ? 'Y' : 'N',
 			'image' => $this->getImageInputField(),
 			'sum' => $this->getSum(),
+			'catalogPrice' => $this->getCatalogPrice(),
 			'detailUrl' => $this->getDetailUrl(),
 			'discountSum' => $this->getField('discountSum'),
+			'hasEditRights' => $this->hasEditRights(),
 		];
 	}
 }

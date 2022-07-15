@@ -4,12 +4,16 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 	die();
 }
 
-use \Bitrix\Landing\Manager;
-use \Bitrix\Landing\Hook\Page\Settings;
-use \Bitrix\Main\ModuleManager;
+use Bitrix\Landing\Manager;
+use Bitrix\Landing\Hook\Page\Settings;
+use Bitrix\Main\ModuleManager;
+use Bitrix\Main\Loader;
+use Bitrix\Catalog;
 
 class StoreCatalogDetailBlockStoreV3 extends \Bitrix\Landing\LandingBlock
 {
+	protected $catalogIncluded;
+
 	/**
 	 * Set cart position (top, left, ...).
 	 * @return void
@@ -89,6 +93,8 @@ class StoreCatalogDetailBlockStoreV3 extends \Bitrix\Landing\LandingBlock
 	 */
 	public function init(array $params = [])
 	{
+		$this->catalogIncluded = Loader::includeModule('catalog');
+
 		$this->params = Settings::getDataForSite(
 			$params['site_id']
 		);
@@ -99,8 +105,8 @@ class StoreCatalogDetailBlockStoreV3 extends \Bitrix\Landing\LandingBlock
 
 		// calc variables
 		$variables = \Bitrix\Landing\Landing::getVariables();
-		$sectionCode = isset($variables['sef'][0]) ? $variables['sef'][0] : '';
-		$elementCode = isset($variables['sef'][1]) ? $variables['sef'][1] : '';
+		$sectionCode = $variables['sef'][0] ?? '';
+		$elementCode = $variables['sef'][1] ?? '';
 
 		// set default view (for edit mode)
 		if (!$sectionCode && !$elementCode)
@@ -187,6 +193,10 @@ class StoreCatalogDetailBlockStoreV3 extends \Bitrix\Landing\LandingBlock
 		$this->params['ACTION_VARIABLE'] = 'action_' . $block->getId();
 		/** @hack temporary solution */
 		$this->params['GLOBAL_PRODUCT_STORAGE_NAME'] = 'CURRENT_PRODUCT_ID';
+
+		$this->params['ADDITIONAL_FILTER_NAME'] = 'elementFilter';
+
+		$this->setElementListFilter();
 	}
 
 	/**
@@ -200,6 +210,47 @@ class StoreCatalogDetailBlockStoreV3 extends \Bitrix\Landing\LandingBlock
 		if ($elementId > 0)
 		{
 			$GLOBALS[$this->get('GLOBAL_PRODUCT_STORAGE_NAME')] = $elementId;
+		}
+	}
+
+	private function setFilter(string $name, array $filter): void
+	{
+		$currentFilter = $GLOBALS[$name] ?? [];
+		if (!is_array($currentFilter))
+		{
+			$currentFilter = [];
+		}
+
+		$GLOBALS[$name] = array_merge(
+			$currentFilter,
+			$filter
+		);
+	}
+
+	private function setElementListFilter(): void
+	{
+		$filterName = $this->get('ADDITIONAL_FILTER_NAME');
+		if ($filterName === null || $filterName === '')
+		{
+			return;
+		}
+
+		$elementFilter = [];
+
+		if ($this->catalogIncluded)
+		{
+			if (class_exists('\Bitrix\Catalog\Product\SystemField\ProductMapping'))
+			{
+				$elementFilter = Catalog\Product\SystemField\ProductMapping::getExtendedFilterByArea(
+					$elementFilter,
+					Catalog\Product\SystemField\ProductMapping::MAP_LANDING
+				);
+			}
+		}
+
+		if (!empty($elementFilter))
+		{
+			$this->setFilter($filterName, $elementFilter);
 		}
 	}
 }

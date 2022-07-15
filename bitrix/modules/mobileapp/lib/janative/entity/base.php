@@ -16,10 +16,30 @@ abstract class Base
 {
 	protected static $modificationDates = [];
 	protected static $dependencies = [];
+	protected static $expandedDependencies = [];
 	protected $path;
 	protected $namespace;
 	protected $baseFileName;
 	public $name;
+	private $config;
+
+
+	private function getConfig(): ?array {
+		if ($this->config == null) {
+			$this->config = [];
+			$file = new File("$this->path/deps.php");
+			$result = [];
+			if ($file->isExists())
+			{
+				$this->config = include($file->getPath());
+				if (!is_array($this->config)) {
+					$this->config = [];
+				}
+			}
+		}
+
+		return $this->config;
+	}
 
 	public function getModificationTime()
 	{
@@ -82,27 +102,65 @@ abstract class Base
 
 	public function getDependencyList()
 	{
-		$file = new File("$this->path/deps.php");
+		$config = $this->getConfig();
 		$list = [];
-		if ($file->isExists())
+		if (is_array($config))
 		{
-			/** @noinspection PhpIncludeInspection */
-			$list = include($file->getPath());
-
-			if (is_array($list))
+			if (array_keys($config) !== range(0, count($config) - 1)) {
+				if(array_key_exists('extensions', $config)) {
+					$list = $config['extensions'];
+				}
+			}
+			else
 			{
-				if(array_key_exists("extensions", $list))
-					$list = $list["extensions"];
+				$list = $config;
 			}
 		}
 
-		$list = array_reduce(
+		return array_reduce(
 			$list,
 			function ($result, $ext) {
 				return array_merge($result,  Base::expandDependency($ext));
 			}, []);
+	}
+
+	protected function getBundleFiles(): array {
+		$config = $this->getConfig();
+		$list = [];
+		if (array_key_exists("bundle", $config)) {
+			$list = array_map(function ($file) {
+				$path = Path::normalize($this->path."/$file");
+				if (Path::getExtension($path) !== "js") {
+					$path .= ".js";
+				}
+				return $path;
+			}, $config["bundle"]);
+		}
 
 		return $list;
+	}
+
+	public function getComponentDependencies(): ?array
+	{
+		$config = $this->getConfig();
+		$result = [];
+		if (is_array($config))
+		{
+			if (array_keys($config) !== range(0, count($config) - 1)) {
+				if (array_key_exists('components', $config)) {
+					if (is_array($config['components'])) {
+						return $config['components'];
+					}
+				}
+			}
+			else
+			{
+				$result = null;
+			}
+
+		}
+
+		return $result;
 	}
 
 	/**
@@ -110,11 +168,24 @@ abstract class Base
 	 * @return array
 	 * @throws FileNotFoundException
 	 */
-	private static function expandDependency($ext)
+	private static function expandDependency($ext): array
 	{
+
+		$result = [];
+
+		if (!is_string($ext))
+		{
+			return [];
+		}
+
+		if (array_key_exists($ext, self::$expandedDependencies))
+		{
+			return self::$expandedDependencies[$ext];
+		}
+
 		$findChildren = false;
 		$relativeExtDir = $ext;
-		$result = [];
+
 
 		if(mb_strpos($ext, "*") == (mb_strlen($ext) - 1))
 		{
@@ -155,9 +226,9 @@ abstract class Base
 			$result[] = $relativeExtDir;
 		}
 
+		self::$expandedDependencies[$ext] = $result;
 		return $result;
 	}
-
 
 	public function getLangDefinitionExpression()
 	{

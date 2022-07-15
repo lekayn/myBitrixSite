@@ -4,6 +4,7 @@ namespace Bitrix\Sender\Posting\ThreadStrategy;
 
 use Bitrix\Main\Entity\ReferenceField;
 use Bitrix\Main\ORM\Fields\ExpressionField;
+use Bitrix\Sender\Internals\Model\PostingThreadTable;
 use Bitrix\Sender\PostingRecipientTable;
 
 class TenThreadsStrategy extends AbstractThreadStrategy
@@ -12,9 +13,10 @@ class TenThreadsStrategy extends AbstractThreadStrategy
 
 	protected function setFilter(): void
 	{
-		$this->filter = [
+		parent::setFilter();
+		$this->filter += [
 			'=POSTING_ID' => $this->postingId,
-			'=STATUS'     => PostingRecipientTable::SEND_RESULT_NONE,
+			'@STATUS'     => [PostingRecipientTable::SEND_RESULT_NONE,PostingRecipientTable::SEND_RESULT_WAIT_ACCEPT],
 			'=LAST_DIGIT' => $this->threadId,
 		];
 	}
@@ -32,5 +34,26 @@ class TenThreadsStrategy extends AbstractThreadStrategy
 				'LAST_DIGIT', 'RIGHT(`sender_posting_recipient`.`ID`,1)'
 			)
 		];
+	}
+
+	/**
+	 * Returns false if sending not available
+	 * @return bool
+	 */
+	public function isProcessLimited(): bool
+	{
+		$maxParallelExecutions = \COption::GetOptionInt(
+			"sender",
+			"max_parallel_threads",
+			10
+		);
+
+		$count = PostingThreadTable::getCount(
+			[
+				'=STATUS' => PostingThreadTable::STATUS_IN_PROGRESS,
+			]
+		);
+
+		return $count > $maxParallelExecutions;
 	}
 }

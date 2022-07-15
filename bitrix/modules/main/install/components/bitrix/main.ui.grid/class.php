@@ -71,6 +71,7 @@ class CMainUIGrid extends CBitrixComponent
 	protected $blocksFolder = "/blocks/";
 	protected $cssFolder = "/css/";
 
+	protected $defaultHeaderSectionId = '';
 
 	protected function validateColumn($column = array())
 	{
@@ -354,7 +355,10 @@ class CMainUIGrid extends CBitrixComponent
 		);
 
 		$this->arParams["ALLOW_COLUMNS_RESIZE"] = Grid\Params::prepareBoolean(
-			array($this->arParams["ALLOW_COLUMN_RESIZE"]),
+			array(
+				$this->arParams["ALLOW_COLUMNS_RESIZE"],
+				$this->arParams["ALLOW_COLUMN_RESIZE"]
+			),
 			true
 		);
 
@@ -402,6 +406,11 @@ class CMainUIGrid extends CBitrixComponent
 			false
 		);
 
+		$this->arParams["ALLOW_EDIT_SELECTION"] = Grid\Params::prepareBoolean(
+			array($this->arParams["ALLOW_EDIT_SELECTION"]),
+			false
+		);
+
 		$this->arParams["SETTINGS_WINDOW_TITLE"] = Grid\Params::prepareString(
 			array($this->arParams["SETTINGS_WINDOW_TITLE"]),
 			""
@@ -421,6 +430,17 @@ class CMainUIGrid extends CBitrixComponent
 		$this->arResult["GRID_ID"] = $this->arParams["GRID_ID"];
 		$this->arResult["FORM_ID"] = $this->arParams["FORM_ID"];
 		$this->arResult["COLUMNS_ALL"] = $this->prepareColumnsAll();
+
+		if (!empty($this->arParams['HEADERS_SECTIONS']) && is_array($this->arParams['HEADERS_SECTIONS']))
+		{
+			$this->prepareHeaderSections();
+			$this->arResult["COLUMNS_ALL_WITH_SECTIONS"] = $this->getColumnsAllWithSections($this->arResult["COLUMNS_ALL"]);
+		}
+		$this->arResult["ENABLE_FIELDS_SEARCH"] = (
+			isset($this->arParams["ENABLE_FIELDS_SEARCH"])
+			&& $this->arParams["ENABLE_FIELDS_SEARCH"] === 'Y'
+		);
+
 		$this->arResult["HEADERS_ALL"] = $this->prepareColumnsAll();
 		$this->arResult["COLUMNS"] = $this->prepareColumns();
 		$this->arResult["HEADERS"] = $this->prepareColumns();
@@ -2577,6 +2597,36 @@ class CMainUIGrid extends CBitrixComponent
 		}
 
 		return join(" ", $classList);
+	}
+
+	protected function getColumnsAllWithSections(array $columns): array
+	{
+		$result = [];
+		foreach($columns as $column)
+		{
+			if (!empty($column['section_id']))
+			{
+				$result[$column['section_id']][] = $column;
+			}
+			else
+			{
+				$result[$this->defaultHeaderSectionId][] = $column;
+			}
+		}
+
+		return $result;
+	}
+
+	protected function prepareHeaderSections(): void
+	{
+		foreach($this->arParams['HEADERS_SECTIONS'] as $section)
+		{
+			$this->arResult['HEADERS_SECTIONS'][$section['id']] = $section;
+			if (!empty($section['default']))
+			{
+				$this->defaultHeaderSectionId = $section['id'];
+			}
+		}
 	}
 
 	/**

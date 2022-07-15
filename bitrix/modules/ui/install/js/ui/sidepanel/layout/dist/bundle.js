@@ -1,87 +1,21 @@
 this.BX = this.BX || {};
 this.BX.UI = this.BX.UI || {};
-(function (exports,sidepanel,main_core,ui_buttons) {
+(function (exports,sidepanel,main_core,ui_buttons,ui_sidepanel_menu,main_core_events) {
 	'use strict';
 
-	function _templateObject8() {
-	  var data = babelHelpers.taggedTemplateLiteral(["<div class=\"", "\"></div>"]);
+	var _templateObject, _templateObject2, _templateObject3, _templateObject4, _templateObject5, _templateObject6, _templateObject7, _templateObject8, _templateObject9, _templateObject10, _templateObject11;
 
-	  _templateObject8 = function _templateObject8() {
-	    return data;
-	  };
+	function _classPrivateMethodInitSpec(obj, privateSet) { _checkPrivateRedeclaration(obj, privateSet); privateSet.add(obj); }
 
-	  return data;
-	}
+	function _classPrivateFieldInitSpec(obj, privateMap, value) { _checkPrivateRedeclaration(obj, privateMap); privateMap.set(obj, value); }
 
-	function _templateObject7() {
-	  var data = babelHelpers.taggedTemplateLiteral(["<div class=\"ui-sidepanel-layout-footer\"></div>"]);
+	function _checkPrivateRedeclaration(obj, privateCollection) { if (privateCollection.has(obj)) { throw new TypeError("Cannot initialize the same private elements twice on an object"); } }
 
-	  _templateObject7 = function _templateObject7() {
-	    return data;
-	  };
+	function _classPrivateMethodGet(receiver, privateSet, fn) { if (!privateSet.has(receiver)) { throw new TypeError("attempted to get private field on non-instance"); } return fn; }
 
-	  return data;
-	}
+	function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); enumerableOnly && (symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; })), keys.push.apply(keys, symbols); } return keys; }
 
-	function _templateObject6() {
-	  var data = babelHelpers.taggedTemplateLiteral(["<div class=\"ui-slider-section ui-sidepanel-layout-content-fill-height\"></div>"]);
-
-	  _templateObject6 = function _templateObject6() {
-	    return data;
-	  };
-
-	  return data;
-	}
-
-	function _templateObject5() {
-	  var data = babelHelpers.taggedTemplateLiteral(["<div class=\"", "\" style=\"", "\"></div>"]);
-
-	  _templateObject5 = function _templateObject5() {
-	    return data;
-	  };
-
-	  return data;
-	}
-
-	function _templateObject4() {
-	  var data = babelHelpers.taggedTemplateLiteral(["<div class=\"ui-sidepanel-layout-toolbar\"></div>"]);
-
-	  _templateObject4 = function _templateObject4() {
-	    return data;
-	  };
-
-	  return data;
-	}
-
-	function _templateObject3() {
-	  var data = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t<div class=\"ui-sidepanel-layout-header\">\n\t\t\t\t\t<div class=\"ui-sidepanel-layout-title\">", "</div>\n\t\t\t\t</div>\n\t\t\t"]);
-
-	  _templateObject3 = function _templateObject3() {
-	    return data;
-	  };
-
-	  return data;
-	}
-
-	function _templateObject2() {
-	  var data = babelHelpers.taggedTemplateLiteral(["", ""]);
-
-	  _templateObject2 = function _templateObject2() {
-	    return data;
-	  };
-
-	  return data;
-	}
-
-	function _templateObject() {
-	  var data = babelHelpers.taggedTemplateLiteral(["<div class=\"ui-sidepanel-layout\"></div>"]);
-
-	  _templateObject = function _templateObject() {
-	    return data;
-	  };
-
-	  return data;
-	}
+	function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = null != arguments[i] ? arguments[i] : {}; i % 2 ? ownKeys(Object(source), !0).forEach(function (key) { babelHelpers.defineProperty(target, key, source[key]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } return target; }
 	var UI = BX.UI;
 	var SidePanel = BX.SidePanel;
 
@@ -89,7 +23,7 @@ this.BX.UI = this.BX.UI || {};
 	  var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 	  options = Object.assign({}, options);
 	  options.design = Object.assign({}, options.design || {});
-	  options.design = babelHelpers.objectSpread({
+	  options.design = _objectSpread({
 	    margin: true,
 	    section: true
 	  }, options.design);
@@ -103,12 +37,24 @@ this.BX.UI = this.BX.UI || {};
 	    options.extensions.push('ui.sidepanel-content');
 	  }
 
+	  if (options.menu) {
+	    options.extensions.push('ui.sidepanel.menu');
+	  }
+
 	  return options;
 	}
 
-	var _container = new WeakMap();
+	var _container = /*#__PURE__*/new WeakMap();
 
-	var _options = new WeakMap();
+	var _containerFooter = /*#__PURE__*/new WeakMap();
+
+	var _options = /*#__PURE__*/new WeakMap();
+
+	var _menu = /*#__PURE__*/new WeakMap();
+
+	var _getScrollWidth = /*#__PURE__*/new WeakSet();
+
+	var _onMenuItemClick = /*#__PURE__*/new WeakSet();
 
 	var Layout = /*#__PURE__*/function () {
 	  babelHelpers.createClass(Layout, null, [{
@@ -123,35 +69,75 @@ this.BX.UI = this.BX.UI || {};
 	  }]);
 
 	  function Layout() {
+	    var _this = this;
+
 	    var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 	    babelHelpers.classCallCheck(this, Layout);
 
-	    _container.set(this, {
+	    _classPrivateMethodInitSpec(this, _onMenuItemClick);
+
+	    _classPrivateMethodInitSpec(this, _getScrollWidth);
+
+	    _classPrivateFieldInitSpec(this, _container, {
 	      writable: true,
 	      value: void 0
 	    });
 
-	    _options.set(this, {
+	    _classPrivateFieldInitSpec(this, _containerFooter, {
+	      writable: true,
+	      value: void 0
+	    });
+
+	    _classPrivateFieldInitSpec(this, _options, {
+	      writable: true,
+	      value: void 0
+	    });
+
+	    _classPrivateFieldInitSpec(this, _menu, {
 	      writable: true,
 	      value: void 0
 	    });
 
 	    babelHelpers.classPrivateFieldSet(this, _options, prepareOptions(options));
+	    var menuOptions = babelHelpers.classPrivateFieldGet(this, _options).menu;
+
+	    if (menuOptions) {
+	      babelHelpers.classPrivateFieldSet(this, _menu, new ui_sidepanel_menu.Menu(Object.assign(menuOptions)));
+
+	      if (main_core.Type.isUndefined(menuOptions.contentAttribute)) {
+	        menuOptions.contentAttribute = 'data-menu-item-id';
+	      }
+
+	      if (menuOptions.contentAttribute) {
+	        babelHelpers.classPrivateFieldGet(this, _menu).subscribe('click', function (event) {
+	          _classPrivateMethodGet(_this, _onMenuItemClick, _onMenuItemClick2).call(_this, (event.getData() || {}).item);
+	        });
+	      }
+	    }
 	  }
 
 	  babelHelpers.createClass(Layout, [{
 	    key: "getContainer",
 	    value: function getContainer() {
 	      if (!babelHelpers.classPrivateFieldGet(this, _container)) {
-	        babelHelpers.classPrivateFieldSet(this, _container, main_core.Tag.render(_templateObject()));
+	        babelHelpers.classPrivateFieldSet(this, _container, main_core.Tag.render(_templateObject || (_templateObject = babelHelpers.taggedTemplateLiteral(["<div class=\"ui-sidepanel-layout\"></div>"]))));
 	      }
 
 	      return babelHelpers.classPrivateFieldGet(this, _container);
 	    }
 	  }, {
+	    key: "getFooterContainer",
+	    value: function getFooterContainer() {
+	      if (!babelHelpers.classPrivateFieldGet(this, _containerFooter)) {
+	        babelHelpers.classPrivateFieldSet(this, _containerFooter, main_core.Tag.render(_templateObject2 || (_templateObject2 = babelHelpers.taggedTemplateLiteral(["<div class=\"ui-sidepanel-layout-footer\"></div>"]))));
+	      }
+
+	      return babelHelpers.classPrivateFieldGet(this, _containerFooter);
+	    }
+	  }, {
 	    key: "render",
 	    value: function render() {
-	      var _this = this;
+	      var _this2 = this;
 
 	      var content = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : '';
 	      var promised = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
@@ -161,7 +147,7 @@ this.BX.UI = this.BX.UI || {};
 
 	        if (Object.prototype.toString.call(content) === "[object Promise]" || content.toString && content.toString() === "[object BX.Promise]") {
 	          return content.then(function (content) {
-	            return _this.render(content, true);
+	            return _this2.render(content, true);
 	          });
 	        }
 	      }
@@ -170,12 +156,12 @@ this.BX.UI = this.BX.UI || {};
 	      container.innerHTML = ''; // HEADER
 
 	      if (babelHelpers.classPrivateFieldGet(this, _options).title) {
-	        var title = main_core.Tag.safe(_templateObject2(), babelHelpers.classPrivateFieldGet(this, _options).title);
-	        var header = main_core.Tag.render(_templateObject3(), title);
+	        var title = main_core.Tag.safe(_templateObject3 || (_templateObject3 = babelHelpers.taggedTemplateLiteral(["", ""])), babelHelpers.classPrivateFieldGet(this, _options).title);
+	        var header = main_core.Tag.render(_templateObject4 || (_templateObject4 = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t<div class=\"ui-sidepanel-layout-header\">\n\t\t\t\t\t<div class=\"ui-sidepanel-layout-title\">", "</div>\n\t\t\t\t</div>\n\t\t\t"])), title);
 
 	        if (main_core.Type.isFunction(babelHelpers.classPrivateFieldGet(this, _options).toolbar)) {
-	          var toolbar = main_core.Tag.render(_templateObject4());
-	          babelHelpers.classPrivateFieldGet(this, _options).toolbar(babelHelpers.objectSpread({}, UI)).forEach(function (button) {
+	          var toolbar = main_core.Tag.render(_templateObject5 || (_templateObject5 = babelHelpers.taggedTemplateLiteral(["<div class=\"ui-sidepanel-layout-toolbar\"></div>"])));
+	          babelHelpers.classPrivateFieldGet(this, _options).toolbar(_objectSpread({}, UI)).forEach(function (button) {
 	            if (button instanceof ui_buttons.BaseButton) {
 	              button.renderTo(toolbar);
 	            } else if (main_core.Type.isDomNode(button)) {
@@ -204,11 +190,18 @@ this.BX.UI = this.BX.UI || {};
 	          }
 	        }
 
-	        var contentElement = main_core.Tag.render(_templateObject5(), classes.join(' '), styles.join('; '));
+	        var contentElement = main_core.Tag.render(_templateObject6 || (_templateObject6 = babelHelpers.taggedTemplateLiteral(["<div class=\"", "\" style=\"", "\"></div>"])), classes.join(' '), styles.join('; '));
 	        container.appendChild(contentElement);
 
+	        if (babelHelpers.classPrivateFieldGet(this, _menu)) {
+	          babelHelpers.classPrivateFieldGet(this, _menu).renderTo(contentElement);
+	        }
+
+	        contentElement.appendChild(main_core.Tag.render(_templateObject7 || (_templateObject7 = babelHelpers.taggedTemplateLiteral(["<div class=\"ui-sidepanel-layout-content-inner\"></div>"]))));
+	        contentElement = contentElement.lastElementChild;
+
 	        if (design.section) {
-	          contentElement.appendChild(main_core.Tag.render(_templateObject6()));
+	          contentElement.appendChild(main_core.Tag.render(_templateObject8 || (_templateObject8 = babelHelpers.taggedTemplateLiteral(["<div class=\"ui-slider-section ui-sidepanel-layout-content-fill-height\"></div>"]))));
 	          contentElement = contentElement.firstElementChild;
 	        }
 
@@ -216,6 +209,10 @@ this.BX.UI = this.BX.UI || {};
 	          contentElement.innerHTML = content;
 	        } else if (content instanceof Element) {
 	          contentElement.appendChild(content);
+	        }
+
+	        if (babelHelpers.classPrivateFieldGet(this, _menu)) {
+	          _classPrivateMethodGet(this, _onMenuItemClick, _onMenuItemClick2).call(this, babelHelpers.classPrivateFieldGet(this, _menu).getActiveItem(), contentElement);
 	        }
 	      } // FOOTER
 
@@ -232,7 +229,8 @@ this.BX.UI = this.BX.UI || {};
 	            return SidePanel.Instance.close();
 	          }
 	        });
-	        var defaults = babelHelpers.objectSpread({}, UI, {
+
+	        var defaults = _objectSpread(_objectSpread({}, UI), {}, {
 	          cancelButton: cancelButton,
 	          closeButton: closeButton
 	        });
@@ -246,15 +244,15 @@ this.BX.UI = this.BX.UI || {};
 	        var buttonList = babelHelpers.classPrivateFieldGet(this, _options).buttons(defaults);
 
 	        if (buttonList && buttonList.length > 0) {
-	          var footer = main_core.Tag.render(_templateObject7());
+	          container.appendChild(main_core.Tag.render(_templateObject9 || (_templateObject9 = babelHelpers.taggedTemplateLiteral(["<div class=\"ui-sidepanel-layout-footer-anchor\"></div>"]))));
 	          var _classes = ['ui-sidepanel-layout-buttons'];
 
 	          if (babelHelpers.classPrivateFieldGet(this, _options).design.alignButtonsLeft) {
 	            _classes.push('ui-sidepanel-layout-buttons-align-left');
 	          }
 
-	          var buttons = main_core.Tag.render(_templateObject8(), _classes.join(' '));
-	          footer.appendChild(buttons);
+	          var buttons = main_core.Tag.render(_templateObject10 || (_templateObject10 = babelHelpers.taggedTemplateLiteral(["<div class=\"", "\"></div>"])), _classes.join(' '));
+	          this.getFooterContainer().appendChild(buttons);
 	          buttonList.forEach(function (button) {
 	            if (button instanceof ui_buttons.BaseButton) {
 	              button.renderTo(buttons);
@@ -264,17 +262,59 @@ this.BX.UI = this.BX.UI || {};
 	              throw main_core.BaseError('Wrong button type ' + button);
 	            }
 	          });
-	          container.appendChild(footer);
+	          container.appendChild(this.getFooterContainer());
 	        }
 	      }
 
+	      setTimeout(function () {
+	        _this2.afterRender();
+	      });
 	      return container;
+	    }
+	  }, {
+	    key: "afterRender",
+	    value: function afterRender() {
+	      var parentSet = this.getContainer().parentNode;
+
+	      if (parentSet.scrollWidth > parentSet.offsetWidth) {
+	        this.getFooterContainer().style.setProperty('bottom', _classPrivateMethodGet(this, _getScrollWidth, _getScrollWidth2).call(this) + 'px');
+	      }
 	    }
 	  }]);
 	  return Layout;
 	}();
 
+	function _getScrollWidth2() {
+	  var div = main_core.Tag.render(_templateObject11 || (_templateObject11 = babelHelpers.taggedTemplateLiteral(["<div style=\"overflow-y: scroll; width: 50px; height: 50px; opacity: 0; pointer-events: none; position: absolute;\"></div>"])));
+	  document.body.appendChild(div);
+	  var scrollWidth = div.offsetWidth - div.clientWidth;
+	  main_core.Dom.remove(div);
+	  return scrollWidth;
+	}
+
+	function _onMenuItemClick2(item) {
+	  var container = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
+
+	  if (!item) {
+	    return;
+	  }
+
+	  var id = item.getId();
+	  var attr = babelHelpers.classPrivateFieldGet(this, _options).menu.contentAttribute;
+
+	  if (!attr) {
+	    return;
+	  }
+
+	  container = container || babelHelpers.classPrivateFieldGet(this, _container);
+	  var nodes = container.querySelectorAll("[".concat(attr, "]"));
+	  nodes = Array.prototype.slice.call(nodes);
+	  nodes.forEach(function (node) {
+	    node.hidden = node.getAttribute(attr) !== id;
+	  });
+	}
+
 	exports.Layout = Layout;
 
-}((this.BX.UI.SidePanel = this.BX.UI.SidePanel || {}),BX,BX,BX.UI));
+}((this.BX.UI.SidePanel = this.BX.UI.SidePanel || {}),BX,BX,BX.UI,BX.UI.SidePanel,BX.Event));
 //# sourceMappingURL=bundle.js.map

@@ -79,17 +79,26 @@ return array(
 			'allowInlineEdit' => false,
 			'textOnly' => true,
 		),
-		
+
 //		search
 		'bitrix:search.title' => array(
 			'type' => 'component',
+			'extra' => array(
+				'editable' => array(
+					'PAGE' => array(
+						'name' => Loc::getMessage('LANDING_BLOCK_35.5.HEADER_NODES_SEARCH_PAGE'),
+						'type' => 'url',
+						'disallowType' => true,
+					),
+				),
+			),
 		),
 	),
 
 	'style' => array(
 		'.landing-block-node-card' => array(
 			'name' => Loc::getMessage('LANDING_BLOCK_35.5.HEADER_NODES_LANDINGBLOCK_CARD'),
-			'type' => 'border-color',
+			'type' => 'border-colors',
 		),
 		'.landing-block-node-card-title-style' => array(
 			'name' => Loc::getMessage('LANDING_BLOCK_35.5.HEADER_NODES_LANDINGBLOCK_CARD_TITLE'),

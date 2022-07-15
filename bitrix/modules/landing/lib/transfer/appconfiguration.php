@@ -3,6 +3,7 @@ namespace Bitrix\Landing\Transfer;
 
 use \Bitrix\Landing\File;
 use \Bitrix\Landing\Rights;
+use \Bitrix\Landing\Landing;
 use \Bitrix\Landing\Site;
 use \Bitrix\Landing\Restriction;
 use \Bitrix\Landing\Site\Type;
@@ -53,6 +54,12 @@ class AppConfiguration
 		'landing_store',
 		'landing_knowledge'
 	];
+
+	/**
+	 * Context site id (now used within import).
+	 * @var null
+	 */
+	private static $contextSiteId = null;
 
 	/**
 	 * Returns true if transfer are processing.
@@ -110,6 +117,8 @@ class AppConfiguration
 				'IMPORT_TITLE_BLOCK' => Loc::getMessage('LANDING_TRANSFER_IMPORT_ACTION_TITLE_BLOCK_' . $langCode),
 				'IMPORT_DESCRIPTION_UPLOAD' => Loc::getMessage('LANDING_TRANSFER_IMPORT_DESCRIPTION_UPLOAD_' . $langCode),
 				'IMPORT_DESCRIPTION_START' => ' ',
+				'IMPORT_INSTALL_FINISH_TEXT' => '',
+				'REST_IMPORT_AVAILABLE' => 'Y',
 				'ACCESS' => [
 					'MODULE_ID' => 'landing',
 					'CALLBACK' => [
@@ -131,6 +140,12 @@ class AppConfiguration
 	 */
 	public static function onCheckAccess(string $type, array $manifest): array
 	{
+		if ($manifest['CODE'] ?? null)
+		{
+			$siteType = substr($manifest['CODE'], strlen(AppConfiguration::PREFIX_CODE));
+			\Bitrix\Landing\Site\Type::setScope($siteType);
+		}
+
 		if ($type === 'export')
 		{
 			$access = in_array(Rights::ACCESS_TYPES['read'], Rights::getOperationsForSite(0));
@@ -203,14 +218,19 @@ class AppConfiguration
 	 */
 	public static function onEventImportController(Event $event): ?array
 	{
+		self::$contextSiteId = $event->getParameter('RATIO')['LANDING']['SITE_ID'] ?? null;
 		$code = $event->getParameter('CODE');
 
 		self::$processing = true;
+
+		Landing::disableCheckUniqueAddress();
 
 		if (isset(static::$entityList[$code]))
 		{
 			return Import\Site::nextStep($event);
 		}
+
+		Landing::enableCheckUniqueAddress();
 
 		return null;
 	}
@@ -277,17 +297,28 @@ class AppConfiguration
 	 */
 	public static function saveFile(array $file): ?int
 	{
+		$checkExternal = self::$contextSiteId && ($file['ID'] ?? null);
+		$externalId = $checkExternal ? self::$contextSiteId . '_' . $file['ID'] : null;
+
+		if ($externalId)
+		{
+			$res = \CFile::getList([], ['EXTERNAL_ID' => $externalId]);
+			if ($row = $res->fetch())
+			{
+				return $row['ID'];
+			}
+		}
+
 		$fileId = null;
 		$fileData = \CFile::makeFileArray(
 			$file['PATH']
 		);
-		if ($fileData)
-		{
-			$fileData['name'] = $file['NAME'];
-		}
 
 		if ($fileData)
 		{
+			$fileData['name'] = $file['NAME'];
+			$fileData['external_id'] = $externalId;
+
 			if (\CFile::checkImageFile($fileData, 0, 0, 0, array('IMAGE')) === null)
 			{
 				$fileData['MODULE_ID'] = 'landing';

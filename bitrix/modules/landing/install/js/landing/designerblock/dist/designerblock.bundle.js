@@ -1,5 +1,5 @@
 this.BX = this.BX || {};
-(function (exports,landing_backend,landing_metrika,landing_ui_highlight,landing_loc,landing_ui_panel_content,main_core) {
+(function (exports,landing_backend,landing_env,landing_metrika,landing_ui_highlight,landing_loc,landing_ui_panel_content,main_core) {
 	'use strict';
 
 	var Node = /*#__PURE__*/function () {
@@ -256,10 +256,12 @@ this.BX = this.BX || {};
 	    this.blockCode = options.code;
 	    this.blockId = options.id;
 	    this.designed = options.designed;
+	    this.autoPublicationEnabled = options.autoPublicationEnabled;
 	    this.landingId = options.lid;
 	    this.nodes = options.manifest.nodes;
 	    this.highlight = new landing_ui_highlight.Highlight();
 	    this.cardSelectors = options.manifest.cards ? Object.keys(options.manifest.cards) : [];
+	    this.designAllowed = !!landing_env.Env.getInstance().getOptions().design_block_allowed;
 	    this.cardSelectors.push(''); // for without cards elements
 
 	    this.nodeMap = new WeakMap();
@@ -268,6 +270,7 @@ this.BX = this.BX || {};
 	      repository: options.repository,
 	      onElementSelect: this.addElement.bind(this)
 	    });
+	    this.saveButton = parent.document.getElementById('landing-design-block-save') || top.document.getElementById('landing-design-block-save') || document.getElementById('landing-design-block-save');
 	    this.preventEvents();
 	    this.initHistoryEvents();
 	    this.initTopPanel();
@@ -280,7 +283,7 @@ this.BX = this.BX || {};
 	  babelHelpers.createClass(DesignerBlock, [{
 	    key: "clearHtml",
 	    value: function clearHtml(content) {
-	      return content.replace(/<div class="[^"]*landing-designer-block-pseudo-last[^"]*"[^>]*>[\s]*<\/div>/g, '').replace(/\s*data-(landingwrapper)="[^"]+"\s*/g, ' ').replace(/\s*[\w-_]+--type-wrapper\s*/g, ' ').replace(/<div[\s]*>[\s]*<\/div>/g, '').replace(/\s*style=""/g, '');
+	      return content.replace(/<div class="[^"]*landing-designer-block-pseudo-last[^"]*"[^>]*>[\s]*<\/div>/g, '').replace(/<div class="[^"]*landing-highlight-border[^"]*"[^>]*>[\s]*<\/div>/g, '').replace(/url\(&quot;(.*?)&quot;\)/g, 'url($1)').replace(/\s*data-(landingwrapper)="[^"]+"\s*/g, ' ').replace(/\s*[\w-_]+--type-wrapper\s*/g, ' ').replace(/<div[\s]*>[\s]*<\/div>/g, '').replace(/\s*style=""/g, '');
 	    }
 	  }, {
 	    key: "preventEvents",
@@ -347,30 +350,52 @@ this.BX = this.BX || {};
 	    value: function initTopPanel() {
 	      var _this3 = this;
 
-	      // save block button on the top panel
-	      top.BX.addCustomEvent('Landing:onDesignerBlockSave', function (finishCallback) {
+	      main_core.Event.bind(this.saveButton, 'click', function () {
 	        _this3.highlight.hide();
 
+	        var finishCallback = function finishCallback() {
+	          if (BX.SidePanel && BX.SidePanel.Instance) {
+	            BX.SidePanel.Instance.close();
+	          }
+	        };
+
 	        if (!_this3.changed) {
+	          finishCallback();
+	          return;
+	        }
+
+	        if (!_this3.designAllowed) {
+	          top.BX.UI.InfoHelper.show('limit_crm_free_superblock1');
 	          return;
 	        }
 
 	        _this3.saving = true;
-	        setTimeout(function () {
-	          landing_backend.Backend.getInstance().action('Block::updateContent', {
+	        var batch = {};
+	        batch['Block::updateContent'] = {
+	          action: 'Block::updateContent',
+	          data: {
 	            lid: _this3.landingId,
 	            block: _this3.blockId,
 	            content: _this3.clearHtml(_this3.originalNode.innerHTML).replaceAll(' style="', ' bxstyle="'),
 	            designed: 1
-	          }).then(function () {
-	            if (finishCallback) {
-	              _this3.saving = false;
-	              finishCallback();
-	            }
-	          });
+	          }
+	        };
 
-	          _this3.sendLabel('designerBlock', 'save' + '&designed=' + (_this3.designed ? 'Y' : 'N') + '&code=' + _this3.blockCode);
-	        }, 300);
+	        if (_this3.autoPublicationEnabled) {
+	          batch['Landing::publication'] = {
+	            action: 'Landing::publication',
+	            data: {
+	              lid: _this3.landingId
+	            }
+	          };
+	        }
+
+	        landing_backend.Backend.getInstance().batch('Block::updateContent', batch).then(function () {
+	          _this3.saving = false;
+	          finishCallback();
+	        });
+
+	        _this3.sendLabel('designerBlock', 'save' + '&designed=' + (_this3.designed ? 'Y' : 'N') + '&code=' + _this3.blockCode);
 	      });
 	    }
 	  }, {
@@ -676,5 +701,5 @@ this.BX = this.BX || {};
 
 	exports.DesignerBlock = DesignerBlock;
 
-}((this.BX.Landing = this.BX.Landing || {}),BX.Landing,BX.Landing,BX.Landing.UI,BX.Landing,BX.Landing.UI.Panel,BX));
+}((this.BX.Landing = this.BX.Landing || {}),BX.Landing,BX.Landing,BX.Landing,BX.Landing.UI,BX.Landing,BX.Landing.UI.Panel,BX));
 //# sourceMappingURL=designerblock.bundle.js.map

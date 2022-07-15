@@ -67,7 +67,6 @@ abstract class CDatabaseMysql extends CAllDatabase
 		$this->DBName = $DBName;
 		$this->DBLogin = $DBLogin;
 		$this->DBPassword = $DBPassword;
-		$this->bConnected = false;
 
 		if (!defined("DBPersistent"))
 		{
@@ -246,10 +245,6 @@ abstract class CDatabaseMysql extends CAllDatabase
 		if ($this->connection)
 		{
 			$this->connection->disconnect();
-			if (!$this->connection->isConnected())
-			{
-				$this->bConnected = false;
-			}
 		}
 	}
 
@@ -349,6 +344,14 @@ abstract class CDatabaseMysql extends CAllDatabase
 
 	public function CharToDateFunction($strValue, $strType="FULL", $lang=false)
 	{
+		// get user time
+		if ($strValue instanceof \Bitrix\Main\Type\DateTime && !$strValue->isUserTimeEnabled())
+		{
+			$strValue = clone $strValue;
+			$strValue->toUserTime();
+		}
+
+		// format
 		$sFieldExpr = "'".CDatabase::FormatDate($strValue, CLang::GetDateFormat($strType, $lang), ($strType=="SHORT"? "YYYY-MM-DD":"YYYY-MM-DD HH:MI:SS"))."'";
 
 		//time zone

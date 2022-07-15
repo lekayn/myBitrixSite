@@ -5,6 +5,7 @@ namespace Bitrix\Rest\Api;
 use Bitrix\Main\ArgumentException;
 use Bitrix\Main\ArgumentNullException;
 use Bitrix\Main\Entity\ExpressionField;
+use Bitrix\Main\Loader;
 use Bitrix\Rest\AccessException;
 use Bitrix\Rest\AppTable;
 use Bitrix\Rest\AuthTypeException;
@@ -129,6 +130,7 @@ class Placement extends \IRestService
 				'APP_ID' => $appInfo['ID'],
 				'PLACEMENT' => $placement,
 				'PLACEMENT_HANDLER' => $placementHandler,
+				'OPTIONS' => static::prepareOptions($params['OPTIONS'], $placementInfo['options']),
 			);
 
 			$langList = Lang::listLanguage();
@@ -207,6 +209,25 @@ class Placement extends \IRestService
 			{
 				$placementBind['ICON'] = $file;
 			}
+			if (!empty($placementInfo['registerCallback']['callback']))
+			{
+				if (
+					$placementInfo['registerCallback']['moduleId']
+					&& Loader::includeModule($placementInfo['registerCallback']['moduleId'])
+					&& is_callable($placementInfo['registerCallback']['callback'])
+				)
+				{
+					$resultCallback = call_user_func(
+						$placementInfo['registerCallback']['callback'],
+						$placementBind,
+						$placementInfo
+					);
+					if (!empty($resultCallback['error']) && !empty($resultCallback['error_description']))
+					{
+						return $resultCallback;
+					}
+				}
+			}
 
 			$result = PlacementTable::add($placementBind);
 			if ($result->isSuccess())
@@ -255,6 +276,31 @@ class Placement extends \IRestService
 		);
 	}
 
+	private static function prepareOptions($data = [], $setting = []): array
+	{
+		$result = [];
+
+		if (!empty($setting) && is_array($data))
+		{
+			foreach ($data as $key => $value)
+			{
+				if (!empty($setting[$key]))
+				{
+					switch ($setting[$key])
+					{
+						case 'int':
+							$result[$key] = (int) $value;
+							break;
+						case 'string':
+							$result[$key] = (string) $value;
+							break;
+					}
+				}
+			}
+		}
+
+		return $result;
+	}
 
 	public static function unbind($params, $n, \CRestServer $server)
 	{
@@ -349,6 +395,7 @@ class Placement extends \IRestService
 				$result[] = array(
 					'placement' => $placement->getPlacement(),
 					'handler' => $placement->getPlacementHandler(),
+					'options' => $placement->getOptions(),
 					'title' => $placement->getTitle(),
 					'description' => $placement->getComment(),
 					'langAll' => $langList,

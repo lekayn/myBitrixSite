@@ -19,13 +19,19 @@
 		init: function (params)
 		{
 			this.id = params.id;
+			this.importByProcessId = params.importByProcessId;
 			this.signedParameters = params.signedParameters;
 			this.next = '';
 			this.section = [];
 			this.progressDescriptionContainer = BX.findChildByClassName( BX(this.id), 'rest-configuration-info');
 			this.needClearFull = params.needClearFull;
 			this.needClearFullConfirm = params.needClearFullConfirm;
+			this.skipClearing = params.skipClearing;
 			this.errors = [];
+			this.loaderPointSymbol = '.';
+			this.loaderPointCount = 3;
+			this.closeSliderPopup = false;
+			this.showCloseConfirmation = true;
 
 			var startBtn = BX.findChildByClassName( BX(this.id),'start_btn');
 			if (startBtn !== null)
@@ -34,11 +40,15 @@
 					startBtn,
 					'click',
 					BX.delegate(
-						function()
+						function ()
 						{
-							if(this.needClearFullConfirm === true)
+							if (this.needClearFullConfirm === true)
 							{
 								this.showConfirmClearAll(startBtn);
+							}
+							else if (this.importByProcessId === true)
+							{
+								this.run();
 							}
 							else
 							{
@@ -51,7 +61,14 @@
 			}
 			else
 			{
-				this.start();
+				if (this.importByProcessId === true)
+				{
+					this.run();
+				}
+				else
+				{
+					this.start();
+				}
 			}
 
 
@@ -70,6 +87,61 @@
 					)
 				);
 
+			}
+			var slider = BX.SidePanel.Instance.getTopSlider();
+			if (slider)
+			{
+				BX.addCustomEvent(slider, "SidePanel.Slider:onClose", this.handleSliderClose.bind(this));
+			}
+		},
+
+		handleSliderClose: function(event)
+		{
+			if (this.showCloseConfirmation)
+			{
+				event.denyAction();
+			}
+			if (!this.closeSliderPopup)
+			{
+				this.closeSliderPopup = new top.BX.PopupWindow(
+					{
+						titleBar: BX.message('REST_CONFIGURATION_IMPORT_HOLD_CLOSE_POPUP_TITLE'),
+						content: BX.message('REST_CONFIGURATION_IMPORT_HOLD_CLOSE_POPUP_DESCRIPTION'),
+						closeIcon: false,
+						buttons: [
+							new top.BX.PopupWindowButton(
+								{
+									text: BX.message('REST_CONFIGURATION_IMPORT_HOLD_CLOSE_POPUP_BTN_CONTINUE'),
+									className: 'popup-window-button-accept',
+									events: {
+										click: function()
+										{
+											this.closeSliderPopup.close();
+										}.bind(this)
+									}
+								}
+							),
+							new top.BX.PopupWindowButton(
+								{
+									className: 'popup-window-button popup-window-button-link',
+									text: BX.message('REST_CONFIGURATION_IMPORT_HOLD_CLOSE_POPUP_BTN_CLOSE'),
+									events: {
+										click: function()
+										{
+											this.showCloseConfirmation = false;
+											event.slider.close();
+											this.closeSliderPopup.close();
+										}.bind(this)
+									}
+								}
+							)
+						]
+					}
+				);
+			}
+			if (this.showCloseConfirmation)
+			{
+				this.closeSliderPopup.show();
 			}
 		},
 
@@ -188,140 +260,193 @@
 			});
 		},
 
-		setDescription: function (code)
+		setDescription: function (code, step)
 		{
 			code = 'REST_CONFIGURATION_IMPORT_INSTALL_STEP_'+code;
 			var mess = BX.message[code]? BX.message(code): BX.message('REST_CONFIGURATION_IMPORT_INSTALL_STEP');
+
+			if (this.loaderPointCount > 0 && BX.type.isInteger(step))
+			{
+				var space = '&nbsp;';
+				var countPoint = step % this.loaderPointCount + 1;
+				var countSpace = this.loaderPointCount - countPoint;
+				mess += this.loaderPointSymbol.repeat(countPoint) + space.repeat(countSpace);
+			}
+
 			BX.html(this.progressDescriptionContainer, mess);
 		},
 
-		finish: function ()
+		showLoader: function ()
+		{
+			BX.addClass(BX.findChildByClassName(BX(this.id), 'rest-configuration-start-icon-main'), 'rest-configuration-start-icon-main-loading');
+			BX.style(BX.findChildByClassName(BX(this.id), 'start-btn-block'), 'display', 'none');
+			this.setDescription('');
+		},
+
+		showFinish: function (result)
 		{
 			this.setDescription('FINISH');
-			var barContainer = BX.findChildByClassName( BX(this.id),'rest-configuration-start-icon-main');
-			var infoContainer = BX.findChildByClassName( BX(this.id),'rest-configuration-info');
-			BX.removeClass(barContainer,' rest-configuration-start-icon-main-loading');
+			var barContainer = BX.findChildByClassName(BX(this.id), 'rest-configuration-start-icon-main');
+			BX.removeClass(barContainer, 'rest-configuration-start-icon-main-loading');
 
 			var text = '';
-			if(this.errors.length === 0)
+			if (this.errors.length === 0)
 			{
-				text = BX.message("REST_CONFIGURATION_IMPORT_FINISH_DESCRIPTION");
-				BX.addClass(barContainer,'rest-configuration-start-icon-main-success');
+				text = BX.message('REST_CONFIGURATION_IMPORT_FINISH_DESCRIPTION');
+				BX.addClass(barContainer, 'rest-configuration-start-icon-main-success');
 			}
 			else
 			{
-				text = BX.message("REST_CONFIGURATION_IMPORT_FINISH_ERROR_DESCRIPTION");
-				BX.addClass(barContainer,'rest-configuration-start-icon-main-error');
+				text = BX.message('REST_CONFIGURATION_IMPORT_FINISH_ERROR_DESCRIPTION');
+				BX.addClass(barContainer, 'rest-configuration-start-icon-main-error');
 			}
+
 			BX.cleanNode(this.progressDescriptionContainer);
 			this.progressDescriptionContainer.appendChild(
-				BX.create('p', {
-					attrs: {
-						className: ''
-					},
-					text: text
-				})
+				BX.create(
+					'p',
+					{
+						attrs: {
+							className: '',
+						},
+						text: text,
+					}
+				)
 			);
 
-			if(this.errors.length !== 0)
+			if (this.errors.length !== 0)
 			{
 				this.progressDescriptionContainer.appendChild(
-					BX.create('div', {
-						attrs: {
-							className: 'rest-configuration-links'
-						},
-						children: [
-							BX.create('a', {
-								attrs: {
-									'data-slider-ignore-autobinding': 'true',
-									href: ''
-								},
-								events: {
-									click: BX.delegate(this.openPopupErrors, this)
-								},
-								text: BX.message("REST_CONFIGURATION_IMPORT_ERRORS_REPORT_BTN")
-							})
-						]
-					})
+					BX.create(
+						'div',
+						{
+							attrs: {
+								className: 'rest-configuration-links',
+							},
+							children: [
+								BX.create(
+									'a',
+									{
+										attrs: {
+											'data-slider-ignore-autobinding': 'true',
+											href: '',
+										},
+										events: {
+											click: BX.delegate(this.openPopupErrors, this),
+										},
+										text: BX.message('REST_CONFIGURATION_IMPORT_ERRORS_REPORT_BTN'),
+									}
+								)
+							]
+						}
+					)
 				);
 			}
 
 			BX.insertAfter(
-				BX.create('div', {
-					attrs: {
-						className: 'rest-configuration-action-block'
-					},
-					children:[
-					]
-				}),
-				BX.findChildByClassName( BX(this.id),'rest-configuration-start-icon-main')
+				BX.create(
+					'div',
+					{
+						attrs: {
+							className: 'rest-configuration-action-block',
+						},
+						children: [],
+					}
+				),
+				BX.findChildByClassName(BX(this.id), 'rest-configuration-start-icon-main')
 			);
+
+
+			if (this.errors.length === 0)
+			{
+				BX(this.id).appendChild(
+					BX.create(
+						'p',
+						{
+							attrs: {
+								className: 'rest-configuration-import-finish rest-configuration-info',
+							},
+							html: BX.message('REST_CONFIGURATION_IMPORT_INSTALL_FINISH_TEXT'),
+						}
+					)
+				);
+			}
+
+			var elementList = [];
+			if (!!result.createItemList && result.createItemList.length > 0)
+			{
+				for (var i = 0; i < result.createItemList.length; i++)
+				{
+					if (!result.createItemList[i]['DATA'])
+					{
+						result.createItemList[i]['DATA'] = {
+							'events': {},
+						};
+					}
+					var tag = result.createItemList[i]['TAG'];
+					var data = result.createItemList[i]['DATA'];
+
+					if (!data['events'])
+					{
+						data['events'] = {};
+					}
+					if (!data['events']['click'])
+					{
+						data['events']['click'] = function (event)
+						{
+							if (event.target.localName === 'a' && event.target.href.indexOf(event.target.baseURI) === 0)
+							{
+								event.preventDefault();
+								BX.remove(event.target);
+							}
+						};
+					}
+
+					elementList[i] = BX.create(
+						tag,
+						data
+					);
+					this.progressDescriptionContainer.appendChild(
+						elementList[i]
+					);
+				}
+			}
+
+			top.BX.Event.EventEmitter.emit(
+				'BX.Rest.Configuration.Install:onFinish',
+				new top.BX.Event.BaseEvent(
+					{
+						data: {
+							finishResponse: result,
+							errors: this.errors,
+							elementList: elementList,
+						},
+					}
+				)
+			);
+			this.showCloseConfirmation = false;
+		},
+
+		finish: function ()
+		{
 			var self = this;
 			this.sendAjax(
 				'finish',
 				{},
 				BX.delegate(
-					function(response) {
+					function (response)
+					{
 						if (response.data.result === true)
 						{
-							if (self.errors.length > 0)
-							{
-								var errorsBlock = BX.findChildByClassName(BX(self.id), 'rest-configuration-errors');
-								for (var i = 0; i < self.errors.length; i++)
-								{
-									errorsBlock.appendChild(
-										BX.create('p',
-											{
-												'text': self.errors[i]
-											}
-										)
-									);
-								}
-							}
-							else
-							{
-								BX(self.id).appendChild(
-									BX.create('p', {
-										attrs: {
-											className: 'rest-configuration-import-finish rest-configuration-info'
-										},
-										html: BX.message('REST_CONFIGURATION_IMPORT_INSTALL_FINISH_TEXT')
-									})
-								);
-							}
+							this.showFinish(response.data);
 						}
-
-						var elementList = [];
-
-						if (!!response.data.createItemList && response.data.createItemList.length > 0)
+						else
 						{
-							var itemList = response.data.createItemList;
-							for (var i = 0; i < itemList.length; i++)
-							{
-								elementList[i] = BX.create(
-									itemList[i]['TAG'],
-									itemList[i]['DATA']
-								);
-								this.progressDescriptionContainer.appendChild(
-									elementList[i]
-								);
-							}
+							this.finish();
 						}
-
-						top.BX.Event.EventEmitter.emit(
-							'BX.Rest.Configuration.Install:onFinish',
-							new top.BX.Event.BaseEvent(
-								{
-									data: {
-										finishResponse: response.data,
-										errors: this.errors,
-										elementList: elementList
-									},
-								}
-							)
-						);
 					},
-					this)
+					this
+				)
 			);
 		},
 
@@ -337,7 +462,17 @@
 		{
 			var errorText = '';
 			this.errors.forEach(function(item) {
-				errorText += item + '\r\n'
+				if (BX.Type.isString(item))
+				{
+					errorText += item + '\r\n'
+				}
+				else
+				{
+					if ('message' in item)
+					{
+						errorText += '[' + item['code'] + '] ' + item['message'] + '\r\n'
+					}
+				}
 			});
 			var errorTextArea = BX.create('textarea', {
 				props: {
@@ -392,13 +527,46 @@
 
 		},
 
+		run: function (step)
+		{
+			if (!BX.type.isInteger(step))
+			{
+				this.showLoader();
+				step = 0;
+			}
+			else
+			{
+				step++;
+			}
+
+			this.sendAjax(
+				'run',
+				{},
+				BX.delegate(
+					function (response)
+					{
+						if (!response.data.finish)
+						{
+							if (!!response.data.step)
+							{
+								this.setDescription(response.data.step.toString().toUpperCase(), step);
+							}
+							this.run(step);
+						}
+						else
+						{
+							this.showFinish(response.data);
+						}
+					},
+					this
+				)
+			);
+		},
+
 		start: function ()
 		{
-			BX.addClass(BX.findChildByClassName( BX(this.id),'rest-configuration-start-icon-main'), 'rest-configuration-start-icon-main-loading');
-			BX.style(BX.findChildByClassName( BX(this.id),'start-btn-block'), 'display', 'none');
-
+			this.showLoader();
 			this.setDescription('START');
-			BX.style(BX.findChildByClassName( BX(this.id),'start_btn_block'), 'display', 'none');
 			this.sendAjax(
 				'start',
 				{},
@@ -522,38 +690,45 @@
 
 		clear: function (section, step, next)
 		{
-			this.setDescription('CLEAR');
-			this.sendAjax(
-				'clear',
-				{
-					code: this.section[section],
-					step: step,
-					next: next
-				},
-				BX.delegate(
-					function (response)
+			if (this.skipClearing)
+			{
+				this.import(0, 0);
+			}
+			else
+			{
+				this.setDescription('CLEAR');
+				this.sendAjax(
+					'clear',
 					{
-						step++;
-						next = response.data.next;
-						if (next === false)
-						{
-							section++;
-							step = 0;
-							next = 0;
-						}
-
-						if (section < this.section.length)
-						{
-							this.clear(section, step, next);
-						}
-						else
-						{
-							this.import(0, 0);
-						}
+						code: this.section[section],
+						step: step,
+						next: next
 					},
-					this
-				)
-			);
+					BX.delegate(
+						function (response)
+						{
+							step++;
+							next = response.data.next;
+							if (next === false)
+							{
+								section++;
+								step = 0;
+								next = 0;
+							}
+
+							if (section < this.section.length)
+							{
+								this.clear(section, step, next);
+							}
+							else
+							{
+								this.import(0, 0);
+							}
+						},
+						this
+					)
+				);
+			}
 		},
 
 		import: function (section, step)
@@ -591,12 +766,28 @@
 			);
 		},
 
-		showFatalError: function (message)
+		showFatalError: function (messageList)
 		{
+			var message = '';
 			var barContainer = BX.findChildByClassName( BX(this.id),'rest-configuration-start-icon-main');
 			BX.removeClass(barContainer,'rest-configuration-start-icon-main-zip rest-configuration-start-icon-main-loading');
 			BX.addClass(barContainer,'rest-configuration-start-icon-main-error');
 
+			if (messageList.length > 0)
+			{
+				for (var i = 0; i < messageList.length; i++)
+				{
+					if (message !== '')
+					{
+						message += "\n";
+					}
+					message = messageList[i].message;
+				}
+			}
+			else if (BX.type.isString(messageList))
+			{
+				message = messageList;
+			}
 			BX.cleanNode(this.progressDescriptionContainer);
 			this.progressDescriptionContainer.appendChild(
 				BX.create('div', {
@@ -605,9 +796,10 @@
 					},
 					children:[
 					],
-					'text': (message) ? message : BX.message("REST_CONFIGURATION_IMPORT_INSTALL_FATAL_ERROR")
+					'text': (message !== '') ? message : BX.message("REST_CONFIGURATION_IMPORT_INSTALL_FATAL_ERROR")
 				})
 			);
+			this.showCloseConfirmation = false;
 		},
 
 		sendAjax: function (action, data, callback)

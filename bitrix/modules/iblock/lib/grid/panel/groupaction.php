@@ -1,12 +1,10 @@
 <?php
 namespace Bitrix\Iblock\Grid\Panel;
 
-use Bitrix\Main,
-	Bitrix\Main\Loader,
-	Bitrix\Main\Localization\Loc,
-	Bitrix\Iblock;
-
-Loc::loadMessages(__FILE__);
+use Bitrix\Main;
+use Bitrix\Main\Loader;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Iblock;
 
 class GroupAction
 {
@@ -68,7 +66,7 @@ class GroupAction
 	 * @param array $actions
 	 * @return array
 	 */
-	public function getList(array $actions)
+	public function getList(array $actions): array
 	{
 		$result = [];
 		if (!empty($actions))
@@ -91,19 +89,22 @@ class GroupAction
 			}
 			unset($row, $code, $params);
 		}
+
 		return $result;
 	}
 
 	/**
 	 * @param string $code
 	 * @param array $params
-	 * @return array|null
+	 * @return array|string|null
 	 */
 	public function get(string $code, array $params = [])
 	{
 		$code = trim($code);
 		if ($code === '' || !isset($this->actionHandlers[$code]))
+		{
 			return null;
+		}
 
 		$method = 'action'.$this->actionHandlers[$code].'Panel';
 		if (is_callable([$this, $method]))
@@ -118,11 +119,13 @@ class GroupAction
 	 * @param string $code
 	 * @return array|null
 	 */
-	public function getRequest(string $code)
+	public function getRequest(string $code): ?array
 	{
 		$code = trim($code);
 		if ($code === '' || !isset($this->actionHandlers[$code]))
+		{
 			return null;
+		}
 
 		$method = 'action'.$this->actionHandlers[$code].'Request';
 		if (is_callable([$this, $method]))
@@ -136,7 +139,7 @@ class GroupAction
 	/**
 	 * @return string
 	 */
-	protected function getEntityId()
+	protected function getEntityId(): string
 	{
 		return $this->entityId;
 	}
@@ -147,8 +150,12 @@ class GroupAction
 	protected function initConfig()
 	{
 		$iterator = Iblock\IblockTable::getList([
-			'select' => ['ID', 'SECTION_CHOOSER', 'SECTIONS' => 'TYPE.SECTIONS'],
-			'filter' => ['=ID' => $this->iblockId]
+			'select' => [
+				'ID',
+				'SECTION_CHOOSER',
+				'SECTIONS' => 'TYPE.SECTIONS'
+			],
+			'filter' => ['=ID' => $this->iblockId],
 		]);
 		$row = $iterator->fetch();
 		if (!empty($row))
@@ -162,7 +169,7 @@ class GroupAction
 	/**
 	 * @return void
 	 */
-	protected function initActions()
+	protected function initActions(): void
 	{
 		$this->actionHandlers = $this->getActionHandlers();
 	}
@@ -171,7 +178,7 @@ class GroupAction
 	 * @param string $value
 	 * @return void
 	 */
-	protected function setGridType(string $value)
+	protected function setGridType(string $value): void
 	{
 		if (
 			$value === self::GRID_TYPE_UI
@@ -186,7 +193,7 @@ class GroupAction
 	/**
 	 * @return string
 	 */
-	protected function getGridType()
+	protected function getGridType(): string
 	{
 		return $this->gridType;
 	}
@@ -194,7 +201,7 @@ class GroupAction
 	/**
 	 * @return bool
 	 */
-	protected function isUiGrid()
+	protected function isUiGrid(): bool
 	{
 		return $this->getGridType() === self::GRID_TYPE_UI;
 	}
@@ -225,7 +232,7 @@ class GroupAction
 	/**
 	 * @return array
 	 */
-	protected function getDefaultApplyAction()
+	protected function getDefaultApplyAction(): array
 	{
 		return ['JS' => "BX.adminUiList.SendSelected('{$this->getEntityId()}')"];
 	}
@@ -234,7 +241,7 @@ class GroupAction
 	 * @param string $id
 	 * @return string
 	 */
-	protected function getElementId($id)
+	protected function getElementId(string $id): string
 	{
 		return self::PREFIX_ID.$this->getEntityId().'_'.$id;
 	}
@@ -243,7 +250,7 @@ class GroupAction
 	 * @param array $params
 	 * @return array
 	 */
-	protected function getApplyButton(array $params)
+	protected function getApplyButton(array $params): array
 	{
 		$result = $this->mainSnippet->getApplyButton([]);
 		$result['id'] = $this->getElementId($params['APPLY_BUTTON_ID']);
@@ -253,9 +260,9 @@ class GroupAction
 				[
 					'ACTION' => Main\Grid\Panel\Actions::CALLBACK,
 					'DATA' => [
-						$this->getDefaultApplyAction()
-					]
-				]
+						$this->getDefaultApplyAction(),
+					],
+				],
 			]
 		);
 		return $result;
@@ -265,7 +272,7 @@ class GroupAction
 	 * @param array $params
 	 * @return array
 	 */
-	protected function getApplyButtonWithConfirm(array $params)
+	protected function getApplyButtonWithConfirm(array $params): array
 	{
 		$result = $this->mainSnippet->getApplyButton([]);
 		$result['id'] = $this->getElementId($params['APPLY_BUTTON_ID']);
@@ -280,9 +287,9 @@ class GroupAction
 						: $params['DEFAULT_CONFIRM_MESSAGE']
 					),
 					'DATA' => [
-						$this->getDefaultApplyAction()
-					]
-				]
+						$this->getDefaultApplyAction(),
+					],
+				],
 			]
 		);
 		return $result;
@@ -291,7 +298,7 @@ class GroupAction
 	/**
 	 * @return void
 	 */
-	protected function loadSections()
+	protected function loadSections(): void
 	{
 		if ($this->sections === null)
 		{
@@ -318,16 +325,18 @@ class GroupAction
 	 * @param bool $addTop
 	 * @return array
 	 */
-	protected function getSections($addTop = false)
+	protected function getSections(bool $addTop = false): array
 	{
-		$addTop = (bool)$addTop;
 		$this->loadSections();
 		$result = $this->sections;
 		if ($addTop)
 		{
 			$result = array_merge(
 				[
-					['NAME' => Loc::getMessage('IBLOCK_GRID_PANEL_ACTION_MESS_SECTION_TOP_LEVEL'), 'VALUE' => '0']
+					[
+						'NAME' => Loc::getMessage('IBLOCK_GRID_PANEL_ACTION_MESS_SECTION_TOP_LEVEL'),
+						'VALUE' => '0',
+					],
 				],
 				$result
 			);
@@ -339,14 +348,14 @@ class GroupAction
 	 * @param array $action
 	 * @return array
 	 */
-	protected function getAddSectionList(array $action)
+	protected function getAddSectionList(array $action): array
 	{
 		return [
 			'name' => $action['NAME'],
 			'type' => 'multicontrol',
 			'action' => [
 				[
-					'ACTION' => Main\Grid\Panel\Actions::RESET_CONTROLS
+					'ACTION' => Main\Grid\Panel\Actions::RESET_CONTROLS,
 				],
 				[
 					'ACTION' => Main\Grid\Panel\Actions::CREATE,
@@ -355,12 +364,12 @@ class GroupAction
 							'TYPE' => Main\Grid\Panel\Types::DROPDOWN,
 							'ID' => $this->getElementId($action['SECTION_LIST_ID']),
 							'NAME' => 'section_to_move',
-							'ITEMS' => $this->getSections(false)
+							'ITEMS' => $this->getSections(),
 						],
-						$this->getApplyButton($action)
-					]
-				]
-			]
+						$this->getApplyButton($action),
+					],
+				],
+			],
 		];
 	}
 
@@ -368,14 +377,14 @@ class GroupAction
 	 * @param array $action
 	 * @return array
 	 */
-	protected function getAddSectionDialog(array $action)
+	protected function getAddSectionDialog(array $action): array
 	{
 		return [
 			'name' => $action['NAME'],
 			'type' => 'multicontrol',
 			'action' => [
 				[
-					'ACTION' => Main\Grid\Panel\Actions::RESET_CONTROLS
+					'ACTION' => Main\Grid\Panel\Actions::RESET_CONTROLS,
 				],
 				[
 					'ACTION' => Main\Grid\Panel\Actions::CREATE,
@@ -384,7 +393,7 @@ class GroupAction
 							'TYPE' => Main\Grid\Panel\Types::TEXT,
 							'ID' => '',
 							'NAME' => '',
-							'TITLE' => '12141'
+							'TITLE' => '',
 						],
 						/*[
 							'TYPE' => Main\Grid\Panel\Types::DATE,
@@ -407,7 +416,7 @@ class GroupAction
 	 * @param array $action
 	 * @return array
 	 */
-	protected function getAdjustSectionList(array $action)
+	protected function getAdjustSectionList(array $action): array
 	{
 		return [
 			'name' => $action['NAME'],
@@ -436,7 +445,7 @@ class GroupAction
 	 * @param array $params
 	 * @return string
 	 */
-	protected function actionEditPanel(array $params = [])
+	protected function actionEditPanel(array $params = []): string
 	{
 		return (isset($params['NAME']) && $params['NAME'] != ''
 			? $params['NAME']
@@ -447,9 +456,8 @@ class GroupAction
 	/**
 	 * @param array $params
 	 * @return true
-	 * @noinspection PhpUnusedParameterInspection
 	 */
-	protected function actionSelectAllPanel(array $params = [])
+	protected function actionSelectAllPanel(array $params = []): bool
 	{
 		return true;
 	}
@@ -458,7 +466,7 @@ class GroupAction
 	 * @param array $params
 	 * @return string
 	 */
-	protected function actionDeletePanel(array $params = [])
+	protected function actionDeletePanel(array $params = []): string
 	{
 		return (isset($params['NAME']) && $params['NAME'] != ''
 			? $params['NAME']
@@ -470,7 +478,7 @@ class GroupAction
 	 * @param array $params
 	 * @return string
 	 */
-	protected function actionActivatePanel(array $params = [])
+	protected function actionActivatePanel(array $params = []): string
 	{
 		return (isset($params['NAME']) && $params['NAME'] != ''
 			? $params['NAME']
@@ -482,7 +490,7 @@ class GroupAction
 	 * @param array $params
 	 * @return string
 	 */
-	protected function actionDeactivatePanel(array $params = [])
+	protected function actionDeactivatePanel(array $params = []): string
 	{
 		return (isset($params['NAME']) && $params['NAME'] != ''
 			? $params['NAME']
@@ -492,11 +500,11 @@ class GroupAction
 
 	/**
 	 * @param array $params
-	 * @return array
+	 * @return array|string
 	 */
 	protected function actionClearCounterPanel(array $params = [])
 	{
-		$name = (isset($params['NAME']) && $params['NAME'] != ''
+		$name = (isset($params['NAME']) && $params['NAME'] !== ''
 			? $params['NAME']
 			: Loc::getMessage('IBLOCK_GRID_PANEL_ACTION_CLEAR_COUNTER')
 		);
@@ -528,11 +536,11 @@ class GroupAction
 
 	/**
 	 * @param array $params
-	 * @return array
+	 * @return array|string
 	 */
 	public function actionCodeTranslitPanel(array $params = [])
 	{
-		$name = (isset($params['NAME']) && $params['NAME'] != ''
+		$name = (isset($params['NAME']) && $params['NAME'] !== ''
 			? $params['NAME']
 			: Loc::getMessage('IBLOCK_GRID_PANEL_ACTION_CODE_TRANSLITERATION')
 		);
@@ -547,13 +555,13 @@ class GroupAction
 				'type' => 'multicontrol',
 				'action' => [
 					[
-						'ACTION' => Main\Grid\Panel\Actions::RESET_CONTROLS
+						'ACTION' => Main\Grid\Panel\Actions::RESET_CONTROLS,
 					],
 					[
 						'ACTION' => Main\Grid\Panel\Actions::CREATE,
-						'DATA' => [$this->getApplyButtonWithConfirm($params)]
-					]
-				]
+						'DATA' => [$this->getApplyButtonWithConfirm($params)],
+					],
+				],
 			];
 		}
 		else
@@ -566,7 +574,7 @@ class GroupAction
 	 * @param array $params
 	 * @return array|null
 	 */
-	protected function actionAdjustSectionPanel(array $params = [])
+	protected function actionAdjustSectionPanel(array $params = []): ?array
 	{
 		if (!$this->isUiGrid())
 		{
@@ -597,7 +605,7 @@ class GroupAction
 	/**
 	 * @return array|null
 	 */
-	protected function actionAdjustSectionRequest()
+	protected function actionAdjustSectionRequest(): ?array
 	{
 		$sectionId = $this->request->get('section_to_move');
 		return (is_string($sectionId) ? ['SECTION_ID' => $sectionId] : null);
@@ -607,7 +615,7 @@ class GroupAction
 	 * @param array $params
 	 * @return array|null
 	 */
-	protected function actionAddSectionPanel(array $params = [])
+	protected function actionAddSectionPanel(array $params = []): ?array
 	{
 		if (!$this->isUiGrid())
 		{
@@ -617,7 +625,7 @@ class GroupAction
 		{
 			return null;
 		}
-		if (!isset($params['NAME']) || $params['NAME'] == '')
+		if (!isset($params['NAME']) || $params['NAME'] === '')
 		{
 			$params['NAME'] = Loc::getMessage('IBLOCK_GRID_PANEL_ACTION_ADD_SECTION');
 		}
@@ -638,9 +646,10 @@ class GroupAction
 	/**
 	 * @return array|null
 	 */
-	protected function actionAddSectionRequest()
+	protected function actionAddSectionRequest(): ?array
 	{
 		$sectionId = $this->request->get('section_to_move');
+
 		return (is_string($sectionId) ? ['SECTION_ID' => $sectionId] : null);
 	}
 
@@ -648,9 +657,9 @@ class GroupAction
 	 * @param array $params
 	 * @return string
 	 */
-	protected function actionElementUnlockPanel(array $params = [])
+	protected function actionElementUnlockPanel(array $params = []): string
 	{
-		return (isset($params['NAME']) && $params['NAME'] != ''
+		return (isset($params['NAME']) && $params['NAME'] !== ''
 			? $params['NAME']
 			: Loc::getMessage('IBLOCK_GRID_PANEL_ACTION_ELEMENT_UNLOCK')
 		);
@@ -660,9 +669,9 @@ class GroupAction
 	 * @param array $params
 	 * @return string
 	 */
-	protected function actionElementLockPanel(array $params = [])
+	protected function actionElementLockPanel(array $params = []): string
 	{
-		return (isset($params['NAME']) && $params['NAME'] != ''
+		return (isset($params['NAME']) && $params['NAME'] !== ''
 			? $params['NAME']
 			: Loc::getMessage('IBLOCK_GRID_PANEL_ACTION_ELEMENT_LOCK')
 		);
@@ -672,12 +681,14 @@ class GroupAction
 	 * @param array $params
 	 * @return array|null
 	 */
-	protected function actionElementWorkflowStatusPanel(array $params = [])
+	protected function actionElementWorkflowStatusPanel(array $params = []): ?array
 	{
 		if (!Loader::includeModule('workflow'))
+		{
 			return null;
+		}
 
-		$name = (isset($params['NAME']) && $params['NAME'] != ''
+		$name = (isset($params['NAME']) && $params['NAME'] !== ''
 			? $params['NAME']
 			: Loc::getMessage('IBLOCK_GRID_PANEL_ACTION_ELEMENT_WORKFLOW_STATUS')
 		);
@@ -688,47 +699,50 @@ class GroupAction
 		{
 			$statusList[] = [
 				'NAME' => $row['REFERENCE'],
-				'VALUE' => $row['REFERENCE_ID']
+				'VALUE' => $row['REFERENCE_ID'],
 			];
 		}
 		unset($row, $iterator);
 		if (empty($statusList))
+		{
 			return null;
+		}
 
+		$params['APPLY_BUTTON_ID'] = 'send_workflow_status';
 		$data = [];
 		$data[] = [
 			'TYPE' => Main\Grid\Panel\Types::DROPDOWN,
 			'ID' => $this->getElementId('workflow_status'),
 			'NAME' => 'wf_status_id',
-			'ITEMS' => $statusList
+			'ITEMS' => $statusList,
 		];
 		if ($this->isUiGrid())
 		{
 			$data[] = $this->getApplyButton($params);
 		}
 
-		$params['APPLY_BUTTON_ID'] = 'send_workflow_status';
 		return [
 			'name' => $name,
 			'type' => 'multicontrol',
 			'action' => [
 				[
-					'ACTION' => Main\Grid\Panel\Actions::RESET_CONTROLS
+					'ACTION' => Main\Grid\Panel\Actions::RESET_CONTROLS,
 				],
 				[
 					'ACTION' => Main\Grid\Panel\Actions::CREATE,
-					'DATA' => $data
-				]
-			]
+					'DATA' => $data,
+				],
+			],
 		];
 	}
 
 	/**
 	 * @return array|null
 	 */
-	protected function actionElementWorkflowStatusRequest()
+	protected function actionElementWorkflowStatusRequest(): ?array
 	{
 		$result = $this->request->get('wf_status_id');
+
 		return (is_string($result) ? ['WF_STATUS_ID' => $result] : null);
 	}
 }

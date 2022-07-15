@@ -7,6 +7,7 @@ import TagItem from './tag-item';
 import type { TagSelectorOptions } from './tag-selector-options';
 import type { ItemOptions } from '../item/item-options';
 import type { TagItemOptions } from './tag-item-options';
+import type { AvatarOptions } from '../item/avatar-options';
 
 /**
  * @memberof BX.UI.EntitySelector
@@ -36,6 +37,7 @@ export default class TagSelector extends EventEmitter
 	textBoxOldValue = '';
 
 	tagAvatar: ?string = null;
+	tagAvatarOptions: ?AvatarOptions = null;
 	tagTextColor: ?string = null;
 	tagBgColor: ?string = null;
 	tagFontWeight: ?string = null;
@@ -68,6 +70,7 @@ export default class TagSelector extends EventEmitter
 		this.setMaxHeight(options.maxHeight);
 
 		this.setTagAvatar(options.tagAvatar);
+		this.setTagAvatarOptions(options.tagAvatarOptions);
 		this.setTagMaxWidth(options.tagMaxWidth);
 		this.setTagTextColor(options.tagTextColor);
 		this.setTagBgColor(options.tagBgColor);
@@ -149,18 +152,15 @@ export default class TagSelector extends EventEmitter
 		{
 			this.locked = flag;
 
-			if (this.isRendered())
+			if (flag)
 			{
-				if (flag)
-				{
-					Dom.addClass(this.getOuterContainer(), 'ui-tag-selector-container-locked');
-					this.getTextBox().disabled = true;
-				}
-				else
-				{
-					Dom.removeClass(this.getOuterContainer(), 'ui-tag-selector-container-locked');
-					this.getTextBox().disabled = false;
-				}
+				Dom.addClass(this.getOuterContainer(), 'ui-tag-selector-container-locked');
+				this.getTextBox().disabled = true;
+			}
+			else
+			{
+				Dom.removeClass(this.getOuterContainer(), 'ui-tag-selector-container-locked');
+				this.getTextBox().disabled = false;
 			}
 		}
 	}
@@ -261,6 +261,7 @@ export default class TagSelector extends EventEmitter
 		{
 			tag.render();
 			this.getItemsContainer().insertBefore(tag.getContainer(), this.getTextBox());
+
 			if (tagOptions.animate !== false)
 			{
 				tag.show().then(() => {
@@ -339,7 +340,7 @@ export default class TagSelector extends EventEmitter
 
 		if (Type.isDomNode(node))
 		{
-			node.appendChild(this.getOuterContainer());
+			Dom.append(this.getOuterContainer(), node);
 		}
 	}
 
@@ -544,6 +545,45 @@ export default class TagSelector extends EventEmitter
 		}
 	}
 
+	getTagAvatarOptions(): ?AvatarOptions
+	{
+		return this.tagAvatarOptions;
+	}
+
+	getTagAvatarOption(option: $Keys<AvatarOptions>): string | boolean | number | null
+	{
+		if (this.tagAvatarOptions !== null && !Type.isUndefined(this.tagAvatarOptions[option]))
+		{
+			return this.tagAvatarOptions[option];
+		}
+
+		return null;
+	}
+
+	setTagAvatarOption(option: $Keys<AvatarOptions>, value: string | boolean | number | null): void
+	{
+		if (Type.isStringFilled(option) && !Type.isUndefined(value))
+		{
+			if (this.tagAvatarOptions === null)
+			{
+				this.tagAvatarOptions = {};
+			}
+
+			this.tagAvatarOptions[option] = value;
+			this.updateTags();
+		}
+	}
+
+	setTagAvatarOptions(options: AvatarOptions): void
+	{
+		if (Type.isPlainObject(options))
+		{
+			Object.keys(options).forEach((option: string) => {
+				this.setTagAvatarOption(option, options[option]);
+			});
+		}
+	}
+
 	getTagTextColor(): ?string
 	{
 		return this.tagTextColor;
@@ -630,15 +670,25 @@ export default class TagSelector extends EventEmitter
 	getAddButton(): HTMLElement
 	{
 		return this.cache.remember('add-button', () => {
-			const caption = Text.encode(this.getActualButtonCaption());
 			const className = this.addButtonVisible ? '' : ' ui-tag-selector-item-hidden';
 
 			return Tag.render`
 				<span class="ui-tag-selector-item ui-tag-selector-add-button${className}">
-					<span 
-						class="ui-tag-selector-add-button-caption" 
-						onclick="${this.handleAddButtonClick.bind(this)}">${caption}</span>
+					${this.getAddButtonLink()}
 				</span>
+			`;
+		});
+	}
+
+	getAddButtonLink(): HTMLElement
+	{
+		return this.cache.remember('add-button-link', () => {
+			const caption = Text.encode(this.getActualButtonCaption());
+
+			return Tag.render`
+				<span 
+					class="ui-tag-selector-add-button-caption" 
+					onclick="${this.handleAddButtonClick.bind(this)}">${caption}</span>
 			`;
 		});
 	}
@@ -696,10 +746,10 @@ export default class TagSelector extends EventEmitter
 			return;
 		}
 
-		this.getAddButton().children[0].textContent = this.getActualButtonCaption();
+		this.getAddButtonLink().textContent = this.getActualButtonCaption();
 	}
 
-	getActualButtonCaption()
+	getActualButtonCaption(): string
 	{
 		return (
 			this.getTags().length > 0 && this.getAddButtonCaptionMore() !== null

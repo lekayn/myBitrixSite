@@ -1489,11 +1489,21 @@ class AjaxProcessor
 	{
 		$columns = isset($this->request['columns']) ? $this->request['columns'] : array();
 		$idPrefix = isset($this->request['idPrefix']) ? $this->request['idPrefix'] : "";
+		$showProps = isset($this->request['showProperties']) ? ($this->request['showProperties'] === 'Y') : null;
 
-		if(\CUserOptions::SetOption($idPrefix."order_basket_table", "table_columns", array("columns" => implode(",", $columns))))
+		if (\CUserOptions::SetOption($idPrefix."order_basket_table", "table_columns", array("columns" => implode(",", $columns))))
+		{
 			$this->addResultData("RESULT", "OK");
+		}
 		else
+		{
 			$this->addResultError("Can't save columns!");
+		}
+
+		if ($showProps !== null)
+		{
+			Admin\Blocks\OrderBasketSettings::saveIsShowPropsVisible($showProps);
+		}
 	}
 
 	protected function updateShipmentStatusAction()
@@ -3389,14 +3399,17 @@ class AjaxProcessor
 		/** @var Sale\ShipmentItemCollection $shipmentItemCollectionClass */
 		$shipmentItemCollectionClass = $this->registry->getShipmentItemCollectionClassName();
 
-		$dbRes = $shipmentItemCollectionClass::getList(array(
-			'select' => array(
+		$dbRes = $shipmentItemCollectionClass::getList([
+			'select' => [
 				'PRICE' => 'BASKET.PRICE',
 				'QUANTITY',
 				'CURRENCY' => 'BASKET.CURRENCY'
-			),
-			'filter' => array('=ORDER_DELIVERY_ID' => $shipmentId)
-		));
+			],
+			'filter' => [
+				'=ORDER_DELIVERY_ID' => $shipmentId,
+				'BASKET.SET_PARENT_ID' => 0
+			]
+		]);
 
 		$currency = '';
 		while ($item = $dbRes->fetch())

@@ -17,10 +17,15 @@ use Bitrix\UI\Toolbar\Facade\Toolbar;
 
 $this->setFrameMode(true);
 
+\Bitrix\Main\UI\Extension::load('ui.design-tokens');
+
 $filter = Toolbar::getFilter();
 $afterTitleButtons = Toolbar::renderAfterTitleButtons();
 $rightButtons = Toolbar::renderRightButtons();
 $filterButtons = Toolbar::renderAfterFilterButtons();
+$beforeTitleHtml = Toolbar::getBeforeTitleHtml();
+$afterTitleHtml = Toolbar::getAfterTitleHtml();
+$rightCustomHtml = Toolbar::getRightCustomHtml();
 
 $favoriteTitleTemplate = (!empty($arParams['~FAVORITES_TITLE_TEMPLATE']) ? $arParams['~FAVORITES_TITLE_TEMPLATE'] : '');
 if (mb_strlen($favoriteTitleTemplate) <= 0)
@@ -52,10 +57,16 @@ $titleStyles = !empty($titleProps) ? ' style="'.$titleProps.'"' : "";
 ?>
 
 <div id="uiToolbarContainer" class="ui-toolbar"><?php
+
 	?><div id="pagetitleContainer" class="ui-toolbar-title-box"<?=$titleStyles?>><?php
 		?>
 		<div class="ui-toolbar-title-inner">
 			<div class="ui-toolbar-title-item-box">
+				<?php
+				if (!empty($beforeTitleHtml)):
+					?><div class="ui-toolbar-before-title"><?=$beforeTitleHtml?></div><?
+				endif;
+				?>
 				<span id="pagetitle" class="ui-toolbar-title-item"><?=$APPLICATION->getTitle(false, true)?></span>
 				<?= $favoriteStar ?>
 			</div><?php
@@ -74,6 +85,10 @@ $titleStyles = !empty($titleProps) ? ' style="'.$titleProps.'"' : "";
 		<div class="ui-toolbar-after-title-buttons"><?= $afterTitleButtons ?></div><?php
 	endif;
 
+	if (!empty($afterTitleHtml)):
+		?><div class="ui-toolbar-after-title"><?=$afterTitleHtml?></div><?
+	endif;
+
 	if($filter <> ''):
 		?>
 		<div class="ui-toolbar-filter-box"><?= $filter ?><?php
@@ -87,6 +102,10 @@ $titleStyles = !empty($titleProps) ? ' style="'.$titleProps.'"' : "";
 	if($rightButtons <> ''):
 		?>
 		<div class="ui-toolbar-right-buttons"><?= $rightButtons ?></div><?php
+	endif;
+
+	if (!empty($rightCustomHtml)):
+		?><div class="ui-toolbar-after-title"><?=$rightCustomHtml?></div><?
 	endif;
 ?></div>
 

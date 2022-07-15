@@ -137,20 +137,22 @@ export class Content extends BasePanel
 			Dom.addClass(this.layout, 'landing-ui-panel-content-with-subtitle');
 		}
 
+		if (this.data.showFromRight === true)
+		{
+			this.setLayoutClass('landing-ui-panel-show-from-right');
+		}
+
 		this.init();
 
 		Event.bind(window.top, 'keydown', this.onKeyDown.bind(this));
-
-		BX.Landing.PageObject.getInstance()
-			.view()
-			.then((frame) => {
-				void (!!frame && Event.bind(frame.contentWindow, 'keydown', this.onKeyDown.bind(this)));
-			}, console.warn);
+		BX.Landing.PageObject.getEditorWindow();
 
 		if (this.data.scrollAnimation)
 		{
 			this.scrollObserver = new IntersectionObserver(this.onIntersecting.bind(this));
 		}
+
+		this.checkReadyToSave = this.checkReadyToSave.bind(this);
 	}
 
 	init()
@@ -374,5 +376,42 @@ export class Content extends BasePanel
 	{
 		super.renderTo(target);
 		Dom.append(this.overlay, target);
+	}
+
+	checkReadyToSave()
+	{
+		let canSave = true;
+		this.forms.forEach(form => {
+			form.fields.forEach(field => {
+				if (field.readyToSave === false)
+				{
+					canSave = false
+				}
+				if (!field.getListeners('onChangeReadyToSave').has(this.checkReadyToSave))
+				{
+					field.subscribe('onChangeReadyToSave', this.checkReadyToSave);
+				}
+			})
+		});
+
+		canSave ? this.enableSave() : this.disableSave()
+	}
+
+	disableSave()
+	{
+		const saveButton = this.buttons.get('save_block_content');
+		if (saveButton)
+		{
+			saveButton.disable();
+		}
+	}
+
+	enableSave()
+	{
+		const saveButton = this.buttons.get('save_block_content');
+		if (saveButton)
+		{
+			saveButton.enable();
+		}
 	}
 }

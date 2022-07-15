@@ -284,6 +284,7 @@
 						{
 							this.product.morePhotoCount = arParams.PRODUCT.MORE_PHOTO_COUNT;
 							this.product.morePhoto = arParams.PRODUCT.MORE_PHOTO;
+							this.product.sliderPhoto = arParams.PRODUCT.RESIZED_SLIDER;
 						}
 
 						if (arParams.PRODUCT.RCM_ID)
@@ -329,6 +330,7 @@
 						this.product.DETAIL_PAGE_URL = arParams.PRODUCT.DETAIL_PAGE_URL;
 						this.product.morePhotoCount = arParams.PRODUCT.MORE_PHOTO_COUNT;
 						this.product.morePhoto = arParams.PRODUCT.MORE_PHOTO;
+						this.product.sliderPhoto = arParams.PRODUCT.RESIZED_SLIDER;
 
 						if (arParams.PRODUCT.RCM_ID)
 						{
@@ -450,6 +452,10 @@
 					this.useCompare = false;
 				}
 			}
+
+			this.isFacebookConversionCustomizeProductEventEnabled =
+				arParams.IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED
+			;
 		}
 
 		if (this.errorCode === 0)
@@ -671,6 +677,7 @@
 					if (this.obQuantity)
 					{
 						BX.bind(this.obQuantity, 'change', BX.delegate(this.quantityChange, this));
+						BX.bind(this.obQuantity, 'input', BX.delegate(this.quantityInput, this));
 					}
 				}
 
@@ -1141,6 +1148,44 @@
 			}
 		},
 
+		quantityInput: function()
+		{
+			var curValue = 0,
+				intCount;
+
+			if (this.errorCode === 0 && this.showQuantity)
+			{
+				if (this.canBuy)
+				{
+					curValue = this.isDblQuantity ? parseFloat(this.obQuantity.value) : Math.round(this.obQuantity.value);
+					if (!isNaN(curValue))
+					{
+						if (this.checkQuantity)
+						{
+							if (curValue > this.maxQuantity)
+							{
+								curValue = this.maxQuantity;
+							}
+						}
+
+						this.checkPriceRange(curValue);
+
+						intCount = Math.floor(
+							Math.round(curValue * this.precisionFactor / this.stepQuantity) / this.precisionFactor
+						) || 1;
+						curValue = (intCount <= 1 ? this.stepQuantity : intCount * this.stepQuantity);
+						curValue = Math.round(curValue * this.precisionFactor) / this.precisionFactor;
+
+						if (curValue < this.minQuantity)
+						{
+							curValue = this.minQuantity;
+						}
+						this.obQuantityCounter.innerText = curValue;
+					}
+				}
+			}
+		},
+
 		quantitySet: function(index)
 		{
 			var resetQuantity, strLimit;
@@ -1420,7 +1465,7 @@
 			var deltaX = this.touch.pageX - event.changedTouches[0].pageX,
 				deltaY = this.touch.pageY - event.changedTouches[0].pageY;
 
-			if (Math.abs(deltaY) >= Math.abs(deltaX) + 5)
+			if (Math.abs(deltaY) >= Math.abs(deltaX) + 30)
 			{
 				document.body.style.overflow = "";
 			}
@@ -1442,12 +1487,12 @@
 			{
 				if (deltaX > 0)
 				{
-					return "left"
+					return "left";
 				}
 
 				if (deltaX < 0)
 				{
-					return "right"
+					return "right";
 				}
 			}
 			else
@@ -1586,6 +1631,8 @@
 
 		slide: function(type, next)
 		{
+			document.body.style.overflow = "";
+
 			var active = BX.findChild(this.obPictSlider, {className: 'catalog-section-item-slider-image active'}, true, false),
 				isCycling = this.slider.interval,
 				direction = type === 'next' ? 'left' : 'right';
@@ -1760,6 +1807,22 @@
 								BX.removeClass(rowItems[i], 'selected');
 							}
 						}
+					}
+
+					if (
+						this.isFacebookConversionCustomizeProductEventEnabled
+						&& BX.Type.isArrayFilled(this.offers)
+						&& BX.Type.isObject(this.offers[this.offerNum])
+					)
+					{
+						BX.ajax.runAction(
+							'sale.facebookconversion.customizeProduct',
+							{
+								data: {
+									offerId: this.offers[this.offerNum]['ID']
+								}
+							}
+						);
 					}
 				}
 			}
@@ -2059,11 +2122,11 @@
 					{
 						activePhoto = parseInt(this.offers[index].MORE_PHOTO_SELECTED);
 					}
-					this.setPictureSlider(this.offers[index].MORE_PHOTO, activePhoto);
+					this.setPictureSlider(this.offers[index].RESIZED_SLIDER, activePhoto);
 				}
 				else if (this.product.morePhoto)
 				{
-					this.setPictureSlider(this.product.morePhoto, activePhoto);
+					this.setPictureSlider(this.product.sliderPhoto, activePhoto);
 				}
 				else
 				{
@@ -2110,6 +2173,9 @@
 
 		setPictureSlider: function(photos, activePhoto)
 		{
+			var xPhotos = photos.X;
+			var x2Photos = photos.X2;
+
 			if (!BX.type.isElementNode(this.obPictSlider))
 			{
 				return;
@@ -2123,14 +2189,40 @@
 
 			var i,
 				currentIndex = 0,
-				useIndicator = photos.length > 1,
+				useIndicator = xPhotos.length > 1,
 				selected;
-			for (i in photos)
+			for (i in xPhotos)
 			{
-				if (!photos.hasOwnProperty(i))
+				if (!xPhotos.hasOwnProperty(i))
 				{
 					continue;
 				}
+
+				var image = BX.create(
+					'IMG',
+					{
+						attrs: {
+							src: xPhotos[i].SRC,
+							srcset: xPhotos[i].SRC + " 1x, " + x2Photos[i].SRC + " 2x",
+						}
+					}
+				);
+
+				var overlay = BX.create(
+					'div',
+					{
+						props: {
+							className: 'catalog-section-item-slider-image-overlay'
+						}
+					}
+				);
+
+				overlay.setAttribute('style',
+					'background-image: url("' + xPhotos[i].SRC + '");'
+					+ 'background-image: -webkit-image-set(url("' + xPhotos[i].SRC + '") 1x, url("' + x2Photos[i].SRC + '") 2x);'
+					+ 'background-image: image-set(url("' + xPhotos[i].SRC + '") 1x, url("' + x2Photos[i].SRC + '") 2x);'
+				);
+
 				selected = currentIndex === activePhoto;
 				this.obPictSlider.appendChild(
 					BX.create(
@@ -2138,32 +2230,15 @@
 						{
 							attrs: {
 								'data-entity': 'image',
-								'data-id': photos[i].ID
+								'data-id': xPhotos[i].ID
 							},
 							props: {
 								href: this.product.DETAIL_PAGE_URL,
 								className: 'catalog-section-item-slider-image' + (selected ? ' active' : '')
 							},
 							children: [
-								BX.create(
-									'IMG',
-									{
-										attrs: {
-											'src': photos[i].SRC
-										}
-									}
-								),
-								BX.create(
-									'div',
-									{
-										props: {
-											className: 'catalog-section-item-slider-image-overlay'
-										},
-										style: {
-											backgroundImage : "url("+photos[i].SRC+")"
-										}
-									}
-								)
+								image,
+								overlay
 							]
 						}
 					)
@@ -2177,7 +2252,7 @@
 							{
 								attrs: {
 									'data-go-to': i,
-									'data-value': photos[i].ID,
+									'data-value': xPhotos[i].ID,
 									'data-entity': 'slider-control'
 								},
 								props: {
@@ -2190,7 +2265,7 @@
 										{
 											attrs: {
 												'data-go-to': i,
-												'data-value': photos[i].ID,
+												'data-value': xPhotos[i].ID,
 												'data-entity': 'slider-control-dot'
 											},
 											props: {
@@ -2208,7 +2283,7 @@
 				{
 					if (BX.type.isElementNode(this.prebuyPopupPict))
 					{
-						this.prebuyPopupPict.src = photos[i].SRC;
+						this.prebuyPopupPict.src = xPhotos[i].SRC;
 					}
 				}
 

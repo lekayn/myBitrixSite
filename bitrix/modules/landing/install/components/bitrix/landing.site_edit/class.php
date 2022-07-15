@@ -27,7 +27,7 @@ class LandingSiteEditComponent extends LandingBaseFormComponent
 	/**
 	 * Default site color (lightblue bitrix color)
 	 */
-	public const DEFAULT_SITE_COLOR = '#6ab8ee';
+	public const DEFAULT_SITE_COLOR = '#2fc6f6';
 
 	/**
 	 * Default color picker color
@@ -208,6 +208,12 @@ class LandingSiteEditComponent extends LandingBaseFormComponent
 				$this->addError('ACCESS_DENIED', '', true);
 			}
 
+			if (!$this->id)
+			{
+				parent::executeComponent();
+				return;
+			}
+
 			// rights
 			if ($this->arResult['SHOW_RIGHTS'])
 			{
@@ -334,13 +340,6 @@ class LandingSiteEditComponent extends LandingBaseFormComponent
 						$primary['ID'],
 						$data
 					);
-				}
-				if (
-					$site['ACTIVE']['STORED'] === 'Y' &&
-					Manager::getOption('public_hook_on_save') === 'Y'
-				)
-				{
-					Hook::publicationSite($primary['ID']);
 				}
 				// rights
 				if (Rights::isAdmin() && Rights::isExtendedMode())

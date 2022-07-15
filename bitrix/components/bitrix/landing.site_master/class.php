@@ -4,18 +4,20 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 	die();
 }
 
-use \Bitrix\Main;
-use \Bitrix\Main\Engine\ActionFilter;
-use \Bitrix\Main\Engine\Contract\Controllerable;
-use \Bitrix\Main\Localization\Loc;
-use \Bitrix\Iblock\Url\AdminPage;
-use \Bitrix\Crm\Product;
-use \Bitrix\Landing\Site;
-use \Bitrix\Landing\Landing;
-use \Bitrix\Landing\Domain;
-use \Bitrix\Landing\Connector;
-use \Bitrix\Sale;
-use \Bitrix\Crm;
+use Bitrix\Landing\Manager;
+use Bitrix\Main;
+use Bitrix\Main\Engine\ActionFilter;
+use Bitrix\Main\Engine\Contract\Controllerable;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Iblock\Url\AdminPage;
+use Bitrix\Crm\Product;
+use Bitrix\Landing\Site;
+use Bitrix\Landing\Landing;
+use Bitrix\Landing\Domain;
+use Bitrix\Landing\Connector;
+use Bitrix\Sale;
+use Bitrix\Crm;
+use Bitrix\Catalog;
 
 Loc::loadMessages(__FILE__);
 
@@ -23,6 +25,8 @@ Loc::loadMessages(__FILE__);
 
 class LandingSiteMasterComponent extends LandingBaseFormComponent implements Controllerable
 {
+	public const OPTION_SHOP_INSTALL_COUNT = '~shop_install_count_';
+
 	/**
 	 * Configures filter for ajax request.
 	 * @return array
@@ -41,12 +45,13 @@ class LandingSiteMasterComponent extends LandingBaseFormComponent implements Con
 	/**
 	 * Returns site info by site id (or last created).
 	 * @param int|null $siteId Site id.
+	 * @param string $siteType Site type.
 	 * @return array|null
 	 */
-	protected function getSite(?int $siteId): ?array
+	protected function getSite(?int $siteId, string $siteType): ?array
 	{
 		$filter = [
-			'=TYPE' => 'STORE'
+			'=TYPE' => $siteType
 		];
 		if ($siteId)
 		{
@@ -61,7 +66,8 @@ class LandingSiteMasterComponent extends LandingBaseFormComponent implements Con
 			'filter' => $filter,
 			'order' => [
 				'ID' => 'desc'
-			]
+			],
+			'limit' => 1
 		]);
 		if ($row)
 		{
@@ -70,35 +76,6 @@ class LandingSiteMasterComponent extends LandingBaseFormComponent implements Con
 		}
 
 		return $row;
-	}
-
-	/**
-	 * Updates site's and main page's titles.
-	 * @param int $siteId Site id.
-	 * @param array $update Data array.
-	 * @return void
-	 */
-	protected function updateMainTitles(int $siteId, array $update): void
-	{
-		$res = Site::update($siteId, $update);
-		if ($res->isSuccess())
-		{
-			$res = Site::getList([
-				'select' => [
-					'LANDING_ID_INDEX'
-				],
-				'filter' => [
-					'ID' => $siteId
-				]
-			]);
-			$row = $res->fetch();
-			if (!empty($row['LANDING_ID_INDEX']))
-			{
-				Landing::update($row['LANDING_ID_INDEX'], [
-					'TITLE' => $update['TITLE']
-				]);
-			}
-		}
 	}
 
 	/**
@@ -145,6 +122,10 @@ class LandingSiteMasterComponent extends LandingBaseFormComponent implements Con
 		$result = \Bitrix\Landing\Site::addByTemplate($shopCode, 'STORE', ['section' => 'fashion']);
 		if ($result->getId())
 		{
+			$optionName = self::getShopInstallCountOptionName($shopCode);
+			$installCount = Manager::getOption($optionName, 0);
+			Manager::setOption($optionName, ++$installCount);
+
 			\Bitrix\Landing\PublicAction\Site::publication($result->getId());
 
 			if (Main\Loader::includeModule('sale'))
@@ -163,6 +144,11 @@ class LandingSiteMasterComponent extends LandingBaseFormComponent implements Con
 		}
 
 		return false;
+	}
+
+	public static function getShopInstallCountOptionName(string $shopCode): string
+	{
+		return self::OPTION_SHOP_INSTALL_COUNT . strtolower(str_replace('-', '_', $shopCode));
 	}
 
 	/**
@@ -233,8 +219,9 @@ class LandingSiteMasterComponent extends LandingBaseFormComponent implements Con
 	public function getProductUrl(int $siteId): string
 	{
 		if (
-			\Bitrix\Main\Loader::includeModule('iblock') &&
-			\Bitrix\Main\Loader::includeModule('crm')
+			Main\Loader::includeModule('iblock')
+			&& Main\Loader::includeModule('iblock')
+			&& Main\Loader::includeModule('crm')
 		)
 		{
 			$settings = Site::getAdditionalFields($siteId);
@@ -252,7 +239,7 @@ class LandingSiteMasterComponent extends LandingBaseFormComponent implements Con
 				else
 				{
 					$urlBuilder = AdminPage\BuilderManager::getInstance()->getBuilder(
-						Product\Url\ShopBuilder::TYPE_ID
+						Catalog\Url\ShopBuilder::TYPE_ID
 					);
 				}
 				if ($urlBuilder)
@@ -532,9 +519,10 @@ class LandingSiteMasterComponent extends LandingBaseFormComponent implements Con
 		$personType = Sale\Internals\BusinessValuePersonDomainTable::getList([
 			'select' => ['PERSON_TYPE_ID'],
 			'filter' => [
-				'DOMAIN' => Sale\BusinessValue::INDIVIDUAL_DOMAIN,
-				'PERSON_TYPE_REFERENCE.ENTITY_REGISTRY_TYPE' => Sale\Registry::REGISTRY_TYPE_ORDER,
-				'PERSON_TYPE_REFERENCE.LID' => $this->getSiteId(),
+				'=DOMAIN' => Sale\BusinessValue::INDIVIDUAL_DOMAIN,
+				'=PERSON_TYPE_REFERENCE.ENTITY_REGISTRY_TYPE' => Sale\Registry::REGISTRY_TYPE_ORDER,
+				'=PERSON_TYPE_REFERENCE.LID' => $this->getSiteId(),
+				'=PERSON_TYPE_REFERENCE.ACTIVE' => 'Y',
 			],
 			'order' => [
 				'PERSON_TYPE_REFERENCE.SORT' => 'ASC'
@@ -745,6 +733,7 @@ class LandingSiteMasterComponent extends LandingBaseFormComponent implements Con
 
 		if ($init)
 		{
+			$this->checkParam('TYPE', '');
 			$this->checkParam('SITE_ID', 0);
 			$this->checkParam('GET_DATA', 'Y');
 			$this->checkParam('PAGE_URL_SITE_MASTER', '');
@@ -756,12 +745,21 @@ class LandingSiteMasterComponent extends LandingBaseFormComponent implements Con
 				return;
 			}
 
+			\Bitrix\Landing\Site\Type::setScope(
+				$this->arParams['TYPE']
+			);
+
 			$this->arResult['SITE'] = $this->getSite(
-				$this->arParams['SITE_ID']
+				$this->arParams['SITE_ID'],
+				$this->arParams['TYPE']
 			);
 
 			if ($this->arResult['SITE'])
 			{
+				if ($this->request('redirect_to') === 'products')
+				{
+					\localRedirect($this->getProductUrl($this->arResult['SITE']['ID']));
+				}
 				$this->setSiteMasterUrl(
 					$this->arResult['SITE']['ID']
 				);

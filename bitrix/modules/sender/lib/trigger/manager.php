@@ -8,22 +8,24 @@
 
 namespace Bitrix\Sender\Trigger;
 
-use Bitrix\Main\Diag\Debug;
 use Bitrix\Main\Event;
 use Bitrix\Main\EventManager;
 use Bitrix\Main\EventResult;
 use Bitrix\Main\Type\DateTime;
+use Bitrix\Main\Diag\Debug;
+
 use Bitrix\Sender\ContactTable;
-use Bitrix\Sender\Integration;
-use Bitrix\Sender\Internals\Model;
-use Bitrix\Sender\MailEventHandler;
-use Bitrix\Sender\MailingChainTable;
-use Bitrix\Sender\MailingTable;
-use Bitrix\Sender\MailingTriggerTable;
-use Bitrix\Sender\PostingRecipientTable;
-use Bitrix\Sender\PostingTable;
 use Bitrix\Sender\Recipient;
 use Bitrix\Sender\Subscription;
+use Bitrix\Sender\MailEventHandler;
+use Bitrix\Sender\MailingTable;
+use Bitrix\Sender\MailingChainTable;
+use Bitrix\Sender\MailingTriggerTable;
+use Bitrix\Sender\PostingTable;
+use Bitrix\Sender\PostingRecipientTable;
+use Bitrix\Sender\Integration;
+use Bitrix\Sender\Internals\Model;
+use Bitrix\Sender\Transport\Adapter;
 
 class Manager
 {
@@ -530,7 +532,7 @@ class Manager
 		{
 			$resultList[$endpoint['MODULE_ID']][$endpoint['CODE']][] = $endpoint['FIELDS'];
 		}
-		
+
 		return $resultList;
 	}
 
@@ -670,7 +672,8 @@ class Manager
 						continue;
 					}
 
-					$connectorCode = (new $connectorClassName)->getCode();
+					$connector = new $connectorClassName;
+					$connectorCode = $connector->getCode();
 					if($moduleConnectorFilter && !in_array($connectorCode, $moduleConnectorFilter[$eventResult->getModuleId()]))
 					{
 						continue;
@@ -680,8 +683,8 @@ class Manager
 					if(is_subclass_of($connectorClassName,  '\Bitrix\Sender\TriggerConnectorClosed'))
 						$isClosedTrigger = true;
 
-					$connectorName = (new $connectorClassName)->getName();
-					$connectorRequireConfigure = (new $connectorClassName)->requireConfigure();
+					$connectorName = $connector->getName();
+					$connectorRequireConfigure = $connector->requireConfigure();
 					$resultList[] = array(
 						'MODULE_ID' => $eventResult->getModuleId(),
 						'CLASS_NAME' => $connectorClassName,

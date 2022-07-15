@@ -1,4 +1,4 @@
-<?
+<?php
 /** @global CUser $USER */
 
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
@@ -33,6 +33,17 @@ if (!is_string($helperClassName)
 {
 	ShowError(GetMessage("REPORT_HELPER_NOT_DEFINED"));
 	return 0;
+}
+
+$arResult['IS_RESTRICTED'] = false;
+if (
+	\Bitrix\Main\Loader::includeModule('bitrix24')
+	&& !\Bitrix\Bitrix24\Feature::isFeatureEnabled('report')
+)
+{
+	$arResult['IS_RESTRICTED'] = true;
+	$this->IncludeComponentTemplate('restrict');
+	return 1;
 }
 
 $ownerId = $arResult['OWNER_ID'] = call_user_func(array($helperClassName, 'getOwnerId'));
@@ -234,5 +245,5 @@ global $DB;
 $arResult['dateFormat'] = $DB->DateFormatToPHP(CSite::GetDateFormat("SHORT"));
 $arResult['randomString'] = $this->randString();
 
-$this->IncludeComponentTemplate();
+$this->IncludeComponentTemplate('template');
 

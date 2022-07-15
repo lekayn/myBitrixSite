@@ -238,6 +238,11 @@
 					allowedTypes.push(BX.Landing.UI.Field.LinkURL.TYPE_CATALOG);
 				}
 
+				if (BX.Landing.Main.getInstance().options.features.includes('diskFile'))
+				{
+					allowedTypes.push(BX.Landing.UI.Field.LinkURL.TYPE_DISK_FILE);
+				}
+
 				this.field = new BX.Landing.UI.Field.Link({
 					title: this.manifest.name,
 					selector: this.selector,
@@ -258,6 +263,9 @@
 					this.field.content = value;
 					this.field.hrefInput.content = value.href;
 					this.field.hrefInput.makeDisplayedHrefValue();
+					this.field.hrefInput.setHrefTypeSwitcherValue(
+						this.field.hrefInput.getHrefStringType()
+					);
 					this.field.hrefInput.removeHrefTypeFromHrefString();
 				}
 			}

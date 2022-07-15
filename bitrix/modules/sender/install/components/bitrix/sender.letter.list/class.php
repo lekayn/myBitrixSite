@@ -1,9 +1,11 @@
 <?
 
+use Bitrix\Main\Context;
 use Bitrix\Main\ErrorCollection;
 use Bitrix\Main\Grid\Options as GridOptions;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\SystemException;
+use Bitrix\Main\Type\DateTime;
 use Bitrix\Main\UI\Filter\Options as FilterOptions;
 use Bitrix\Main\Web\Uri;
 use Bitrix\Sender\Access\ActionDictionary;
@@ -58,6 +60,9 @@ class SenderLetterListComponent extends Bitrix\Sender\Internals\CommonSenderComp
 			$this->arParams['SHOW_CAMPAIGNS']
 			:
 			Integration\Bitrix24\Service::isCampaignsAvailable();
+
+		$this->arParams['IS_BX24_INSTALLED'] = Integration\Bitrix24\Service::isCloud();
+		$this->arParams['IS_PHONE_CONFIRMED'] = \Bitrix\Sender\Integration\Bitrix24\Limitation\Verification::isPhoneConfirmed();
 	}
 
 	protected function getSenderMessages()
@@ -207,9 +212,11 @@ class SenderLetterListComponent extends Bitrix\Sender\Internals\CommonSenderComp
 			try
 			{
 				$letter->loadByArray($item);
+				$approveConfirmation = $letter->getMessage()->getConfiguration()->getOption('APPROVE_CONFIRMATION');
+				$approveConfirmation = $approveConfirmation ? $approveConfirmation->getValue() : null;
 				$item['MESSAGE_CODE'] = $letter->getMessage()->getCode();
 				$item['MESSAGE_NAME'] = $letter->getMessage()->getName();
-
+				$item['CONSENT_SUPPORT'] = $approveConfirmation === 'Y';
 				$message = $letter->getMessage();
 				$options = $message->getConfiguration()->getOptions();
 				foreach ($options as $option)
@@ -247,6 +254,9 @@ class SenderLetterListComponent extends Bitrix\Sender\Internals\CommonSenderComp
 				'sent' => $letter->getCounter()->getSent(),
 				'unsent' => $letter->getCounter()->getUnsent(),
 			);
+
+			$trackMail = $letter->getMessage()->getConfiguration()->getOption('TRACK_MAIL');
+			$item['TRACK_MAIL'] = $trackMail ? $trackMail->getValue() : 'Y';
 
 			$item['HAS_STATISTICS'] = $letter->hasStatistics();
 			if ($item['HAS_STATISTICS'])
@@ -295,7 +305,13 @@ class SenderLetterListComponent extends Bitrix\Sender\Internals\CommonSenderComp
 					'canStop' => $letter->getState()->canStop(),
 					'canResume' => $letter->getState()->canResume(),
 					'isSendingLimitExceeded' => $letter->getState()->isSendingLimitExceeded(),
+					'isSendingLimitWaiting' => $letter->getState()->isSendingLimitWaiting(),
 				);
+
+				if ($item['STATE']['isSendingLimitWaiting'])
+				{
+					$this->prepareTimeLimitationMessage($letter, $item);
+				}
 
 				$item['URLS'] = array(
 					'EDIT' => str_replace('#id#', $item['ID'], $this->arParams['PATH_TO_EDIT']),
@@ -330,6 +346,27 @@ class SenderLetterListComponent extends Bitrix\Sender\Internals\CommonSenderComp
 		Integration\Bitrix24\Service::initLicensePopup();
 
 		return true;
+	}
+
+	private function prepareTimeLimitationMessage($letter, &$item)
+	{
+		$currentTime = strtotime((new DateTime())->format("H:i:s"));
+		$configuration = $letter->getMessage()->getConfiguration();
+		$sendingStart = strtotime($configuration->get('SENDING_START'));
+
+		$day = $currentTime > $sendingStart
+			? Loc::getMessage('SENDER_LETTER_LIST_LETTER_SENDING_TOMORROW')
+			: Loc::getMessage('SENDER_LETTER_LIST_LETTER_SENDING_TODAY')
+		;
+
+		$item['LIMITATION']['DAY'] = $day;
+
+		$item['LIMITATION']['TIME'] = (new \DateTime())
+			->setTimestamp($sendingStart)
+			->format(Context::getCurrent()
+				->getCulture()
+				->getShortTimeFormat());
+		;
 	}
 
 	protected function formatDate(\Bitrix\Main\Type\DateTime $dateTime = null)
@@ -471,7 +508,7 @@ class SenderLetterListComponent extends Bitrix\Sender\Internals\CommonSenderComp
 			array(
 				"id" => "ACTIONS",
 				"name" => Loc::getMessage('SENDER_LETTER_LIST_COMP_UI_COLUMN_ACTIONS'),
-				"sort" => "ID",
+				"sort" => "DATE_UPDATE",
 				"default" => true
 			),
 			array(
@@ -486,7 +523,14 @@ class SenderLetterListComponent extends Bitrix\Sender\Internals\CommonSenderComp
 				"default" => true
 			),
 		);
-
+		if (Integration\Bitrix24\Service::isCloud())
+		{
+			$list[] = [
+				"id" => "CONSENT_SUPPORT",
+				"name"=> Loc::getMessage('SENDER_LETTER_LIST_COMP_UI_COLUMN_CONSENT_SUPPORT'),
+				"default" => true
+			];
+		}
 		if ($this->arParams['SHOW_CAMPAIGNS'])
 		{
 			$list[] = [

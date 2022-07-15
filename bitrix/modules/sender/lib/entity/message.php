@@ -148,8 +148,9 @@ class Message extends Base
 
 	/**
 	 * Get fields.
+	 * @return array
 	 */
-	public function getFields()
+	public function getFields(): array
 	{
 		$result = array();
 		$data = $this->getData();
@@ -175,8 +176,9 @@ class Message extends Base
 
 	/**
 	 * Get fields.
+	 * @return array
 	 */
-	public function getUtm()
+	public function getUtm(): array
 	{
 		$result = array();
 		$data = $this->getData();
@@ -187,14 +189,14 @@ class Message extends Base
 
 		return $result;
 	}
-
+	
 	/**
 	 * Set fields.
 	 *
-	 * @param array $fields Fields.
+	 * @param array $utm
 	 * @return $this
 	 */
-	public function setUtm(array $utm)
+	public function setUtm(array $utm): Message
 	{
 		$this->set('UTM', $utm);
 		return $this;
@@ -202,8 +204,9 @@ class Message extends Base
 
 	/**
 	 * Get code.
+	 * @return ?string
 	 */
-	public function getCode()
+	public function getCode(): ?string
 	{
 		return $this->get('CODE');
 	}
@@ -214,7 +217,7 @@ class Message extends Base
 	 * @param string $code Code.
 	 * @return $this
 	 */
-	public function setCode($code)
+	public function setCode(string $code)
 	{
 		return $this->set('CODE', $code);
 	}
@@ -300,12 +303,17 @@ class Message extends Base
 		MessageFieldTable::deleteByMessageId($id);
 		foreach ($fields as $field)
 		{
-			if(in_array($field['CODE'], ['MESSAGE_PERSONALIZE', 'SUBJECT_PERSONALIZE']))
+			if (!$field['CODE'])
 			{
 				continue;
 			}
 
-			if(in_array($field['CODE'], ['MESSAGE', 'SUBJECT']))
+			if(in_array($field['CODE'], ['MESSAGE_PERSONALIZE', 'SUBJECT_PERSONALIZE', 'TITLE_PERSONALIZE']))
+			{
+				continue;
+			}
+
+			if(in_array($field['CODE'], ['MESSAGE', 'SUBJECT', 'TITLE']))
 			{
 
 				preg_match_all("/#([0-9a-zA-Z_.|]+?)#/", $field['VALUE'], $matchesFindPlaceHolders);

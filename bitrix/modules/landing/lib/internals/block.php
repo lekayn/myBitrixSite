@@ -6,6 +6,22 @@ use \Bitrix\Main\Entity;
 
 Loc::loadMessages(__FILE__);
 
+/**
+ * Class BlockTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Block_Query query()
+ * @method static EO_Block_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Block_Result getById($id)
+ * @method static EO_Block_Result getList(array $parameters = array())
+ * @method static EO_Block_Entity getEntity()
+ * @method static \Bitrix\Landing\Internals\EO_Block createObject($setDefaultValues = true)
+ * @method static \Bitrix\Landing\Internals\EO_Block_Collection createCollection()
+ * @method static \Bitrix\Landing\Internals\EO_Block wakeUpObject($row)
+ * @method static \Bitrix\Landing\Internals\EO_Block_Collection wakeUpCollection($rows)
+ */
 class BlockTable extends Entity\DataManager
 {
 	/**
@@ -44,6 +60,12 @@ class BlockTable extends Entity\DataManager
 			'CODE' => new Entity\StringField('CODE', array(
 				'title' => Loc::getMessage('LANDING_TABLE_FIELD_CODE'),
 				'required' => true
+			)),
+			'CODE_ORIGINAL' => new Entity\StringField('CODE_ORIGINAL', array(
+				'title' => Loc::getMessage('LANDING_TABLE_FIELD_CODE_ORIGINAL'),
+			)),
+			'TPL_CODE' => new Entity\StringField('TPL_CODE', array(
+				'title' => Loc::getMessage('LANDING_TABLE_FIELD_TPL_CODE'),
 			)),
 			'XML_ID' => new Entity\StringField('XML_ID', array(
 				'title' => Loc::getMessage('LANDING_TABLE_FIELD_XML_ID')
@@ -98,6 +120,9 @@ class BlockTable extends Entity\DataManager
 			'ASSETS' => (new \Bitrix\Main\ORM\Fields\ArrayField('ASSETS', array(
 				'title' => Loc::getMessage('LANDING_TABLE_FIELD_SOURCE_PARAMS')
 			)))->configureSerializationPhp(),
+			'FAVORITE_META' => (new \Bitrix\Main\ORM\Fields\ArrayField('FAVORITE_META', array(
+				'title' => Loc::getMessage('LANDING_TABLE_FIELD_FAVORITE_META')
+			)))->configureSerializationPhp(),
 			'CREATED_BY_ID' => new Entity\IntegerField('CREATED_BY_ID', array(
 				'title' => Loc::getMessage('LANDING_TABLE_FIELD_CREATED_BY_ID'),
 				'required' => true
@@ -122,25 +147,65 @@ class BlockTable extends Entity\DataManager
 	 * @param Entity\Event $event Event instance.
 	 * @return Entity\EventResult
 	 */
-	protected static function prepareChange(Entity\Event $event)
+	protected static function prepareChange(Entity\Event $event): Entity\EventResult
 	{
 		$result = new Entity\EventResult();
 		$primary = $event->getParameter('primary');
 		$fields = $event->getParameter('fields');
+		$modifyFields = [];
 
 		// calculate filter hash
-		if (array_key_exists('SOURCE_PARAMS', $fields))
+		if (($primary['ID'] ?? null) && array_key_exists('SOURCE_PARAMS', $fields))
 		{
 			\Bitrix\Landing\Source\FilterEntity::setFilter(
 				$primary['ID'],
 				$fields['SOURCE_PARAMS']
 			);
-			$result->modifyFields([
-				'SOURCE_PARAMS' => $fields['SOURCE_PARAMS']
-			]);
+			$modifyFields['SOURCE_PARAMS'] = $fields['SOURCE_PARAMS'];
+		}
+
+		// work with content
+		if (array_key_exists('CONTENT', $fields))
+		{
+			$replaced = false;
+			$oldContent = null;
+
+			if ($primary['ID'] ?? null)
+			{
+				$res = self::getList([
+					'select' => [
+						'CONTENT'
+					],
+					'filter' => [
+						'ID' => $primary['ID']
+					]
+				]);
+				$oldContent = $res->fetch()['CONTENT'] ?? null;
+			}
+
+			$fields['CONTENT'] = \Bitrix\Landing\Connector\Disk::sanitizeContent($fields['CONTENT'], $oldContent, $replaced);
+			if ($replaced)
+			{
+				$modifyFields['CONTENT'] = $fields['CONTENT'];
+			}
+		}
+
+		if ($modifyFields)
+		{
+			$result->modifyFields($modifyFields);
 		}
 
 		return $result;
+	}
+
+	/**
+	 * Before add handler.
+	 * @param Entity\Event $event Event instance.
+	 * @return Entity\EventResult
+	 */
+	public static function onBeforeAdd(Entity\Event $event): Entity\EventResult
+	{
+		return self::prepareChange($event);
 	}
 
 	/**
@@ -148,7 +213,7 @@ class BlockTable extends Entity\DataManager
 	 * @param Entity\Event $event Event instance.
 	 * @return Entity\EventResult
 	 */
-	public static function onBeforeUpdate(Entity\Event $event)
+	public static function onBeforeUpdate(Entity\Event $event): Entity\EventResult
 	{
 		return self::prepareChange($event);
 	}
@@ -158,7 +223,7 @@ class BlockTable extends Entity\DataManager
 	 * @param Entity\Event $event Event instance.
 	 * @return Entity\EventResult
 	 */
-	public static function onAfterDelete(Entity\Event $event)
+	public static function onAfterDelete(Entity\Event $event): Entity\EventResult
 	{
 		$result = new Entity\EventResult();
 		$primary = $event->getParameter('primary');

@@ -14,6 +14,22 @@ use \Bitrix\Landing\Restriction;
 
 Loc::loadMessages(__FILE__);
 
+/**
+ * Class SiteTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Site_Query query()
+ * @method static EO_Site_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Site_Result getById($id)
+ * @method static EO_Site_Result getList(array $parameters = array())
+ * @method static EO_Site_Entity getEntity()
+ * @method static \Bitrix\Landing\Internals\EO_Site createObject($setDefaultValues = true)
+ * @method static \Bitrix\Landing\Internals\EO_Site_Collection createCollection()
+ * @method static \Bitrix\Landing\Internals\EO_Site wakeUpObject($row)
+ * @method static \Bitrix\Landing\Internals\EO_Site_Collection wakeUpCollection($rows)
+ */
 class SiteTable extends Entity\DataManager
 {
 	/**
@@ -104,7 +120,7 @@ class SiteTable extends Entity\DataManager
 			)),
 			'DOMAIN_ID' => new Entity\IntegerField('DOMAIN_ID', array(
 				'title' => Loc::getMessage('LANDING_TABLE_FIELD_DOMAIN_ID'),
-				'required' => true
+				//'required' => true
 			)),
 			'DOMAIN' => new Entity\ReferenceField(
 				'DOMAIN',
@@ -129,6 +145,9 @@ class SiteTable extends Entity\DataManager
 			'SPECIAL' => new Entity\StringField('SPECIAL', array(
 				'title' => Loc::getMessage('LANDING_TABLE_FIELD_SPECIAL'),
 				'default_value' => 'N'
+			)),
+			'VERSION' => new Entity\IntegerField('VERSION', array(
+				'title' => Loc::getMessage('LANDING_TABLE_FIELD_SITE_VERSION')
 			)),
 			'CREATED_BY_ID' => new Entity\IntegerField('CREATED_BY_ID', array(
 				'title' => Loc::getMessage('LANDING_TABLE_FIELD_CREATED_BY_ID'),
@@ -646,6 +665,25 @@ class SiteTable extends Entity\DataManager
 			}
 			else
 			{
+				$domainProvider = self::getValueByCode(
+					$primary['ID'],
+					$fields,
+					'DOMAIN_PROVIDER'
+				);
+				if ($domainProvider)
+				{
+					if (!Restriction\Manager::isAllowed('limit_free_domen', ['trueOnNotNull' => true]))
+					{
+						$result->unsetFields($unsetFields);
+						$result->setErrors(array(
+							new Entity\EntityError(
+								Restriction\Manager::getSystemErrorMessage('limit_free_domen'),
+								'FREE_DOMAIN_IS_NOT_ALLOWED'
+							)
+						));
+						return $result;
+					}
+				}
 				$canPublicSite = Manager::checkFeature(
 					Manager::FEATURE_PUBLICATION_SITE,
 					$primary
@@ -662,11 +700,17 @@ class SiteTable extends Entity\DataManager
 			}
 			if (!$canPublicSite)
 			{
+				$errCode = Manager::licenseIsFreeSite($fields['TYPE']) && !Manager::isFreePublicAllowed()
+					? 'PUBLIC_SITE_REACHED_FREE'
+					: 'PUBLIC_SITE_REACHED';
+				$msgCode = Manager::licenseIsFreeSite($fields['TYPE']) && !Manager::isFreePublicAllowed()
+					? 'limit_sites_number_free'
+					: 'limit_sites_number';
 				$result->unsetFields($unsetFields);
 				$result->setErrors(array(
 					new Entity\EntityError(
-						Restriction\Manager::getSystemErrorMessage('limit_sites_number'),
-						'PUBLIC_SITE_REACHED'
+						Restriction\Manager::getSystemErrorMessage($msgCode),
+						$errCode
 					)
 				));
 				return $result;
@@ -1007,6 +1051,7 @@ class SiteTable extends Entity\DataManager
 										SiteTable::update($primary['ID'], array(
 											'DOMAIN_ID' => $domainId
 										));
+										SiteTable::$disableCallback = false;
 									}
 								}
 							}
@@ -1015,6 +1060,7 @@ class SiteTable extends Entity\DataManager
 							{
 								$res = Domain::update($domainId, array(
 									'DOMAIN' => $domainName,
+									'FAIL_COUNT' => null,
 									'PROVIDER' => null
 								));
 								if ($res->isSuccess())
@@ -1129,48 +1175,46 @@ class SiteTable extends Entity\DataManager
 	}
 
 	/**
-	 * Sets new random domain to site. Actual for Bitrix24 only.
+	 * Sets new random domain to site.
 	 * @param int $siteId Site id.
 	 * @return bool
 	 */
 	public static function randomizeDomain(int $siteId): bool
 	{
-		if (ModuleManager::isModuleInstalled('bitrix24'))
+		$res = self::getList([
+			'select' => [
+				'ID',
+				'TYPE',
+				'DOMAIN_ID',
+				'DOMAIN_NAME' => 'DOMAIN.DOMAIN'
+			],
+			'filter' => [
+				'ID' => $siteId
+			]
+		]);
+		if ($row = $res->fetch())
 		{
-			$res = self::getList([
-				'select' => [
-					'ID',
-					'TYPE',
-					'DOMAIN_ID',
-					'DOMAIN_NAME' => 'DOMAIN.DOMAIN'
-				],
-				'filter' => [
-					'ID' => $siteId
-				]
-			]);
-			if ($row = $res->fetch())
+			$siteController = self::getSiteController();
+			$publicUrl = Manager::getPublicationPath($row['ID']);
+			try
 			{
-				$siteController = self::getSiteController();
-				$publicUrl = Manager::getPublicationPath($row['ID']);
-				try
+				$siteController::deleteDomain($row['DOMAIN_NAME']);
+				$domainName = $siteController::addRandomDomain(
+					$publicUrl,
+					($row['TYPE'] == 'STORE') ? 'shop' : $row['TYPE'],
+					Manager::getZone()
+				);
+				if ($domainName)
 				{
-					$siteController::deleteDomain($row['DOMAIN_NAME']);
-					$domainName = $siteController::addRandomDomain(
-						$publicUrl,
-						($row['TYPE'] == 'STORE') ? 'shop' : $row['TYPE'],
-						Manager::getZone()
-					);
-					if ($domainName)
-					{
-						$res = Domain::update($row['DOMAIN_ID'], [
-							'DOMAIN' => $domainName,
-							'PROVIDER' => null
-						]);
-						return $res->isSuccess();
-					}
+					$res = Domain::update($row['DOMAIN_ID'], [
+						'DOMAIN' => $domainName,
+						'FAIL_COUNT' => null,
+						'PROVIDER' => null
+					]);
+					return $res->isSuccess();
 				}
-				catch (SystemException $ex) {}
 			}
+			catch (SystemException $ex) {}
 		}
 
 		return false;
@@ -1541,6 +1585,7 @@ class SiteTable extends Entity\DataManager
 			\Bitrix\Landing\TemplateRef::setForSite($primary['ID'], []);
 			\Bitrix\Landing\UrlRewrite::removeForSite($primary['ID']);
 			\Bitrix\Landing\Rights::setOperationsForSite($primary['ID'], []);
+			\Bitrix\Landing\Folder::deleteForSite($primary['ID']);
 			\Bitrix\Landing\Site\Cookies::removeAgreementsForSite($primary['ID']);
 			BindingTable::siteClear($primary['ID']);
 

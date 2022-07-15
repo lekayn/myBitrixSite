@@ -11,6 +11,7 @@ use Bitrix\Main\DB\SqlExpression;
 use Bitrix\Main\Entity;
 use Bitrix\Main\Entity\ReferenceField;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ORM\Query\Query;
 use Bitrix\Main\Type;
 use Bitrix\Sender\Internals\Model\GroupCounterTable;
 use Bitrix\Sender\Posting\SegmentDataBuilder;
@@ -168,7 +169,7 @@ class GroupTable extends Entity\DataManager
 
 		$primary = array('GROUP_ID' => $data['primary']['ID']);
 		GroupConnectorTable::delete($primary);
-		GroupCounterTable::delete($primary);
+		GroupCounterTable::deleteList($primary);
 		SegmentDataBuilder::clearGroupBuilding((int) $data['primary']['ID']);
 
 		return $result;
@@ -252,6 +253,22 @@ class GroupConnectorTable extends Entity\DataManager
 
 
 
+/**
+ * Class GroupDealCategoryTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_GroupDealCategory_Query query()
+ * @method static EO_GroupDealCategory_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_GroupDealCategory_Result getById($id)
+ * @method static EO_GroupDealCategory_Result getList(array $parameters = array())
+ * @method static EO_GroupDealCategory_Entity getEntity()
+ * @method static \Bitrix\Sender\EO_GroupDealCategory createObject($setDefaultValues = true)
+ * @method static \Bitrix\Sender\EO_GroupDealCategory_Collection createCollection()
+ * @method static \Bitrix\Sender\EO_GroupDealCategory wakeUpObject($row)
+ * @method static \Bitrix\Sender\EO_GroupDealCategory_Collection wakeUpCollection($rows)
+ */
 class GroupDealCategoryTable extends Entity\DataManager
 {
 	/**
@@ -281,5 +298,30 @@ class GroupDealCategoryTable extends Entity\DataManager
 				'primary' => true,
 			),
 		);
+	}
+
+
+	/**
+	 * @param array $filter
+	 * @return \Bitrix\Main\DB\Result
+	 * @throws \Bitrix\Main\ArgumentException
+	 * @throws \Bitrix\Main\DB\SqlQueryException
+	 * @throws \Bitrix\Main\SystemException
+	 */
+	public static function deleteList(array $filter)
+	{
+		$entity = static::getEntity();
+		$connection = $entity->getConnection();
+
+		\CTimeZone::disable();
+		$sql = sprintf(
+			'DELETE FROM %s WHERE %s',
+			$connection->getSqlHelper()->quote($entity->getDbTableName()),
+			Query::buildFilterSql($entity, $filter)
+		);
+		$res = $connection->query($sql);
+		\CTimeZone::enable();
+
+		return $res;
 	}
 }

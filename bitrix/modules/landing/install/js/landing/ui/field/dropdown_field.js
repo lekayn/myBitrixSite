@@ -39,8 +39,16 @@
 			}, this);
 		}
 
-		setTextContent(this.input, this.items[0].name);
-		data(this.input, "value", this.items[0].value);
+		if (BX.Type.isArrayFilled(this.items))
+		{
+			setTextContent(this.input, this.items[0].name);
+			data(this.input, "value", this.items[0].value);
+		}
+		else
+		{
+			setTextContent(this.input, BX.Landing.Loc.getMessage("LANDING_DROPDOWN_NOT_FILLED"));
+			data(this.input, "value", "");
+		}
 
 		if (this.content !== "")
 		{
@@ -55,11 +63,18 @@
 		onInputClick: function(event)
 		{
 			event.stopPropagation();
-			if (!this.popup || (this.popupRoot && !this.popupRoot.contains(this.popup.popupWindow.popupContainer)))
+			if (
+				!this.popup
+				|| (!this.contentRoot && this.popupRoot && !this.popupRoot.contains(this.popup.popupWindow.popupContainer))
+			)
 			{
 				this.popup = new BX.PopupMenuWindow({
 					id: "dropdown_" + (+new Date()),
 					bindElement: this.input,
+					bindOptions: {
+						forceBindPosition: true
+					},
+					targetContainer: this.contentRoot,
 					maxHeight: 196,
 					items: this.items.map(function(item) {
 						return {
@@ -78,9 +93,12 @@
 					}
 				});
 
-				this.popupRoot = this.layout.parentElement.parentElement.parentElement;
-				this.popupRoot.appendChild(this.popup.popupWindow.popupContainer);
-				this.popupRoot.style.position = "relative";
+				if (!this.contentRoot)
+				{
+					this.popupRoot = this.layout.parentElement.parentElement.parentElement;
+					this.popupRoot.appendChild(this.popup.popupWindow.popupContainer);
+					this.popupRoot.style.position = "relative";
+				}
 			}
 
 			this.layout.classList.add("landing-ui-active");
@@ -96,10 +114,13 @@
 			}
 
 			var rect = this.input.getBoundingClientRect();
-			var left = offsetLeft(this.input, this.popupRoot);
-			var top = offsetTop(this.input, this.popupRoot);
-			this.popup.popupWindow.popupContainer.style.top = top + rect.height + "px";
-			this.popup.popupWindow.popupContainer.style.left = left + "px";
+			if (!this.contentRoot)
+			{
+				var left = offsetLeft(this.input, this.popupRoot);
+				var top = offsetTop(this.input, this.popupRoot);
+				this.popup.popupWindow.popupContainer.style.top = top + rect.height + "px";
+				this.popup.popupWindow.popupContainer.style.left = left + "px";
+			}
 			this.popup.popupWindow.popupContainer.style.width = rect.width + "px";
 		},
 
@@ -127,7 +148,10 @@
 				return value;
 			}
 
-			return this.items[0].value;
+			if (BX.Type.isArrayFilled(this.items))
+			{
+				return this.items[0].value;
+			}
 		},
 
 		setValue: function(value)
